@@ -60,7 +60,7 @@ def plot_magnitude_distance_coverage(peak_amplitude_df, figure_name):
     '''Look at the data coverage in magnitude-distance space'''
     fig, ax = plt.subplots(figsize=(10, 10))
     ax.scatter(peak_amplitude_df.magnitude, peak_amplitude_df.distance_in_km, 
-           s=3, c=np.sqrt(peak_amplitude_df.event_id), marker='o', cmap='jet', alpha=0.1)
+           s=3, c=peak_amplitude_df.event_label, marker='o', cmap='jet', alpha=0.1)
 
     ax.set_yscale('log')
     ax.set_xlabel('Magnitude')
@@ -73,9 +73,9 @@ def plot_distance_variations(peak_amplitude_df, P_S_peak_keys ,figure_name):
     '''Look at the rough variation of measured strain rate with distance'''
     fig, ax = plt.subplots(2, 1, figsize=(10, 20), sharex=True, sharey=True)
     ax[0].scatter(peak_amplitude_df.distance_in_km, peak_amplitude_df[P_S_peak_keys[0]], 
-              s=10, c=np.sqrt(peak_amplitude_df.event_id), marker='o', cmap='jet', alpha=0.1)
+              s=10, c=peak_amplitude_df.event_label, marker='o', cmap='jet', alpha=0.1)
     ax[1].scatter(peak_amplitude_df.distance_in_km, peak_amplitude_df[P_S_peak_keys[1]], 
-              s=20, c=np.sqrt(peak_amplitude_df.event_id), marker='x', cmap='jet', alpha=0.1)
+              s=20, c=peak_amplitude_df.event_label, marker='x', cmap='jet', alpha=0.1)
 
     ax[1].set_yscale('log')
     ax[1].set_xscale('log')
@@ -98,9 +98,9 @@ def plot_magnitude_variations(peak_amplitude_df, P_S_peak_keys ,figure_name):
     ''' Look at the rough variation of measured strain rate with magnitude'''
     fig, ax = plt.subplots(2, 1, figsize=(10, 20), sharex=True, sharey=True)
     ax[0].scatter(peak_amplitude_df.magnitude, peak_amplitude_df[P_S_peak_keys[0]], 
-              s=10, c=np.sqrt(peak_amplitude_df.event_id), marker='o', cmap='jet', alpha=0.1)
+              s=10, c=peak_amplitude_df.event_label, marker='o', cmap='jet', alpha=0.1)
     ax[1].scatter(peak_amplitude_df.magnitude, peak_amplitude_df[P_S_peak_keys[1]], 
-              s=20, c=np.sqrt(peak_amplitude_df.event_id), marker='x', cmap='jet', alpha=0.1)
+              s=20, c=peak_amplitude_df.event_label, marker='x', cmap='jet', alpha=0.1)
 
     ax[1].set_yscale('log')
 
@@ -145,15 +145,15 @@ def plot_compare_prediction_vs_true_values(peak_amplitude_df, y_P_predict, y_S_p
     fig, ax = plt.subplots(2, 1, figsize=(10, 20), sharex=True, sharey=True)
 
     ax[0].plot([0, 10], [0, 10], '-k', zorder=1)
-    ax[0].plot(y_P, y_P_predict, 'b.', alpha=0.02)
-    ax[0].set_ylabel('predicted log10(E)')
-    ax[0].set_xlabel('measured log10(E)')
+    ax[0].scatter(y_P, y_P_predict, s=10, c=peak_amplitude_df.event_label, marker='o', alpha=0.01, cmap='jet')
+    ax[0].set_ylabel('P predicted log10(E)')
+    ax[0].set_xlabel('P measured log10(E)')
     ax[0].xaxis.set_tick_params(which='both',labelbottom=True)
 
     ax[1].plot([0, 10], [0, 10], '-k', zorder=1)
-    ax[1].plot(y_S, y_S_predict, 'r.', alpha=0.02)
-    ax[1].set_ylabel('predicted log10(E)')
-    ax[1].set_xlabel('measured log10(E)')
+    ax[1].scatter(y_S, y_S_predict, s=10, c=peak_amplitude_df.event_label, marker='o', alpha=0.01, cmap='jet')
+    ax[1].set_ylabel('S predicted log10(E)')
+    ax[1].set_xlabel('S measured log10(E)')
 
     ax[1].set_xlim(data_lim)
     ax[1].set_ylim(data_lim)
