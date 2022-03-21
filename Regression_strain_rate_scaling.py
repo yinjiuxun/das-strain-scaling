@@ -102,8 +102,8 @@ for nearby_channel_number in [10, 20, 50, 100]:
     regS_3 = smf.ols(formula='np.log10(peak_S) ~ magnitude + np.log10(distance_in_km) + C(combined_channel_id) - 1', data=peak_amplitude_df).fit()
 
     print(regP_3.params[-2:])
-    print('\n\n')
     print(regS_3.params[-2:])
+    print('\n\n')
 
     regP_3.save(regression_results_dir + f"/P_regression_all_events_with_combined_site_terms_{nearby_channel_number}chan.pickle")
     regS_3.save(regression_results_dir + f"/S_regression_all_events_with_combined_site_terms_{nearby_channel_number}chan.pickle")
