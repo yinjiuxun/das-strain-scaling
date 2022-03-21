@@ -8,6 +8,8 @@ import statsmodels.api as sm
 
 # import the plotting functions
 from plotting_functions import *
+# import the utility functions
+from utility_functions import *
 
 # ==============================  Ridgecrest data ========================================
 #%% Specify the file names
@@ -87,13 +89,6 @@ y_S_predict_2 = regS_2.predict(peak_amplitude_df)
 plot_compare_prediction_vs_true_values(peak_amplitude_df, y_P_predict_2, y_S_predict_2, (1.0, 5.5), regression_results_dir + '/validate_predicted_strain_rate_all_events_with_site_terms.png')
 
 # %% Regression 3: Linear regression on the data point including the site term, here assume that every X nearby channels share the same site terms
-# first work on the channel_id
-def combined_channels(DAS_index, peak_amplitude_df, nearby_channel_number):
-    temp1= np.arange(0, DAS_index.max()+1) # original channel number
-    temp2 = temp1 // nearby_channel_number # combined channel number
-    peak_amplitude_df['combined_channel_id'] = temp2[np.array(peak_amplitude_df.channel_id).astype('int')]
-    return peak_amplitude_df
-
 # nearby_channel_number = 50 # number of neighboring channels to have same site terms
 for nearby_channel_number in [10, 20, 50, 100]:
     peak_amplitude_df = combined_channels(DAS_index, peak_amplitude_df, nearby_channel_number)
