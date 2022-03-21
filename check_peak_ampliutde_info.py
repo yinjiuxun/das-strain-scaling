@@ -6,6 +6,8 @@ import numpy as np
 
 # import the plotting functions
 from plotting_functions import *
+# import the utility functions
+from utility_functions import *
 
 # ==============================  Ridgecrest data ========================================
 #%% Specify the file names
@@ -18,7 +20,7 @@ das_pick_file_name = '/peak_amplitude_M3+.csv'
 #%% Specify the file names
 DAS_info_files = '/kuafu/DASdata/DASinfo/DAS_ChannelLocation/DAS_Olancha_Plexus.txt'
 catalog_file =  '/home/yinjx/notebooks/strain_scaling/Ridgecrest_das_catalog_M2_M8.txt'
-results_output_dir = '/home/yinjx/kuafu/Olancha_Plexus/Olancha_strain_rate_scaling'
+results_output_dir = '/kuafu/yinjx/Olancha_Plexus/Olancha_scaling/peak_ampliutde_scaling_results_strain_rate'
 das_pick_file_name = '/peak_amplitude_M3+.csv'
 
 
@@ -35,6 +37,8 @@ catalog = pd.read_csv(catalog_file, sep='\s+', header=None, skipfooter=1, engine
 
 # Load the peak amplitude results
 peak_amplitude_df = pd.read_csv(results_output_dir + '/' + das_pick_file_name)
+# Add the event label for plotting
+peak_amplitude_df = add_event_label(peak_amplitude_df)
 
 # directory to store the fitted results
 regression_results_dir = results_output_dir + '/regression_results_smf'
