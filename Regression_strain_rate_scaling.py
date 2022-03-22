@@ -68,6 +68,7 @@ y_P_predict_1 = regP_1.predict(peak_amplitude_df)
 y_S_predict_1 = regS_1.predict(peak_amplitude_df)
 
 # Compare Ground truth values
+peak_amplitude_df = add_event_label(peak_amplitude_df)
 plot_compare_prediction_vs_true_values(peak_amplitude_df, y_P_predict_1, y_S_predict_1, (1.0, 5.5), regression_results_dir + '/validate_predicted_strain_rate_all_events_no_site_terms.png')
 
 # %% Regression 2: Linear regression on the data point including the site term
@@ -92,6 +93,10 @@ plot_compare_prediction_vs_true_values(peak_amplitude_df, y_P_predict_2, y_S_pre
 # nearby_channel_number = 50 # number of neighboring channels to have same site terms
 for nearby_channel_number in [10, 20, 50, 100]:
     peak_amplitude_df = combined_channels(DAS_index, peak_amplitude_df, nearby_channel_number)
+    # Store the processed DataFrame
+    peak_amplitude_df = add_event_label(peak_amplitude_df)
+    peak_amplitude_df.to_csv(results_output_dir + f'/peak_amplitude_region_site_{nearby_channel_number}.csv', index=False)
+
 
     regP_3 = smf.ols(formula='np.log10(peak_P) ~ magnitude + np.log10(distance_in_km) + C(combined_channel_id) - 1', data=peak_amplitude_df).fit()
     regS_3 = smf.ols(formula='np.log10(peak_S) ~ magnitude + np.log10(distance_in_km) + C(combined_channel_id) - 1', data=peak_amplitude_df).fit()
