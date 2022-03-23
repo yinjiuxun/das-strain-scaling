@@ -78,13 +78,13 @@ def plot_magnitude_prediction(temp_df_P_list, temp_df_S_list):
     ax[1].text(2.5, 5.75, 'regression')
     ax[1].text(4.5, 5.75, 'prediction')
 
+# ========================== work on Combined results from both Ridgecrest and Olancha ================================
 # First check how well the regression relation can be used to calculate Magnitude
 #%% load the results from combined regional site terms t
 results_output_dir = '/kuafu/yinjx/combined_strain_scaling'
 regression_dir = 'regression_results_smf'
 
 nearby_channel_numbers = [100, 50, 20, 10]
-horizontal_shift = [-0.015, -0.005, 0.005, 0.015]
 cmap = ['blue', 'orange', 'green', 'red', 'purple', 'yellow']
 
 temp_df_P_list = []
@@ -122,7 +122,6 @@ results_output_dir = '/kuafu/yinjx/combined_strain_scaling'
 regression_dir = 'regression_results_smf_M3'
 
 nearby_channel_numbers = [100, 50, 20, 10]
-horizontal_shift = [-0.015, -0.005, 0.005, 0.015]
 cmap = ['blue', 'orange', 'green', 'red', 'purple', 'yellow']
 
 temp_df_P_list = []
@@ -156,11 +155,19 @@ plt.savefig(results_output_dir + '/' + regression_dir + "/predicted_magnitude.pn
 
 
 
-#%% load the results from Ridgecrest
+#%% ========================== work on the results from Ridgecrest ================================
+# First check how well the regression relation can be used to calculate Magnitude
+#%% load the results from combined regional site terms t
 results_output_dir = '/home/yinjx/kuafu/Ridgecrest/Ridgecrest_scaling/peak_ampliutde_scaling_results_strain_rate'
 regression_dir = 'regression_results_smf'
 
-for nearby_channel_number in [10]:#[10, 20, 50, 100]:
+nearby_channel_numbers = [100, 50, 20, 10]
+cmap = ['blue', 'orange', 'green', 'red', 'purple', 'yellow']
+
+temp_df_P_list = []
+temp_df_S_list = []
+
+for ii, nearby_channel_number in enumerate(nearby_channel_numbers):
     peak_amplitude_df = pd.read_csv(results_output_dir + f'/peak_amplitude_region_site_{nearby_channel_number}.csv')
     
 
@@ -173,28 +180,71 @@ for nearby_channel_number in [10]:#[10, 20, 50, 100]:
     print(regS.params[-2:])
     print('\n\n')   
 
-# %%
-M_P = calculate_magnitude_from_strain(peak_amplitude_df, regP, fitting_type='with_site', site_term_column='combined_channel_id')
-M_S = calculate_magnitude_from_strain(peak_amplitude_df, regS, fitting_type='with_site', site_term_column='combined_channel_id')
-# %%
-temp_df_P = get_mean_magnitude(peak_amplitude_df, M_P)
-temp_df_S = get_mean_magnitude(peak_amplitude_df, M_S)
 
-fig, ax = plt.subplots(2,1, figsize=(8, 16), sharex=True, sharey=True)
-ax[0].scatter(temp_df_P.magnitude, temp_df_P.predicted_M,s=10, c='r', marker='.')
-ax[0].plot([0, 10], [0, 10], '-k', zorder=1)
-ax[0].set_xlim(2, 6)
-ax[0].set_ylim(2, 6)
+    M_P = calculate_magnitude_from_strain(peak_amplitude_df, regP, fitting_type='with_site', site_term_column='combined_channel_id')
+    M_S = calculate_magnitude_from_strain(peak_amplitude_df, regS, fitting_type='with_site', site_term_column='combined_channel_id')
 
-ax[1].scatter(temp_df_S.magnitude, temp_df_S.predicted_M,s=10, c='r', marker='.')
-ax[1].plot([0, 10], [0, 10], '-k', zorder=1)
+    temp_df_P = get_mean_magnitude(peak_amplitude_df, M_P)
+    temp_df_S = get_mean_magnitude(peak_amplitude_df, M_S)
+
+    temp_df_P_list.append(temp_df_P)
+    temp_df_S_list.append(temp_df_S)
+
+plot_magnitude_prediction(temp_df_P_list, temp_df_S_list)
+plt.savefig(results_output_dir + '/' + regression_dir + "/predicted_magnitude.png")
+
+# Then try to use the regression relation from small events to predict the larger ones
+# load the results from combined regional site terms t
+regression_dir = 'regression_results_smf_M3'
+
+nearby_channel_numbers = [100, 50, 20, 10]
+horizontal_shift = [-0.015, -0.005, 0.005, 0.015]
+cmap = ['blue', 'orange', 'green', 'red', 'purple', 'yellow']
+
+temp_df_P_list = []
+temp_df_S_list = []
+
+for ii, nearby_channel_number in enumerate(nearby_channel_numbers):
+    peak_amplitude_df = pd.read_csv(results_output_dir + f'/peak_amplitude_region_site_{nearby_channel_number}.csv')
+    
+
+    # %% Now can fit the data with different regional site terms
+    regP = sm.load(results_output_dir + '/' + regression_dir + f"/P_regression_all_events_with_combined_site_terms_{nearby_channel_number}chan.pickle")
+    regS = sm.load(results_output_dir + '/' + regression_dir + f"/S_regression_all_events_with_combined_site_terms_{nearby_channel_number}chan.pickle")
+
+    print(f'Combined every {nearby_channel_number} channels.')
+    print(regP.params[-2:])
+    print(regS.params[-2:])
+    print('\n\n')   
 
 
-#%% load the results from Olancha
+    M_P = calculate_magnitude_from_strain(peak_amplitude_df, regP, fitting_type='with_site', site_term_column='combined_channel_id')
+    M_S = calculate_magnitude_from_strain(peak_amplitude_df, regS, fitting_type='with_site', site_term_column='combined_channel_id')
+
+    temp_df_P = get_mean_magnitude(peak_amplitude_df, M_P)
+    temp_df_S = get_mean_magnitude(peak_amplitude_df, M_S)
+
+    temp_df_P_list.append(temp_df_P)
+    temp_df_S_list.append(temp_df_S)
+
+plot_magnitude_prediction(temp_df_P_list, temp_df_S_list)
+plt.savefig(results_output_dir + '/' + regression_dir + "/predicted_magnitude.png")
+
+
+
+#%% ========================== work on the results from Olancha ================================
+# First check how well the regression relation can be used to calculate Magnitude
+#%% load the results from combined regional site terms t
 results_output_dir = '/home/yinjx/kuafu/Olancha_Plexus/Olancha_scaling/peak_ampliutde_scaling_results_strain_rate'
 regression_dir = 'regression_results_smf'
 
-for nearby_channel_number in [10]:#[10, 20, 50, 100]:
+nearby_channel_numbers = [100, 50, 20, 10]
+cmap = ['blue', 'orange', 'green', 'red', 'purple', 'yellow']
+
+temp_df_P_list = []
+temp_df_S_list = []
+
+for ii, nearby_channel_number in enumerate(nearby_channel_numbers):
     peak_amplitude_df = pd.read_csv(results_output_dir + f'/peak_amplitude_region_site_{nearby_channel_number}.csv')
     
 
@@ -207,19 +257,54 @@ for nearby_channel_number in [10]:#[10, 20, 50, 100]:
     print(regS.params[-2:])
     print('\n\n')   
 
-# %%
-M_P = calculate_magnitude_from_strain(peak_amplitude_df, regP, fitting_type='with_site', site_term_column='combined_channel_id')
-M_S = calculate_magnitude_from_strain(peak_amplitude_df, regS, fitting_type='with_site', site_term_column='combined_channel_id')
-# %%
-temp_df_P = get_mean_magnitude(peak_amplitude_df, M_P)
-temp_df_S = get_mean_magnitude(peak_amplitude_df, M_S)
 
-fig, ax = plt.subplots(2,1, figsize=(8, 16), sharex=True, sharey=True)
-ax[0].scatter(temp_df_P.magnitude, temp_df_P.predicted_M,s=10, c='r', marker='.')
-ax[0].plot([0, 10], [0, 10], '-k', zorder=1)
-ax[0].set_xlim(2, 6)
-ax[0].set_ylim(2, 6)
+    M_P = calculate_magnitude_from_strain(peak_amplitude_df, regP, fitting_type='with_site', site_term_column='combined_channel_id')
+    M_S = calculate_magnitude_from_strain(peak_amplitude_df, regS, fitting_type='with_site', site_term_column='combined_channel_id')
 
-ax[1].scatter(temp_df_S.magnitude, temp_df_S.predicted_M,s=10, c='r', marker='.')
-ax[1].plot([0, 10], [0, 10], '-k', zorder=1)
+    temp_df_P = get_mean_magnitude(peak_amplitude_df, M_P)
+    temp_df_S = get_mean_magnitude(peak_amplitude_df, M_S)
+
+    temp_df_P_list.append(temp_df_P)
+    temp_df_S_list.append(temp_df_S)
+
+plot_magnitude_prediction(temp_df_P_list, temp_df_S_list)
+plt.savefig(results_output_dir + '/' + regression_dir + "/predicted_magnitude.png")
+
+# Then try to use the regression relation from small events to predict the larger ones
+# load the results from combined regional site terms t
+regression_dir = 'regression_results_smf_M3'
+
+nearby_channel_numbers = [100, 50, 20, 10]
+horizontal_shift = [-0.015, -0.005, 0.005, 0.015]
+cmap = ['blue', 'orange', 'green', 'red', 'purple', 'yellow']
+
+temp_df_P_list = []
+temp_df_S_list = []
+
+for ii, nearby_channel_number in enumerate(nearby_channel_numbers):
+    peak_amplitude_df = pd.read_csv(results_output_dir + f'/peak_amplitude_region_site_{nearby_channel_number}.csv')
+    
+
+    # %% Now can fit the data with different regional site terms
+    regP = sm.load(results_output_dir + '/' + regression_dir + f"/P_regression_all_events_with_combined_site_terms_{nearby_channel_number}chan.pickle")
+    regS = sm.load(results_output_dir + '/' + regression_dir + f"/S_regression_all_events_with_combined_site_terms_{nearby_channel_number}chan.pickle")
+
+    print(f'Combined every {nearby_channel_number} channels.')
+    print(regP.params[-2:])
+    print(regS.params[-2:])
+    print('\n\n')   
+
+
+    M_P = calculate_magnitude_from_strain(peak_amplitude_df, regP, fitting_type='with_site', site_term_column='combined_channel_id')
+    M_S = calculate_magnitude_from_strain(peak_amplitude_df, regS, fitting_type='with_site', site_term_column='combined_channel_id')
+
+    temp_df_P = get_mean_magnitude(peak_amplitude_df, M_P)
+    temp_df_S = get_mean_magnitude(peak_amplitude_df, M_S)
+
+    temp_df_P_list.append(temp_df_P)
+    temp_df_S_list.append(temp_df_S)
+
+plot_magnitude_prediction(temp_df_P_list, temp_df_S_list)
+plt.savefig(results_output_dir + '/' + regression_dir + "/predicted_magnitude.png")
+
 # %%
