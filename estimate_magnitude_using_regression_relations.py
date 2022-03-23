@@ -11,7 +11,7 @@ from plotting_functions import *
 # import the utility functions
 from utility_functions import *
 
-
+#%% Define functions
 # Use the predicted strain to calculate magnitude
 def calculate_magnitude_from_strain(peak_amplitude_df, reg, fitting_type='without_site', site_term_column='region_site'):
     
@@ -49,19 +49,46 @@ def get_mean_magnitude(peak_amplitude_df, M_predict):
     temp_df = pd.concat([temp_df, temp_df2['predicted_M_std']], axis=1)
     return temp_df
 
+def plot_magnitude_prediction(temp_df_P_list, temp_df_S_list):
+    horizontal_shift = [0, 0, 0, 0] #[-0.015, -0.005, 0.005, 0.015]
+    fig, ax = plt.subplots(2, 1, figsize=(10, 20), sharex=True, sharey=True)
+    for ii in range(len(temp_df_P_list)):
+        temp_df_P = temp_df_P_list[ii]
+        temp_df_S = temp_df_S_list[ii]
+
+        ax[0].errorbar(temp_df_P.magnitude + horizontal_shift[ii], temp_df_P.predicted_M, yerr=temp_df_P.predicted_M_std, marker='o', linestyle='none')
+        ax[0].plot([0, 10], [0, 10], '-k', zorder=1)
+        ax[0].vlines(x=4, ymin=0, ymax=10, linestyle='--', color='k')
+        ax[0].set_xlim(2, 6)
+        ax[0].set_ylim(2, 6)
+        ax[0].set_ylabel('P predicted M')
+        ax[0].set_xlabel('true M')
+        ax[0].xaxis.set_tick_params(which='both',labelbottom=True)
+
+        ax[1].errorbar(temp_df_S.magnitude + horizontal_shift[ii], temp_df_S.predicted_M, yerr=temp_df_S.predicted_M_std, marker='o', linestyle='none')
+        ax[1].plot([0, 10], [0, 10], '-k', zorder=1)
+        ax[1].vlines(x=4, ymin=0, ymax=10, linestyle='--', color='k')
+        ax[1].set_xlim(2, 6)
+        ax[1].set_ylim(2, 6)
+        ax[1].set_ylabel('S predicted M')
+        ax[1].set_xlabel('true M')
+
+    ax[0].text(2.5, 5.75, 'regression')
+    ax[0].text(4.5, 5.75, 'prediction')
+    ax[1].text(2.5, 5.75, 'regression')
+    ax[1].text(4.5, 5.75, 'prediction')
 
 # First check how well the regression relation can be used to calculate Magnitude
-
 #%% load the results from combined regional site terms t
 results_output_dir = '/kuafu/yinjx/combined_strain_scaling'
 regression_dir = 'regression_results_smf'
 
 nearby_channel_numbers = [100, 50, 20, 10]
-horizontal_shift = [-0.045, -0.015, 0.015, 0.045]
+horizontal_shift = [-0.015, -0.005, 0.005, 0.015]
 cmap = ['blue', 'orange', 'green', 'red', 'purple', 'yellow']
 
-plt.close('all')
-fig, ax = plt.subplots(2,1, figsize=(8, 16), sharex=True, sharey=True)
+temp_df_P_list = []
+temp_df_S_list = []
 
 for ii, nearby_channel_number in enumerate(nearby_channel_numbers):
     peak_amplitude_df = pd.read_csv(results_output_dir + f'/peak_amplitude_region_site_{nearby_channel_number}.csv')
@@ -82,23 +109,52 @@ for ii, nearby_channel_number in enumerate(nearby_channel_numbers):
 
     temp_df_P = get_mean_magnitude(peak_amplitude_df, M_P)
     temp_df_S = get_mean_magnitude(peak_amplitude_df, M_S)
+
+    temp_df_P_list.append(temp_df_P)
+    temp_df_S_list.append(temp_df_S)
+#%%
+plot_magnitude_prediction(temp_df_P_list, temp_df_S_list)
+plt.savefig(results_output_dir + '/' + regression_dir + "/predicted_magnitude.png")
+
+# Then try to use the regression relation from small events to predict the larger ones
+#%% load the results from combined regional site terms t
+results_output_dir = '/kuafu/yinjx/combined_strain_scaling'
+regression_dir = 'regression_results_smf_M3'
+
+nearby_channel_numbers = [100, 50, 20, 10]
+horizontal_shift = [-0.015, -0.005, 0.005, 0.015]
+cmap = ['blue', 'orange', 'green', 'red', 'purple', 'yellow']
+
+temp_df_P_list = []
+temp_df_S_list = []
+
+for ii, nearby_channel_number in enumerate(nearby_channel_numbers):
+    peak_amplitude_df = pd.read_csv(results_output_dir + f'/peak_amplitude_region_site_{nearby_channel_number}.csv')
     
-    #ax[0].scatter(peak_amplitude_df.magnitude + horizontal_shift[ii], M_P, s=5, c=cmap[ii], marker='.', alpha=0.05, label=f'{nearby_channel_number} channels')
-    ax[0].errorbar(temp_df_P.magnitude + horizontal_shift[ii], temp_df_P.predicted_M, yerr=temp_df_P.predicted_M_std, marker='.', color=cmap[ii])
-    ax[0].scatter(temp_df_P.magnitude + horizontal_shift[ii], temp_df_P.predicted_M,s=20, c=cmap[ii], 
-    marker='o', edgecolors='k', label=f'{nearby_channel_number} channels mean', zorder=2)
-    ax[0].plot([0, 10], [0, 10], '-k', zorder=1)
-    ax[0].set_xlim(1.5, 6.5)
-    ax[0].set_ylim(1.5, 6.5)
 
-    #ax[1].scatter(peak_amplitude_df.magnitude + horizontal_shift[ii], M_S, s=5, c=cmap[ii], marker='.', alpha=0.05, label=f'{nearby_channel_number} channels')
-    ax[1].errorbar(temp_df_S.magnitude + horizontal_shift[ii], temp_df_S.predicted_M, yerr=temp_df_S.predicted_M_std, marker='.', color=cmap[ii])
-    ax[1].scatter(temp_df_S.magnitude + horizontal_shift[ii], temp_df_S.predicted_M,s=20, c=cmap[ii], 
-    marker='o', edgecolors='k', label=f'{nearby_channel_number} channels mean', zorder=2)
-    ax[1].plot([0, 10], [0, 10], '-k', zorder=1)
+    # %% Now can fit the data with different regional site terms
+    regP = sm.load(results_output_dir + '/' + regression_dir + f"/P_regression_region_site_terms_{nearby_channel_number}chan.pickle")
+    regS = sm.load(results_output_dir + '/' + regression_dir + f"/S_regression_region_site_terms_{nearby_channel_number}chan.pickle")
 
-ax[0].legend(loc=4)
-ax[1].legend(loc=4)
+    print(f'Combined every {nearby_channel_number} channels.')
+    print(regP.params[-2:])
+    print(regS.params[-2:])
+    print('\n\n')   
+
+
+    M_P = calculate_magnitude_from_strain(peak_amplitude_df, regP, fitting_type='with_site', site_term_column='region_site')
+    M_S = calculate_magnitude_from_strain(peak_amplitude_df, regS, fitting_type='with_site', site_term_column='region_site')
+
+    temp_df_P = get_mean_magnitude(peak_amplitude_df, M_P)
+    temp_df_S = get_mean_magnitude(peak_amplitude_df, M_S)
+
+    temp_df_P_list.append(temp_df_P)
+    temp_df_S_list.append(temp_df_S)
+#%%
+plot_magnitude_prediction(temp_df_P_list, temp_df_S_list)
+plt.savefig(results_output_dir + '/' + regression_dir + "/predicted_magnitude.png")
+
+
 
 #%% load the results from Ridgecrest
 results_output_dir = '/home/yinjx/kuafu/Ridgecrest/Ridgecrest_scaling/peak_ampliutde_scaling_results_strain_rate'
