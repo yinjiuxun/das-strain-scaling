@@ -12,6 +12,13 @@ from plotting_functions import *
 from utility_functions import *
 
 #%% Functions used here
+def add_region(peak_file, region_label):
+    peak_amplitude_df = pd.read_csv(peak_file)
+    peak_amplitude_df['region'] = region_label # add the region label
+    DAS_index = peak_amplitude_df.channel_id.unique().astype('int')
+    peak_amplitude_df = peak_amplitude_df.dropna()
+    return peak_amplitude_df,DAS_index
+
 def model_parameters_df(reg, combined_channel_number, digits=3):
     magnitude = round(reg.params[-2],digits)
     distance = round(reg.params[-1],digits)
@@ -61,36 +68,39 @@ def fit_regression(peak_amplitude_df, M_threshold, regression_results_dir, nearb
 # P_parameters_comparison.to_csv(regression_text + '/parameter_comparison_P.txt', index=False, sep='\t')
 # S_parameters_comparison.to_csv(regression_text + '/parameter_comparison_S.txt', index=False, sep='\t')
 
-# ==============================  Ridgecrest data ========================================
-#%% Specify the file names
-results_output_dir = '/home/yinjx/kuafu/Ridgecrest/Ridgecrest_scaling/peak_ampliutde_scaling_results_strain_rate'
-das_pick_file_name = '/peak_amplitude_M3+.csv'
+#%% ==============================  Ridgecrest data ========================================
+ridgecrest_peaks = '/home/yinjx/kuafu/Ridgecrest/Ridgecrest_scaling/peak_ampliutde_scaling_results_strain_rate/peak_amplitude_M3+.csv'
+peak_amplitude_df_ridgecrest, DAS_index_ridgecrest = add_region(ridgecrest_peaks, region_label='ridgecrest')
 
-peak_amplitude_df_ridgecrest = pd.read_csv(results_output_dir + '/' + das_pick_file_name)
-peak_amplitude_df_ridgecrest['region'] = 'ridgecrest' # add the region label
-DAS_index_ridgecrest = peak_amplitude_df_ridgecrest.channel_id.unique().astype('int')
-peak_amplitude_df_ridgecrest = peak_amplitude_df_ridgecrest.dropna()
+#%% ==============================  Olancha data ========================================
+olancha_peaks = '/home/yinjx/kuafu/Olancha_Plexus/Olancha_scaling/peak_ampliutde_scaling_results_strain_rate/peak_amplitude_M3+.csv'
+peak_amplitude_df_olancha, DAS_index_olancha = add_region(olancha_peaks, region_label='olancha')
 
-# ==============================  Olancha data ========================================
-#%% Specify the file names
-results_output_dir = '/home/yinjx/kuafu/Olancha_Plexus/Olancha_scaling/peak_ampliutde_scaling_results_strain_rate'
-das_pick_file_name = '/peak_amplitude_M3+.csv'
+#%% ==============================  Mammoth south data ========================================
+mammoth_S_peaks = '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/South/Mammoth_South_Scaling_M3.csv'
+peak_amplitude_df_mammoth_S, DAS_index_mammoth_S = add_region(mammoth_S_peaks, region_label='mammothS')
 
-peak_amplitude_df_olancha = pd.read_csv(results_output_dir + '/' + das_pick_file_name)
-peak_amplitude_df_olancha['region'] = 'olancha' # add the region label
-DAS_index_olancha = peak_amplitude_df_olancha.channel_id.unique().astype('int')
-peak_amplitude_df_olancha = peak_amplitude_df_olancha.dropna()
+#%% ==============================  Mammoth north data ========================================
+mammoth_N_peaks = '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/North/Mammoth_North_Scaling_M3.csv'
+peak_amplitude_df_mammoth_N, DAS_index_mammoth_N = add_region(mammoth_N_peaks, region_label='mammothN')
+
+#%% use a list to contain all the data
+peak_data_list = [peak_amplitude_df_ridgecrest, peak_amplitude_df_olancha, peak_amplitude_df_mammoth_S, peak_amplitude_df_mammoth_N]
+das_index_list = [DAS_index_ridgecrest, DAS_index_olancha, DAS_index_mammoth_S, DAS_index_mammoth_N]
 
 #%% Combine the peak results from different regions
-results_output_dir = '/kuafu/yinjx/combined_strain_scaling'
+results_output_dir = '/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_ROM'
+if not os.path.exists(results_output_dir):
+    os.mkdir(results_output_dir)
 
 #%% Preprocess the data file: combining different channels etc.
-combined_channel_number_list = [10, 20, 50, 100, -1] # -1 means the constant model
+combined_channel_number_list = [50, -1] #[10, 20, 50, 100, -1] # -1 means the constant model
 for nearby_channel_number in combined_channel_number_list:
+    for ii, peak_data in enumerate(peak_data_list): # combine nearby channels for all the prepared data
+        peak_data = combined_channels(das_index_list[ii], peak_data, nearby_channel_number)
 
-    peak_amplitude_df_ridgecrest = combined_channels(DAS_index_ridgecrest, peak_amplitude_df_ridgecrest, nearby_channel_number)
-    peak_amplitude_df_olancha = combined_channels(DAS_index_olancha, peak_amplitude_df_olancha, nearby_channel_number)
-    peak_amplitude_df = pd.concat((peak_amplitude_df_ridgecrest, peak_amplitude_df_olancha), axis=0)
+    # Combined data from different regions
+    peak_amplitude_df = pd.concat(peak_data_list, axis=0)
     peak_amplitude_df = add_event_label(peak_amplitude_df)
 
     # %% Aggregate the columns of region and combined_channel_id to form the regional site terms
@@ -106,14 +116,12 @@ regression_results_dir = results_output_dir + '/regression_results_smf'
 if not os.path.exists(regression_results_dir):
     os.mkdir(regression_results_dir)
 
-for nearby_channel_number in [10, 20, 50, 100, -1]:
+for nearby_channel_number in combined_channel_number_list:
     # Load the processed DataFrame
     peak_amplitude_df = pd.read_csv(results_output_dir + f'/peak_amplitude_region_site_{nearby_channel_number}.csv')
     # Specify magnitude range to do regression
     M_threshold = [0, 9]
-    regP, regS = fit_regression(peak_amplitude_df, M_threshold, regression_results_dir, nearby_channel_number)
-    # reset the regression models
-    del regP, regS
+    fit_regression(peak_amplitude_df, M_threshold, regression_results_dir, nearby_channel_number)
 
 # ======================= Below are the part to use the small events to do the regression ===========================
 # %% Now only use the smaller earthquakes to do the regression
@@ -122,7 +130,7 @@ regression_results_dir = results_output_dir + '/regression_results_smf_M4'
 if not os.path.exists(regression_results_dir):
     os.mkdir(regression_results_dir)
 
-for nearby_channel_number in [10, 20, 50, 100, -1]:
+for nearby_channel_number in combined_channel_number_list:
     # Load the processed DataFrame
     peak_amplitude_df = pd.read_csv(results_output_dir + f'/peak_amplitude_region_site_{nearby_channel_number}.csv')
     # Specify magnitude range to do regression
@@ -130,3 +138,5 @@ for nearby_channel_number in [10, 20, 50, 100, -1]:
     regP, regS = fit_regression(peak_amplitude_df, M_threshold, regression_results_dir, nearby_channel_number)
     # reset the regression models
     del regP, regS
+
+# %%
