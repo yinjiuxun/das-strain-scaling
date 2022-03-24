@@ -40,6 +40,10 @@ regression_results_dir = results_output_dir + '/regression_results_smf'
 if not os.path.exists(regression_results_dir):
     os.mkdir(regression_results_dir)
 
+# make a directory to store the regression results in text
+regression_text = regression_results_dir + '/regression_results_txt'
+if not os.path.exists(regression_text):
+    os.mkdir(regression_text)
 
 peak_amplitude_df = peak_amplitude_df.dropna()
 peak_amplitude_df = add_event_label(peak_amplitude_df)
@@ -62,8 +66,10 @@ print(regP_1.summary())
 print('\n\n')
 print(regS_1.summary())
 
-regP_1.save(regression_results_dir + "/P_regression_all_events_no_site_terms.pickle")
-regS_1.save(regression_results_dir + "/S_regression_all_events_no_site_terms.pickle")
+with open(regression_text + f"/P_regression_all_events_with_combined_site_terms_-1chan.txt", "w") as text_file:
+    text_file.write(regP_1.summary().as_text())
+with open(regression_text + f"/S_regression_all_events_with_combined_site_terms_-1chan.txt", "w") as text_file:
+    text_file.write(regS_1.summary().as_text())
 
 #make prediciton and compare with the measured
 y_P_predict_1 = regP_1.predict(peak_amplitude_df)
@@ -71,6 +77,9 @@ y_S_predict_1 = regS_1.predict(peak_amplitude_df)
 
 # Compare Ground truth values
 plot_compare_prediction_vs_true_values(peak_amplitude_df, y_P_predict_1, y_S_predict_1, (1.0, 5.5), regression_results_dir + '/validate_predicted_strain_rate_all_events_no_site_terms.png')
+
+regP_1.save(regression_results_dir + "/P_regression_all_events_no_site_terms.pickle", remove_data=True)
+regS_1.save(regression_results_dir + "/S_regression_all_events_no_site_terms.pickle", remove_data=True)
 
 # %% Regression 2: Linear regression on the data point including the site term
 # regP_2 = smf.ols(formula='np.log10(peak_P) ~ magnitude + np.log10(distance_in_km) + C(channel_id) - 1', data=peak_amplitude_df).fit()
@@ -106,8 +115,10 @@ for nearby_channel_number in [10, 20, 50, 100]:
     print(regS_3.params[-2:])
     print('\n\n')
 
-    regP_3.save(regression_results_dir + f"/P_regression_all_events_with_combined_site_terms_{nearby_channel_number}chan.pickle")
-    regS_3.save(regression_results_dir + f"/S_regression_all_events_with_combined_site_terms_{nearby_channel_number}chan.pickle")
+    with open(regression_text + f"/P_regression_all_events_with_combined_site_terms_{nearby_channel_number}chan.txt", "w") as text_file:
+        text_file.write(regP_3.summary().as_text())
+    with open(regression_text + f"/S_regression_all_events_with_combined_site_terms_{nearby_channel_number}chan.txt", "w") as text_file:
+        text_file.write(regS_3.summary().as_text())
 
     #make prediciton and compare with the measured
     y_P_predict_3 = regP_3.predict(peak_amplitude_df)
@@ -115,6 +126,9 @@ for nearby_channel_number in [10, 20, 50, 100]:
 
     plot_compare_prediction_vs_true_values(peak_amplitude_df, y_P_predict_3, y_S_predict_3, (1.0, 5.5), 
     regression_results_dir + f'/validate_predicted_strain_rate_all_events_with_combined_site_terms_{nearby_channel_number}chan.png')
+
+    regP_3.save(regression_results_dir + f"/P_regression_all_events_with_combined_site_terms_{nearby_channel_number}chan.pickle", remove_data=True)
+    regS_3.save(regression_results_dir + f"/S_regression_all_events_with_combined_site_terms_{nearby_channel_number}chan.pickle", remove_data=True)
 
     # reset the regression models
     del regP_3, regS_3
@@ -124,9 +138,14 @@ for nearby_channel_number in [10, 20, 50, 100]:
 # ======================= Below are the part to use the small events to do the regression ===========================
 # %%
 # directory to store the fitted results
-regression_results_dir = results_output_dir + '/regression_results_smf_M3'
+regression_results_dir = results_output_dir + '/regression_results_smf_M4'
 if not os.path.exists(regression_results_dir):
     os.mkdir(regression_results_dir)
+
+# make a directory to store the regression results in text
+regression_text = regression_results_dir + '/regression_results_txt'
+if not os.path.exists(regression_text):
+    os.mkdir(regression_text)
 
 peak_amplitude_df = pd.read_csv(results_output_dir + '/peak_amplitude_region_site_all.csv')
 peak_amplitude_df_M3 = peak_amplitude_df[peak_amplitude_df.magnitude < 4]
@@ -147,6 +166,11 @@ regS_1 = smf.ols(formula='np.log10(peak_S) ~ magnitude + np.log10(distance_in_km
 print(regP_1.summary())
 print('\n\n')
 print(regS_1.summary())
+
+with open(regression_text + f"/P_regression_all_events_with_combined_site_terms_-1chan.txt", "w") as text_file:
+    text_file.write(regP_1.summary().as_text())
+with open(regression_text + f"/S_regression_all_events_with_combined_site_terms_-1chan.txt", "w") as text_file:
+    text_file.write(regS_1.summary().as_text())
 
 regP_1.save(regression_results_dir + "/P_regression_all_events_no_site_terms.pickle")
 regS_1.save(regression_results_dir + "/S_regression_all_events_no_site_terms.pickle")
@@ -169,6 +193,11 @@ for nearby_channel_number in [10, 20, 50, 100]:
     print(regP_3.params[-2:])
     print(regS_3.params[-2:])
     print('\n\n')
+
+    with open(regression_text + f"/P_regression_all_events_with_combined_site_terms_{nearby_channel_number}chan.txt", "w") as text_file:
+        text_file.write(regP_3.summary().as_text())
+    with open(regression_text + f"/S_regression_all_events_with_combined_site_terms_{nearby_channel_number}chan.txt", "w") as text_file:
+        text_file.write(regS_3.summary().as_text())
 
     regP_3.save(regression_results_dir + f"/P_regression_all_events_with_combined_site_terms_{nearby_channel_number}chan.pickle")
     regS_3.save(regression_results_dir + f"/S_regression_all_events_with_combined_site_terms_{nearby_channel_number}chan.pickle")
