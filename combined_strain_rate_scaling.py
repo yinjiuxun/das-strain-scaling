@@ -11,9 +11,49 @@ from plotting_functions import *
 # import the utility functions
 from utility_functions import *
 
+#%% Functions used here
+def model_parameters_df(reg, combined_channel_number, digits=3):
+    magnitude = round(reg.params[-2],digits)
+    distance = round(reg.params[-1],digits)
+    magnitude_err = round(np.sqrt(reg.cov_params().iloc[-2][-2]),digits)
+    distance_err = round(np.sqrt(reg.cov_params().iloc[-1][-1]),digits)
+    parameter_df = pd.DataFrame(columns=['combined_channels', 'magnitude', 'distance', 'magnitude_err', 'distance_err'],
+    data = [[combined_channel_number, magnitude, distance, magnitude_err, distance_err]])
+    return parameter_df
 
-#%% Combine the peak results from different regions
-results_output_dir = '/kuafu/yinjx/combined_strain_scaling'
+def fit_regression(combined_channel_number_list, M_threshold, results_output_dir, regression_results_dir, regression_text):
+    # DataFrame to store parameters for all models
+    P_parameters_comparison = pd.DataFrame(columns=['combined_channels', 'magnitude', 'distance', 'magnitude_err', 'distance_err']) 
+    S_parameters_comparison = pd.DataFrame(columns=['combined_channels', 'magnitude', 'distance', 'magnitude_err', 'distance_err'])
+
+    for nearby_channel_number in combined_channel_number_list:
+        if nearby_channel_number == -1:
+            peak_amplitude_df = pd.read_csv(results_output_dir + '/peak_amplitude_region_site_all.csv')
+            peak_amplitude_df_M = peak_amplitude_df[(peak_amplitude_df.magnitude >= M_threshold[0]) & (peak_amplitude_df.magnitude <= M_threshold[1])]
+            regP = smf.ols(formula='np.log10(peak_P) ~ magnitude + np.log10(distance_in_km) + C(region) - 1', data=peak_amplitude_df_M).fit()
+            regS = smf.ols(formula='np.log10(peak_S) ~ magnitude + np.log10(distance_in_km) + C(region) - 1', data=peak_amplitude_df_M).fit()
+        else:
+            peak_amplitude_df = pd.read_csv(results_output_dir + f'/peak_amplitude_region_site_{nearby_channel_number}.csv')
+            peak_amplitude_df_M = peak_amplitude_df[(peak_amplitude_df.magnitude >= M_threshold[0]) & (peak_amplitude_df.magnitude <= M_threshold[1])]
+        # %% Now can fit the data with different regional site terms
+            regP = smf.ols(formula='np.log10(peak_P) ~ magnitude + np.log10(distance_in_km) + C(region_site) - 1', data=peak_amplitude_df_M).fit()
+            regS = smf.ols(formula='np.log10(peak_S) ~ magnitude + np.log10(distance_in_km) + C(region_site) - 1', data=peak_amplitude_df_M).fit()
+
+        regP.save(regression_results_dir + f"/P_regression_region_site_terms_{nearby_channel_number}chan.pickle")
+        regS.save(regression_results_dir + f"/S_regression_region_site_terms_{nearby_channel_number}chan.pickle")
+
+    # output to text files
+        with open(regression_text + f"/P_regression_all_events_with_combined_site_terms_{nearby_channel_number}chan.txt", "w") as text_file:
+            text_file.write(regP.summary().as_text())
+        with open(regression_text + f"/S_regression_all_events_with_combined_site_terms_{nearby_channel_number}chan.txt", "w") as text_file:
+            text_file.write(regS.summary().as_text())
+
+    # Store the parameters 
+        P_parameters_comparison = pd.concat([P_parameters_comparison, model_parameters_df(regP, nearby_channel_number)], axis=0)
+        S_parameters_comparison = pd.concat([S_parameters_comparison, model_parameters_df(regS, nearby_channel_number)], axis=0)
+
+    P_parameters_comparison.to_csv(regression_text + '/parameter_comparison_P.txt', index=False, sep='\t')
+    S_parameters_comparison.to_csv(regression_text + '/parameter_comparison_S.txt', index=False, sep='\t')
 
 # ==============================  Ridgecrest data ========================================
 #%% Specify the file names
@@ -35,115 +75,59 @@ peak_amplitude_df_olancha['region'] = 'olancha' # add the region label
 DAS_index_olancha = peak_amplitude_df_olancha.channel_id.unique().astype('int')
 peak_amplitude_df_olancha = peak_amplitude_df_olancha.dropna()
 
+
+#%% Combine the peak results from different regions
+results_output_dir = '/kuafu/yinjx/combined_strain_scaling'
+
+#%% Preprocess the data file: combining different channels etc.
+combined_channel_number_list = [10, 20, 50, 100, -1] # -1 means the constant model
+for nearby_channel_number in combined_channel_number_list:
+    if nearby_channel_number == -1:
+        peak_amplitude_df = pd.concat((peak_amplitude_df_ridgecrest, peak_amplitude_df_olancha), axis=0)
+        peak_amplitude_df = add_event_label(peak_amplitude_df)
+
+        peak_amplitude_df.to_csv(results_output_dir + '/peak_amplitude_region_site_all.csv', index=False)
+    else:
+        peak_amplitude_df_ridgecrest = combined_channels(DAS_index_ridgecrest, peak_amplitude_df_ridgecrest, nearby_channel_number)
+        peak_amplitude_df_olancha = combined_channels(DAS_index_olancha, peak_amplitude_df_olancha, nearby_channel_number)
+
+        peak_amplitude_df = pd.concat((peak_amplitude_df_ridgecrest, peak_amplitude_df_olancha), axis=0)
+        # %% Aggregate the columns of region and combined_channel_id to form the regional site terms
+        peak_amplitude_df['combined_channel_id']= peak_amplitude_df['combined_channel_id'].astype('str')
+        peak_amplitude_df['region_site'] = peak_amplitude_df[['region', 'combined_channel_id']].agg('-'.join, axis=1)
+
+        # Store the processed DataFrame
+        peak_amplitude_df.to_csv(results_output_dir + f'/peak_amplitude_region_site_{nearby_channel_number}.csv', index=False)
+
+#%% Linear regression on the data point including the site term, here assume that every X nearby channels share the same site terms
 # directory to store the fitted results
 regression_results_dir = results_output_dir + '/regression_results_smf'
 if not os.path.exists(regression_results_dir):
     os.mkdir(regression_results_dir)
 
-# concatenate the DataFrame
-# combine different regions
-peak_amplitude_df = pd.concat((peak_amplitude_df_ridgecrest, peak_amplitude_df_olancha), axis=0)
-peak_amplitude_df = add_event_label(peak_amplitude_df)
+# make a directory to store the regression results in text
+regression_text = regression_results_dir + '/regression_results_txt'
+if not os.path.exists(regression_text):
+    os.mkdir(regression_text)
 
-peak_amplitude_df.to_csv(results_output_dir + '/peak_amplitude_region_site_all.csv', index=False)
-
-# %% Regression 1. Linear regression on the data point (this regression ignores the different site responses)
-regP_1 = smf.ols(formula='np.log10(peak_P) ~ magnitude + np.log10(distance_in_km) + C(region) - 1', data=peak_amplitude_df).fit()
-regS_1 = smf.ols(formula='np.log10(peak_S) ~ magnitude + np.log10(distance_in_km) + C(region) - 1', data=peak_amplitude_df).fit()
-
-regP_1.save(regression_results_dir + "/P_regression_all_events_no_site_terms.pickle")
-regS_1.save(regression_results_dir + "/S_regression_all_events_no_site_terms.pickle")
-
-#make prediciton and compare with the measured
-y_P_predict_1 = regP_1.predict(peak_amplitude_df)
-y_S_predict_1 = regS_1.predict(peak_amplitude_df)
-# Compare Ground truth values
-plot_compare_prediction_vs_true_values(peak_amplitude_df, y_P_predict_1, y_S_predict_1, (1.0, 5.5), regression_results_dir + '/validate_predicted_strain_rate_all_events_no_site_terms.png')
-
-# %% Regression 3: Linear regression on the data point including the site term, here assume that every X nearby channels share the same site terms
-# first combined the nearby channels
-for nearby_channel_number in [10, 20, 50, 100]:
-    peak_amplitude_df_ridgecrest = combined_channels(DAS_index_ridgecrest, peak_amplitude_df_ridgecrest, nearby_channel_number)
-    peak_amplitude_df_olancha = combined_channels(DAS_index_olancha, peak_amplitude_df_olancha, nearby_channel_number)
-
-    peak_amplitude_df = pd.concat((peak_amplitude_df_ridgecrest, peak_amplitude_df_olancha), axis=0)
-    # %% Aggregate the columns of region and combined_channel_id to form the regional site terms
-    peak_amplitude_df['combined_channel_id']= peak_amplitude_df['combined_channel_id'].astype('str')
-    peak_amplitude_df['region_site'] = peak_amplitude_df[['region', 'combined_channel_id']].agg('-'.join, axis=1)
-    peak_amplitude_df = add_event_label(peak_amplitude_df)
-    
-    # Store the processed DataFrame
-    peak_amplitude_df.to_csv(results_output_dir + f'/peak_amplitude_region_site_{nearby_channel_number}.csv', index=False)
-
-    # %% Now can fit the data with different regional site terms
-    regP_3 = smf.ols(formula='np.log10(peak_P) ~ magnitude + np.log10(distance_in_km) + C(region_site) - 1', data=peak_amplitude_df).fit()
-    regS_3 = smf.ols(formula='np.log10(peak_S) ~ magnitude + np.log10(distance_in_km) + C(region_site) - 1', data=peak_amplitude_df).fit()
-
-    print(f'Combined every {nearby_channel_number} channels.')
-    print(regP_3.params[-2:])
-    print(regS_3.params[-2:])
-    print('\n\n')   
-
-    regP_3.save(regression_results_dir + f"/P_regression_region_site_terms_{nearby_channel_number}chan.pickle")
-    regS_3.save(regression_results_dir + f"/S_regression_region_site_terms_{nearby_channel_number}chan.pickle")
-
-        #make prediciton and compare with the measured
-    y_P_predict_3 = regP_3.predict(peak_amplitude_df)
-    y_S_predict_3 = regS_3.predict(peak_amplitude_df)
-
-    plot_compare_prediction_vs_true_values(peak_amplitude_df, y_P_predict_3, y_S_predict_3, (1.0, 5.5), 
-    regression_results_dir + f'/validate_predicted_strain_rate_region_site_terms_{nearby_channel_number}chan.png')
-
+combined_channel_number_list = [10, 20, 50, 100, -1]
+M_threshold = [0, 9]
+fit_regression(combined_channel_number_list, M_threshold, results_output_dir, regression_results_dir, regression_text)
 
 
 # ======================= Below are the part to use the small events to do the regression ===========================
 # %% Now only use the smaller earthquakes to do the regression
 # directory to store the fitted results
-regression_results_dir = results_output_dir + '/regression_results_smf_M3'
+regression_results_dir = results_output_dir + '/regression_results_smf_M4'
 if not os.path.exists(regression_results_dir):
     os.mkdir(regression_results_dir)
 
-peak_amplitude_df = pd.read_csv(results_output_dir + '/peak_amplitude_region_site_all.csv')
-peak_amplitude_df_M3 = peak_amplitude_df[peak_amplitude_df.magnitude < 4]
+# make a directory to store the regression results in text
+regression_text = regression_results_dir + '/regression_results_txt'
+if not os.path.exists(regression_text):
+    os.mkdir(regression_text)
 
-# %% Regression 1. Linear regression on the data point (this regression ignores the different site responses)
-regP_1 = smf.ols(formula='np.log10(peak_P) ~ magnitude + np.log10(distance_in_km) + C(region) - 1', data=peak_amplitude_df_M3).fit()
-regS_1 = smf.ols(formula='np.log10(peak_S) ~ magnitude + np.log10(distance_in_km) + C(region) - 1', data=peak_amplitude_df_M3).fit()
+combined_channel_number_list = [10, 20, 50, 100, -1]
+M_threshold = [0, 4]
+fit_regression(combined_channel_number_list, M_threshold, results_output_dir, regression_results_dir, regression_text)
 
-regP_1.save(regression_results_dir + "/P_regression_all_events_no_site_terms.pickle")
-regS_1.save(regression_results_dir + "/S_regression_all_events_no_site_terms.pickle")
-
-#make prediciton and compare with the measured
-y_P_predict_1 = regP_1.predict(peak_amplitude_df)
-y_S_predict_1 = regS_1.predict(peak_amplitude_df)
-# Compare Ground truth values
-plot_compare_prediction_vs_true_values(peak_amplitude_df, y_P_predict_1, y_S_predict_1, (1.0, 5.5), regression_results_dir + '/validate_predicted_strain_rate_all_events_no_site_terms.png')
-
-# %% Regression 3: Linear regression on the data point including the site term, here assume that every X nearby channels share the same site terms
-# first combined the nearby channels
-for nearby_channel_number in [10, 20, 50, 100]:
-
-    peak_amplitude_df = pd.read_csv(results_output_dir + f'/peak_amplitude_region_site_{nearby_channel_number}.csv')
-    peak_amplitude_df_M3 = peak_amplitude_df[peak_amplitude_df.magnitude < 4]
-
-    # %% Now can fit the data with different regional site terms
-    regP_3 = smf.ols(formula='np.log10(peak_P) ~ magnitude + np.log10(distance_in_km) + C(region_site) - 1', data=peak_amplitude_df_M3).fit()
-    regS_3 = smf.ols(formula='np.log10(peak_S) ~ magnitude + np.log10(distance_in_km) + C(region_site) - 1', data=peak_amplitude_df_M3).fit()
-
-    print(f'Combined every {nearby_channel_number} channels.')
-    print(regP_3.params[-2:])
-    print(regS_3.params[-2:])
-    print('\n\n')   
-
-    regP_3.save(regression_results_dir + f"/P_regression_region_site_terms_{nearby_channel_number}chan.pickle")
-    regS_3.save(regression_results_dir + f"/S_regression_region_site_terms_{nearby_channel_number}chan.pickle")
-
-        #make prediciton and compare with the measured
-    y_P_predict_3 = regP_3.predict(peak_amplitude_df)
-    y_S_predict_3 = regS_3.predict(peak_amplitude_df)
-
-    plot_compare_prediction_vs_true_values(peak_amplitude_df, y_P_predict_3, y_S_predict_3, (1.0, 5.5), 
-    regression_results_dir + f'/validate_predicted_strain_rate_region_site_terms_{nearby_channel_number}chan.png')
-
-
-# %%
