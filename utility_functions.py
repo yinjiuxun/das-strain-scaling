@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import statsmodels.formula.api as smf
 
 def combined_channels(DAS_index, peak_amplitude_df, nearby_channel_number):
     temp1= np.arange(0, DAS_index.max()+1) # original channel number
