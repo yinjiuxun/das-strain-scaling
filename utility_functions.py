@@ -3,6 +3,8 @@ import numpy as np
 import statsmodels.formula.api as smf
 
 def combined_channels(DAS_index, peak_amplitude_df, nearby_channel_number):
+    if nearby_channel_number == -1: # when nearby_channel_number == -1, combined all channels!
+        nearby_channel_number = DAS_index.max()+1
     temp1= np.arange(0, DAS_index.max()+1) # original channel number
     temp2 = temp1 // nearby_channel_number # combined channel number
     peak_amplitude_df['combined_channel_id'] = temp2[np.array(peak_amplitude_df.channel_id).astype('int')]
