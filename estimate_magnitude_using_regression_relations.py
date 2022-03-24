@@ -13,7 +13,7 @@ from utility_functions import *
 
 #%% Define functions
 # Use the predicted strain to calculate magnitude
-def calculate_magnitude_from_strain(peak_amplitude_df, reg, fitting_type='without_site', site_term_column='region_site'):
+def calculate_magnitude_from_strain(peak_amplitude_df, reg, type, fitting_type='without_site', site_term_column='region_site'):
     
     if fitting_type == 'with_site':
         # get the annoying categorical keys
@@ -21,17 +21,34 @@ def calculate_magnitude_from_strain(peak_amplitude_df, reg, fitting_type='withou
             site_term_keys = np.array([f'C({site_term_column})[{site_term}]' for site_term in peak_amplitude_df[site_term_column]])
         except:
             raise NameError(f"Index {site_term_column} doesn't exist!")
-            
-        M_predict = (np.log10(peak_amplitude_df.peak_P) \
-                    - np.array(reg.params[site_term_keys]) \
-                    - reg.params['np.log10(distance_in_km)'] * np.log10(peak_amplitude_df.distance_in_km)) \
-                    / reg.params['magnitude']
+
+        if type == 'P':    
+            M_predict = (np.log10(peak_amplitude_df.peak_P) \
+                        - np.array(reg.params[site_term_keys]) \
+                        - reg.params['np.log10(distance_in_km)'] * np.log10(peak_amplitude_df.distance_in_km)) \
+                        / reg.params['magnitude']
+        elif type == 'S':
+            M_predict = (np.log10(peak_amplitude_df.peak_S) \
+                        - np.array(reg.params[site_term_keys]) \
+                        - reg.params['np.log10(distance_in_km)'] * np.log10(peak_amplitude_df.distance_in_km)) \
+                        / reg.params['magnitude']
+        else:
+            raise NameError(f'{type} is not defined! Only "P" or "S"')
         
     elif fitting_type == 'without_site':
-        M_predict = (np.log10(peak_amplitude_df.peak_P) \
-                    - reg.params['Intercept'] \
-                    - reg.params['np.log10(distance_in_km)'] * np.log10(peak_amplitude_df.distance_in_km)) \
-                    / reg.params['magnitude']
+        if type == 'P':
+            M_predict = (np.log10(peak_amplitude_df.peak_P) \
+                        - reg.params['Intercept'] \
+                        - reg.params['np.log10(distance_in_km)'] * np.log10(peak_amplitude_df.distance_in_km)) \
+                        / reg.params['magnitude']
+        elif type == 'S':
+            M_predict = (np.log10(peak_amplitude_df.peak_S) \
+                        - reg.params['Intercept'] \
+                        - reg.params['np.log10(distance_in_km)'] * np.log10(peak_amplitude_df.distance_in_km)) \
+                        / reg.params['magnitude']
+        else:
+            raise NameError(f'{type} is not defined! Only "P" or "S"')
+
     else:
         raise NameError('Fitting type is undefined!')
         
@@ -50,7 +67,7 @@ def get_mean_magnitude(peak_amplitude_df, M_predict):
     return temp_df
 
 def plot_magnitude_prediction(temp_df_P_list, temp_df_S_list):
-    horizontal_shift = [0, 0, 0, 0] #[-0.015, -0.005, 0.005, 0.015]
+    horizontal_shift = [0, 0, 0, 0, 0] #[-0.015, -0.005, 0.005, 0.015]
     fig, ax = plt.subplots(2, 1, figsize=(10, 20), sharex=True, sharey=True)
     for ii in range(len(temp_df_P_list)):
         temp_df_P = temp_df_P_list[ii]
@@ -84,7 +101,7 @@ def plot_magnitude_prediction(temp_df_P_list, temp_df_S_list):
 results_output_dir = '/kuafu/yinjx/combined_strain_scaling'
 regression_dir = 'regression_results_smf'
 
-nearby_channel_numbers = [100, 50, 20, 10]
+nearby_channel_numbers = [-1, 100, 50, 20, 10]
 cmap = ['blue', 'orange', 'green', 'red', 'purple', 'yellow']
 
 temp_df_P_list = []
@@ -95,8 +112,8 @@ for ii, nearby_channel_number in enumerate(nearby_channel_numbers):
     
 
     # %% Now can fit the data with different regional site terms
-    regP = sm.load(results_output_dir + '/' + regression_dir + f"/P_regression_region_site_terms_{nearby_channel_number}chan.pickle")
-    regS = sm.load(results_output_dir + '/' + regression_dir + f"/S_regression_region_site_terms_{nearby_channel_number}chan.pickle")
+    regP = sm.load(results_output_dir + '/' + regression_dir + f"/P_regression_combined_site_terms_{nearby_channel_number}chan.pickle")
+    regS = sm.load(results_output_dir + '/' + regression_dir + f"/S_regression_combined_site_terms_{nearby_channel_number}chan.pickle")
 
     print(f'Combined every {nearby_channel_number} channels.')
     print(regP.params[-2:])
@@ -104,8 +121,8 @@ for ii, nearby_channel_number in enumerate(nearby_channel_numbers):
     print('\n\n')   
 
 
-    M_P = calculate_magnitude_from_strain(peak_amplitude_df, regP, fitting_type='with_site', site_term_column='region_site')
-    M_S = calculate_magnitude_from_strain(peak_amplitude_df, regS, fitting_type='with_site', site_term_column='region_site')
+    M_P = calculate_magnitude_from_strain(peak_amplitude_df, regP, 'P', fitting_type='with_site', site_term_column='region_site')
+    M_S = calculate_magnitude_from_strain(peak_amplitude_df, regS, 'S', fitting_type='with_site', site_term_column='region_site')
 
     temp_df_P = get_mean_magnitude(peak_amplitude_df, M_P)
     temp_df_S = get_mean_magnitude(peak_amplitude_df, M_S)
@@ -119,9 +136,9 @@ plt.savefig(results_output_dir + '/' + regression_dir + "/predicted_magnitude.pn
 # Then try to use the regression relation from small events to predict the larger ones
 #%% load the results from combined regional site terms t
 results_output_dir = '/kuafu/yinjx/combined_strain_scaling'
-regression_dir = 'regression_results_smf_M3'
+regression_dir = 'regression_results_smf_M4'
 
-nearby_channel_numbers = [100, 50, 20, 10]
+nearby_channel_numbers = [-1, 100, 50, 20, 10]
 cmap = ['blue', 'orange', 'green', 'red', 'purple', 'yellow']
 
 temp_df_P_list = []
@@ -132,8 +149,8 @@ for ii, nearby_channel_number in enumerate(nearby_channel_numbers):
     
 
     # %% Now can fit the data with different regional site terms
-    regP = sm.load(results_output_dir + '/' + regression_dir + f"/P_regression_region_site_terms_{nearby_channel_number}chan.pickle")
-    regS = sm.load(results_output_dir + '/' + regression_dir + f"/S_regression_region_site_terms_{nearby_channel_number}chan.pickle")
+    regP = sm.load(results_output_dir + '/' + regression_dir + f"/P_regression_combined_site_terms_{nearby_channel_number}chan.pickle")
+    regS = sm.load(results_output_dir + '/' + regression_dir + f"/S_regression_combined_site_terms_{nearby_channel_number}chan.pickle")
 
     print(f'Combined every {nearby_channel_number} channels.')
     print(regP.params[-2:])
@@ -141,8 +158,8 @@ for ii, nearby_channel_number in enumerate(nearby_channel_numbers):
     print('\n\n')   
 
 
-    M_P = calculate_magnitude_from_strain(peak_amplitude_df, regP, fitting_type='with_site', site_term_column='region_site')
-    M_S = calculate_magnitude_from_strain(peak_amplitude_df, regS, fitting_type='with_site', site_term_column='region_site')
+    M_P = calculate_magnitude_from_strain(peak_amplitude_df, regP, 'P', fitting_type='with_site', site_term_column='region_site')
+    M_S = calculate_magnitude_from_strain(peak_amplitude_df, regS, 'S', fitting_type='with_site', site_term_column='region_site')
 
     temp_df_P = get_mean_magnitude(peak_amplitude_df, M_P)
     temp_df_S = get_mean_magnitude(peak_amplitude_df, M_S)
@@ -161,7 +178,7 @@ plt.savefig(results_output_dir + '/' + regression_dir + "/predicted_magnitude.pn
 results_output_dir = '/home/yinjx/kuafu/Ridgecrest/Ridgecrest_scaling/peak_ampliutde_scaling_results_strain_rate'
 regression_dir = 'regression_results_smf'
 
-nearby_channel_numbers = [100, 50, 20, 10]
+nearby_channel_numbers = [-1, 100, 50, 20, 10]
 cmap = ['blue', 'orange', 'green', 'red', 'purple', 'yellow']
 
 temp_df_P_list = []
@@ -172,8 +189,8 @@ for ii, nearby_channel_number in enumerate(nearby_channel_numbers):
     
 
     # %% Now can fit the data with different regional site terms
-    regP = sm.load(results_output_dir + '/' + regression_dir + f"/P_regression_all_events_with_combined_site_terms_{nearby_channel_number}chan.pickle")
-    regS = sm.load(results_output_dir + '/' + regression_dir + f"/S_regression_all_events_with_combined_site_terms_{nearby_channel_number}chan.pickle")
+    regP = sm.load(results_output_dir + '/' + regression_dir + f"/P_regression_combined_site_terms_{nearby_channel_number}chan.pickle")
+    regS = sm.load(results_output_dir + '/' + regression_dir + f"/S_regression_combined_site_terms_{nearby_channel_number}chan.pickle")
 
     print(f'Combined every {nearby_channel_number} channels.')
     print(regP.params[-2:])
@@ -181,8 +198,8 @@ for ii, nearby_channel_number in enumerate(nearby_channel_numbers):
     print('\n\n')   
 
 
-    M_P = calculate_magnitude_from_strain(peak_amplitude_df, regP, fitting_type='with_site', site_term_column='combined_channel_id')
-    M_S = calculate_magnitude_from_strain(peak_amplitude_df, regS, fitting_type='with_site', site_term_column='combined_channel_id')
+    M_P = calculate_magnitude_from_strain(peak_amplitude_df, regP, 'P', fitting_type='with_site', site_term_column='combined_channel_id')
+    M_S = calculate_magnitude_from_strain(peak_amplitude_df, regS, 'S', fitting_type='with_site', site_term_column='combined_channel_id')
 
     temp_df_P = get_mean_magnitude(peak_amplitude_df, M_P)
     temp_df_S = get_mean_magnitude(peak_amplitude_df, M_S)
@@ -195,9 +212,9 @@ plt.savefig(results_output_dir + '/' + regression_dir + "/predicted_magnitude.pn
 
 # Then try to use the regression relation from small events to predict the larger ones
 # load the results from combined regional site terms t
-regression_dir = 'regression_results_smf_M3'
+regression_dir = 'regression_results_smf_M4'
 
-nearby_channel_numbers = [100, 50, 20, 10]
+nearby_channel_numbers = [-1, 100, 50, 20, 10]
 horizontal_shift = [-0.015, -0.005, 0.005, 0.015]
 cmap = ['blue', 'orange', 'green', 'red', 'purple', 'yellow']
 
@@ -209,8 +226,8 @@ for ii, nearby_channel_number in enumerate(nearby_channel_numbers):
     
 
     # %% Now can fit the data with different regional site terms
-    regP = sm.load(results_output_dir + '/' + regression_dir + f"/P_regression_all_events_with_combined_site_terms_{nearby_channel_number}chan.pickle")
-    regS = sm.load(results_output_dir + '/' + regression_dir + f"/S_regression_all_events_with_combined_site_terms_{nearby_channel_number}chan.pickle")
+    regP = sm.load(results_output_dir + '/' + regression_dir + f"/P_regression_combined_site_terms_{nearby_channel_number}chan.pickle")
+    regS = sm.load(results_output_dir + '/' + regression_dir + f"/S_regression_combined_site_terms_{nearby_channel_number}chan.pickle")
 
     print(f'Combined every {nearby_channel_number} channels.')
     print(regP.params[-2:])
@@ -218,8 +235,8 @@ for ii, nearby_channel_number in enumerate(nearby_channel_numbers):
     print('\n\n')   
 
 
-    M_P = calculate_magnitude_from_strain(peak_amplitude_df, regP, fitting_type='with_site', site_term_column='combined_channel_id')
-    M_S = calculate_magnitude_from_strain(peak_amplitude_df, regS, fitting_type='with_site', site_term_column='combined_channel_id')
+    M_P = calculate_magnitude_from_strain(peak_amplitude_df, regP, 'P', fitting_type='with_site', site_term_column='combined_channel_id')
+    M_S = calculate_magnitude_from_strain(peak_amplitude_df, regS, 'S', fitting_type='with_site', site_term_column='combined_channel_id')
 
     temp_df_P = get_mean_magnitude(peak_amplitude_df, M_P)
     temp_df_S = get_mean_magnitude(peak_amplitude_df, M_S)
@@ -238,7 +255,7 @@ plt.savefig(results_output_dir + '/' + regression_dir + "/predicted_magnitude.pn
 results_output_dir = '/home/yinjx/kuafu/Olancha_Plexus/Olancha_scaling/peak_ampliutde_scaling_results_strain_rate'
 regression_dir = 'regression_results_smf'
 
-nearby_channel_numbers = [100, 50, 20, 10]
+nearby_channel_numbers = [-1, 100, 50, 20, 10]
 cmap = ['blue', 'orange', 'green', 'red', 'purple', 'yellow']
 
 temp_df_P_list = []
@@ -249,8 +266,8 @@ for ii, nearby_channel_number in enumerate(nearby_channel_numbers):
     
 
     # %% Now can fit the data with different regional site terms
-    regP = sm.load(results_output_dir + '/' + regression_dir + f"/P_regression_all_events_with_combined_site_terms_{nearby_channel_number}chan.pickle")
-    regS = sm.load(results_output_dir + '/' + regression_dir + f"/S_regression_all_events_with_combined_site_terms_{nearby_channel_number}chan.pickle")
+    regP = sm.load(results_output_dir + '/' + regression_dir + f"/P_regression_combined_site_terms_{nearby_channel_number}chan.pickle")
+    regS = sm.load(results_output_dir + '/' + regression_dir + f"/S_regression_combined_site_terms_{nearby_channel_number}chan.pickle")
 
     print(f'Combined every {nearby_channel_number} channels.')
     print(regP.params[-2:])
@@ -258,8 +275,8 @@ for ii, nearby_channel_number in enumerate(nearby_channel_numbers):
     print('\n\n')   
 
 
-    M_P = calculate_magnitude_from_strain(peak_amplitude_df, regP, fitting_type='with_site', site_term_column='combined_channel_id')
-    M_S = calculate_magnitude_from_strain(peak_amplitude_df, regS, fitting_type='with_site', site_term_column='combined_channel_id')
+    M_P = calculate_magnitude_from_strain(peak_amplitude_df, regP, 'P', fitting_type='with_site', site_term_column='combined_channel_id')
+    M_S = calculate_magnitude_from_strain(peak_amplitude_df, regS, 'S', fitting_type='with_site', site_term_column='combined_channel_id')
 
     temp_df_P = get_mean_magnitude(peak_amplitude_df, M_P)
     temp_df_S = get_mean_magnitude(peak_amplitude_df, M_S)
@@ -272,9 +289,9 @@ plt.savefig(results_output_dir + '/' + regression_dir + "/predicted_magnitude.pn
 
 # Then try to use the regression relation from small events to predict the larger ones
 # load the results from combined regional site terms t
-regression_dir = 'regression_results_smf_M3'
+regression_dir = 'regression_results_smf_M4'
 
-nearby_channel_numbers = [100, 50, 20, 10]
+nearby_channel_numbers = [-1, 100, 50, 20, 10]
 horizontal_shift = [-0.015, -0.005, 0.005, 0.015]
 cmap = ['blue', 'orange', 'green', 'red', 'purple', 'yellow']
 
@@ -286,8 +303,8 @@ for ii, nearby_channel_number in enumerate(nearby_channel_numbers):
     
 
     # %% Now can fit the data with different regional site terms
-    regP = sm.load(results_output_dir + '/' + regression_dir + f"/P_regression_all_events_with_combined_site_terms_{nearby_channel_number}chan.pickle")
-    regS = sm.load(results_output_dir + '/' + regression_dir + f"/S_regression_all_events_with_combined_site_terms_{nearby_channel_number}chan.pickle")
+    regP = sm.load(results_output_dir + '/' + regression_dir + f"/P_regression_combined_site_terms_{nearby_channel_number}chan.pickle")
+    regS = sm.load(results_output_dir + '/' + regression_dir + f"/S_regression_combined_site_terms_{nearby_channel_number}chan.pickle")
 
     print(f'Combined every {nearby_channel_number} channels.')
     print(regP.params[-2:])
@@ -295,8 +312,8 @@ for ii, nearby_channel_number in enumerate(nearby_channel_numbers):
     print('\n\n')   
 
 
-    M_P = calculate_magnitude_from_strain(peak_amplitude_df, regP, fitting_type='with_site', site_term_column='combined_channel_id')
-    M_S = calculate_magnitude_from_strain(peak_amplitude_df, regS, fitting_type='with_site', site_term_column='combined_channel_id')
+    M_P = calculate_magnitude_from_strain(peak_amplitude_df, regP, 'P', fitting_type='with_site', site_term_column='combined_channel_id')
+    M_S = calculate_magnitude_from_strain(peak_amplitude_df, regS, 'S', fitting_type='with_site', site_term_column='combined_channel_id')
 
     temp_df_P = get_mean_magnitude(peak_amplitude_df, M_P)
     temp_df_S = get_mean_magnitude(peak_amplitude_df, M_S)
@@ -314,7 +331,7 @@ plt.savefig(results_output_dir + '/' + regression_dir + "/predicted_magnitude.pn
 results_output_dir = '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/South'
 regression_dir = 'regression_results_smf'
 
-nearby_channel_numbers = [100, 50, 20, 10]
+nearby_channel_numbers = [-1, 100, 50, 20, 10]
 cmap = ['blue', 'orange', 'green', 'red', 'purple', 'yellow']
 
 temp_df_P_list = []
@@ -325,8 +342,8 @@ for ii, nearby_channel_number in enumerate(nearby_channel_numbers):
     
 
     # %% Now can fit the data with different regional site terms
-    regP = sm.load(results_output_dir + '/' + regression_dir + f"/P_regression_all_events_with_combined_site_terms_{nearby_channel_number}chan.pickle")
-    regS = sm.load(results_output_dir + '/' + regression_dir + f"/S_regression_all_events_with_combined_site_terms_{nearby_channel_number}chan.pickle")
+    regP = sm.load(results_output_dir + '/' + regression_dir + f"/P_regression_combined_site_terms_{nearby_channel_number}chan.pickle")
+    regS = sm.load(results_output_dir + '/' + regression_dir + f"/S_regression_combined_site_terms_{nearby_channel_number}chan.pickle")
 
     print(f'Combined every {nearby_channel_number} channels.')
     print(regP.params[-2:])
@@ -334,8 +351,8 @@ for ii, nearby_channel_number in enumerate(nearby_channel_numbers):
     print('\n\n')   
 
 
-    M_P = calculate_magnitude_from_strain(peak_amplitude_df, regP, fitting_type='with_site', site_term_column='combined_channel_id')
-    M_S = calculate_magnitude_from_strain(peak_amplitude_df, regS, fitting_type='with_site', site_term_column='combined_channel_id')
+    M_P = calculate_magnitude_from_strain(peak_amplitude_df, regP, 'P', fitting_type='with_site', site_term_column='combined_channel_id')
+    M_S = calculate_magnitude_from_strain(peak_amplitude_df, regS, 'S', fitting_type='with_site', site_term_column='combined_channel_id')
 
     temp_df_P = get_mean_magnitude(peak_amplitude_df, M_P)
     temp_df_S = get_mean_magnitude(peak_amplitude_df, M_S)
@@ -350,7 +367,7 @@ plt.savefig(results_output_dir + '/' + regression_dir + "/predicted_magnitude.pn
 # load the results from combined regional site terms t
 regression_dir = 'regression_results_smf_M4'
 
-nearby_channel_numbers = [100, 50, 20, 10]
+nearby_channel_numbers = [-1, 100, 50, 20, 10]
 horizontal_shift = [-0.015, -0.005, 0.005, 0.015]
 cmap = ['blue', 'orange', 'green', 'red', 'purple', 'yellow']
 
@@ -362,8 +379,8 @@ for ii, nearby_channel_number in enumerate(nearby_channel_numbers):
     
 
     # %% Now can fit the data with different regional site terms
-    regP = sm.load(results_output_dir + '/' + regression_dir + f"/P_regression_all_events_with_combined_site_terms_{nearby_channel_number}chan.pickle")
-    regS = sm.load(results_output_dir + '/' + regression_dir + f"/S_regression_all_events_with_combined_site_terms_{nearby_channel_number}chan.pickle")
+    regP = sm.load(results_output_dir + '/' + regression_dir + f"/P_regression_combined_site_terms_{nearby_channel_number}chan.pickle")
+    regS = sm.load(results_output_dir + '/' + regression_dir + f"/S_regression_combined_site_terms_{nearby_channel_number}chan.pickle")
 
     print(f'Combined every {nearby_channel_number} channels.')
     print(regP.params[-2:])
@@ -371,8 +388,8 @@ for ii, nearby_channel_number in enumerate(nearby_channel_numbers):
     print('\n\n')   
 
 
-    M_P = calculate_magnitude_from_strain(peak_amplitude_df, regP, fitting_type='with_site', site_term_column='combined_channel_id')
-    M_S = calculate_magnitude_from_strain(peak_amplitude_df, regS, fitting_type='with_site', site_term_column='combined_channel_id')
+    M_P = calculate_magnitude_from_strain(peak_amplitude_df, regP, 'P', fitting_type='with_site', site_term_column='combined_channel_id')
+    M_S = calculate_magnitude_from_strain(peak_amplitude_df, regS, 'S', fitting_type='with_site', site_term_column='combined_channel_id')
 
     temp_df_P = get_mean_magnitude(peak_amplitude_df, M_P)
     temp_df_S = get_mean_magnitude(peak_amplitude_df, M_S)
@@ -389,7 +406,7 @@ plt.savefig(results_output_dir + '/' + regression_dir + "/predicted_magnitude.pn
 results_output_dir = '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/North'
 regression_dir = 'regression_results_smf'
 
-nearby_channel_numbers = [100, 50, 20, 10]
+nearby_channel_numbers = [-1, 100, 50, 20, 10]
 cmap = ['blue', 'orange', 'green', 'red', 'purple', 'yellow']
 
 temp_df_P_list = []
@@ -400,8 +417,8 @@ for ii, nearby_channel_number in enumerate(nearby_channel_numbers):
     
 
     # %% Now can fit the data with different regional site terms
-    regP = sm.load(results_output_dir + '/' + regression_dir + f"/P_regression_all_events_with_combined_site_terms_{nearby_channel_number}chan.pickle")
-    regS = sm.load(results_output_dir + '/' + regression_dir + f"/S_regression_all_events_with_combined_site_terms_{nearby_channel_number}chan.pickle")
+    regP = sm.load(results_output_dir + '/' + regression_dir + f"/P_regression_combined_site_terms_{nearby_channel_number}chan.pickle")
+    regS = sm.load(results_output_dir + '/' + regression_dir + f"/S_regression_combined_site_terms_{nearby_channel_number}chan.pickle")
 
     print(f'Combined every {nearby_channel_number} channels.')
     print(regP.params[-2:])
@@ -409,8 +426,8 @@ for ii, nearby_channel_number in enumerate(nearby_channel_numbers):
     print('\n\n')   
 
 
-    M_P = calculate_magnitude_from_strain(peak_amplitude_df, regP, fitting_type='with_site', site_term_column='combined_channel_id')
-    M_S = calculate_magnitude_from_strain(peak_amplitude_df, regS, fitting_type='with_site', site_term_column='combined_channel_id')
+    M_P = calculate_magnitude_from_strain(peak_amplitude_df, regP, 'P', fitting_type='with_site', site_term_column='combined_channel_id')
+    M_S = calculate_magnitude_from_strain(peak_amplitude_df, regS, 'S', fitting_type='with_site', site_term_column='combined_channel_id')
 
     temp_df_P = get_mean_magnitude(peak_amplitude_df, M_P)
     temp_df_S = get_mean_magnitude(peak_amplitude_df, M_S)
@@ -425,7 +442,7 @@ plt.savefig(results_output_dir + '/' + regression_dir + "/predicted_magnitude.pn
 # load the results from combined regional site terms t
 regression_dir = 'regression_results_smf_M4'
 
-nearby_channel_numbers = [100, 50, 20, 10]
+nearby_channel_numbers = [-1, 100, 50, 20, 10]
 horizontal_shift = [-0.015, -0.005, 0.005, 0.015]
 cmap = ['blue', 'orange', 'green', 'red', 'purple', 'yellow']
 
@@ -437,8 +454,8 @@ for ii, nearby_channel_number in enumerate(nearby_channel_numbers):
     
 
     # %% Now can fit the data with different regional site terms
-    regP = sm.load(results_output_dir + '/' + regression_dir + f"/P_regression_all_events_with_combined_site_terms_{nearby_channel_number}chan.pickle")
-    regS = sm.load(results_output_dir + '/' + regression_dir + f"/S_regression_all_events_with_combined_site_terms_{nearby_channel_number}chan.pickle")
+    regP = sm.load(results_output_dir + '/' + regression_dir + f"/P_regression_combined_site_terms_{nearby_channel_number}chan.pickle")
+    regS = sm.load(results_output_dir + '/' + regression_dir + f"/S_regression_combined_site_terms_{nearby_channel_number}chan.pickle")
 
     print(f'Combined every {nearby_channel_number} channels.')
     print(regP.params[-2:])
@@ -446,8 +463,8 @@ for ii, nearby_channel_number in enumerate(nearby_channel_numbers):
     print('\n\n')   
 
 
-    M_P = calculate_magnitude_from_strain(peak_amplitude_df, regP, fitting_type='with_site', site_term_column='combined_channel_id')
-    M_S = calculate_magnitude_from_strain(peak_amplitude_df, regS, fitting_type='with_site', site_term_column='combined_channel_id')
+    M_P = calculate_magnitude_from_strain(peak_amplitude_df, regP, 'P', fitting_type='with_site', site_term_column='combined_channel_id')
+    M_S = calculate_magnitude_from_strain(peak_amplitude_df, regS, 'S', fitting_type='with_site', site_term_column='combined_channel_id')
 
     temp_df_P = get_mean_magnitude(peak_amplitude_df, M_P)
     temp_df_S = get_mean_magnitude(peak_amplitude_df, M_S)
