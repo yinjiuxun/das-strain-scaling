@@ -34,6 +34,29 @@ def calculate_magnitude_from_strain(peak_amplitude_df, reg, type, fitting_type='
                         / reg.params['magnitude']
         else:
             raise NameError(f'{type} is not defined! Only "P" or "S"')
+
+    if fitting_type == 'with_attenuation':
+        # get the annoying categorical keys C(region)[ridgecrest]:distance_in_km 
+        try:
+            site_term_keys = np.array([f'C({site_term_column})[{site_term}]' for site_term in peak_amplitude_df[site_term_column]])
+            site_attenu_keys = np.array([f'C(region)[{region}]:distance_in_km' for region in peak_amplitude_df['region']])
+        except:
+            raise NameError(f"Index {site_term_column} doesn't exist!")
+
+        if type == 'P':    
+            M_predict = (np.log10(peak_amplitude_df.peak_P) \
+                        - np.array(reg.params[site_term_keys]) \
+                        - reg.params['np.log10(distance_in_km)'] * np.log10(peak_amplitude_df.distance_in_km) \
+                        - np.array(reg.params[site_attenu_keys]) * np.array(peak_amplitude_df.distance_in_km)) \
+                        / reg.params['magnitude']
+        elif type == 'S':
+            M_predict = (np.log10(peak_amplitude_df.peak_S) \
+                        - np.array(reg.params[site_term_keys]) \
+                        - reg.params['np.log10(distance_in_km)'] * np.log10(peak_amplitude_df.distance_in_km) \
+                        - np.array(reg.params[site_attenu_keys]) * np.array(peak_amplitude_df.distance_in_km)) \
+                        / reg.params['magnitude']
+        else:
+            raise NameError(f'{type} is not defined! Only "P" or "S"')
         
     elif fitting_type == 'without_site':
         if type == 'P':
@@ -66,7 +89,7 @@ def get_mean_magnitude(peak_amplitude_df, M_predict):
     temp_df = pd.concat([temp_df, temp_df2['predicted_M_std']], axis=1)
     return temp_df
 
-def estimate_magnitude(results_output_dir, regression_dir, nearby_channel_number, site_term_column):
+def estimate_magnitude(results_output_dir, regression_dir, nearby_channel_number, fitting_type='without_site', site_term_column='region_site'):
     """High level function to estimate magnitude"""
     peak_amplitude_df = pd.read_csv(results_output_dir + f'/peak_amplitude_region_site_{nearby_channel_number}.csv')
     
@@ -79,8 +102,8 @@ def estimate_magnitude(results_output_dir, regression_dir, nearby_channel_number
     print(regS.params[-2:])
     print('\n\n')   
 
-    M_P = calculate_magnitude_from_strain(peak_amplitude_df, regP, 'P', fitting_type='with_site', site_term_column=site_term_column)
-    M_S = calculate_magnitude_from_strain(peak_amplitude_df, regS, 'S', fitting_type='with_site', site_term_column=site_term_column)
+    M_P = calculate_magnitude_from_strain(peak_amplitude_df, regP, 'P', fitting_type=fitting_type, site_term_column=site_term_column)
+    M_S = calculate_magnitude_from_strain(peak_amplitude_df, regS, 'S', fitting_type=fitting_type, site_term_column=site_term_column)
 
     temp_df_P = get_mean_magnitude(peak_amplitude_df, M_P)
     temp_df_S = get_mean_magnitude(peak_amplitude_df, M_S)
@@ -234,6 +257,25 @@ for ii, nearby_channel_number in enumerate(nearby_channel_numbers):
 plot_magnitude_prediction(temp_df_P_list, temp_df_S_list)
 plt.savefig(results_output_dir + '/' + regression_dir + "/predicted_magnitude.png")
 
+
+#%% Test regression with attenuation
+results_output_dir = '/home/yinjx/kuafu/Ridgecrest/Ridgecrest_scaling/peak_ampliutde_scaling_results_strain_rate'
+regression_dir = 'regression_results_attenuation_smf'
+site_term_column='combined_channel_id'
+fitting_type='with_attenuation'
+nearby_channel_numbers = [-1]#, 100, 50, 20, 10]
+
+# List to hold the estiamted magnitude
+temp_df_P_list = []
+temp_df_S_list = []
+
+for ii, nearby_channel_number in enumerate(nearby_channel_numbers):
+    temp_df_P, temp_df_S = estimate_magnitude(results_output_dir, regression_dir, nearby_channel_number, fitting_type, site_term_column)
+    temp_df_P_list.append(temp_df_P)
+    temp_df_S_list.append(temp_df_S)
+
+plot_magnitude_prediction(temp_df_P_list, temp_df_S_list)
+plt.savefig(results_output_dir + '/' + regression_dir + "/predicted_magnitude.png")
 
 
 #%% ========================== work on the results from Olancha ================================
