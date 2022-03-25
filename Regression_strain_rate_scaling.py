@@ -19,8 +19,8 @@ def write_regression_summary(regression_results_dir, file_name, reg):
     with open(regression_text + '/' + file_name + '.txt', "w") as text_file:
         text_file.write(reg.summary().as_text())
 
-def fit_regression(peak_amplitude_df, M_threshold, regression_results_dir, nearby_channel_number):
-    
+def fit_regression_magnitude_range(peak_amplitude_df, M_threshold, regression_results_dir, nearby_channel_number):
+   
     peak_amplitude_df = peak_amplitude_df[(peak_amplitude_df.magnitude >= M_threshold[0]) & (peak_amplitude_df.magnitude <= M_threshold[1])]
     
     regP = smf.ols(formula='np.log10(peak_P) ~ magnitude + np.log10(distance_in_km) + C(combined_channel_id) - 1', data=peak_amplitude_df).fit()
@@ -39,30 +39,55 @@ def fit_regression(peak_amplitude_df, M_threshold, regression_results_dir, nearb
     regS.save(regression_results_dir + '/' + file_name_S + '.pickle', remove_data=True)
     return regP,regS
 
+def fit_regression_with_attenuation_magnitude_range(peak_amplitude_df, M_threshold, regression_results_dir, nearby_channel_number):
+    '''Regression including the distance attenuation'''
+    peak_amplitude_df = peak_amplitude_df[(peak_amplitude_df.magnitude >= M_threshold[0]) & (peak_amplitude_df.magnitude <= M_threshold[1])]
+    
+    regP = smf.ols(formula='np.log10(peak_P) ~ magnitude + np.log10(distance_in_km) + C(region):distance_in_km + C(combined_channel_id) - 1', data=peak_amplitude_df).fit()
+    regS = smf.ols(formula='np.log10(peak_S) ~ magnitude + np.log10(distance_in_km) + C(region):distance_in_km + C(combined_channel_id) - 1', data=peak_amplitude_df).fit()
+
+    print(regP.params[-3:])
+    print(regS.params[-3:])
+    print('\n\n')
+    
+    file_name_P = f"/P_regression_combined_site_terms_{nearby_channel_number}chan"
+    write_regression_summary(regression_results_dir, file_name_P, regP)
+    file_name_S = f"/S_regression_combined_site_terms_{nearby_channel_number}chan"
+    write_regression_summary(regression_results_dir, file_name_S, regS)
+
+    regP.save(regression_results_dir + '/' + file_name_P + '.pickle', remove_data=True)
+    regS.save(regression_results_dir + '/' + file_name_S + '.pickle', remove_data=True)
+    return regP,regS
+
 
 # ==============================  Ridgecrest data ========================================
 #%% Specify the file names
 results_output_dir = '/home/yinjx/kuafu/Ridgecrest/Ridgecrest_scaling/peak_ampliutde_scaling_results_strain_rate'
 das_pick_file_name = '/peak_amplitude_M3+.csv'
+region_label = 'ridgecrest'
 
 # ==============================  Olancha data ========================================
 #%% Specify the file names
 results_output_dir = '/home/yinjx/kuafu/Olancha_Plexus/Olancha_scaling/peak_ampliutde_scaling_results_strain_rate'
 das_pick_file_name = '/peak_amplitude_M3+.csv'
+region_label = 'olancha'
 
 # ==============================  Mammoth data - South========================================
 #%% Specify the file names
 results_output_dir = '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/South'
 das_pick_file_name = '/Mammoth_South_Scaling_M3.csv'
+region_label = 'mammothS'
 
 # ==============================  Mammoth data - North========================================
 #%% Specify the file names
 results_output_dir = '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/North'
 das_pick_file_name = '/Mammoth_North_Scaling_M3.csv'
+region_label = 'mammothN'
 
 #%% load the peak amplitude results
 # Load the peak amplitude results
-peak_amplitude_df = pd.read_csv(results_output_dir + '/' + das_pick_file_name)
+peak_amplitude_df, DAS_index = load_and_add_region(results_output_dir + '/' + das_pick_file_name, 
+                                                   region_label=region_label)
 
 # Mammoth data contains the snrP and snrS, so if these two columns exist, only keep data with higher SNR
 snr_threshold = 20
@@ -75,9 +100,8 @@ if 'snrS' in peak_amplitude_df.columns:
 # Preprocessing the peak amplitude data
 peak_amplitude_df = peak_amplitude_df.dropna()
 peak_amplitude_df = add_event_label(peak_amplitude_df)
-DAS_index = peak_amplitude_df.channel_id.unique().astype('int')
 
-# directory to store the fitted results
+#%% Regression no attenuation
 regression_results_dir = results_output_dir + '/regression_results_smf'
 if not os.path.exists(regression_results_dir):
     os.mkdir(regression_results_dir)
@@ -88,10 +112,24 @@ for nearby_channel_number in [10, 20, 50, 100, -1]:
     peak_amplitude_df.to_csv(results_output_dir + f'/peak_amplitude_region_site_{nearby_channel_number}.csv', index=False)
     # Specify magnitude range to do regression
     M_threshold = [0, 10]
-    regP, regS = fit_regression(peak_amplitude_df, M_threshold, regression_results_dir, nearby_channel_number)
+    regP, regS = fit_regression_magnitude_range(peak_amplitude_df, M_threshold, regression_results_dir, nearby_channel_number)
     # reset the regression models
     del regP, regS
 
+#%% Regression with attenuation (Ridgecrest and Mammoth North have issue: positive attenuation???!!!)
+regression_results_dir = results_output_dir + '/regression_results_attenuation_smf'
+if not os.path.exists(regression_results_dir):
+    os.mkdir(regression_results_dir)
+
+for nearby_channel_number in [10, 20, 50, 100, -1]:
+    peak_amplitude_df = combined_channels(DAS_index, peak_amplitude_df, nearby_channel_number)
+    # Store the processed DataFrame
+    peak_amplitude_df.to_csv(results_output_dir + f'/peak_amplitude_region_site_{nearby_channel_number}.csv', index=False)
+    # Specify magnitude range to do regression
+    M_threshold = [0, 10]
+    regP, regS = fit_regression_with_attenuation_magnitude_range(peak_amplitude_df, M_threshold, regression_results_dir, nearby_channel_number)
+    # reset the regression models
+    del regP, regS
 
 # ======================= Below are the part to use the small events to do the regression ===========================
 # %%
@@ -105,10 +143,42 @@ for nearby_channel_number in [10, 20, 50, 100, -1]:
     peak_amplitude_df = pd.read_csv(results_output_dir + f'/peak_amplitude_region_site_{nearby_channel_number}.csv')
     # Specify magnitude range to do regression
     M_threshold = [0, 4]
-    regP, regS = fit_regression(peak_amplitude_df, M_threshold, regression_results_dir, nearby_channel_number)
+    regP, regS = fit_regression_magnitude_range(peak_amplitude_df, M_threshold, regression_results_dir, nearby_channel_number)
     # reset the regression models
     del regP, regS
 
+
+#%% ===================== Show the comparison between measured and predicted strain rate ==============================
+# directory to store the fitted results
+regression_results_dir = results_output_dir + '/regression_results_attenuation_smf'
+if not os.path.exists(regression_results_dir):
+    os.mkdir(regression_results_dir)
+
+for nearby_channel_number in [10, 20, 50, 100, -1]:
+    # Load the regression
+    file_name_P = f"/P_regression_combined_site_terms_{nearby_channel_number}chan"
+    file_name_S = f"/S_regression_combined_site_terms_{nearby_channel_number}chan"
+
+    regP = sm.load(regression_results_dir + '/' + file_name_P + '.pickle')
+    regS = sm.load(regression_results_dir + '/' + file_name_S + '.pickle')
+
+    peak_amplitude_df = pd.read_csv(results_output_dir + f'/peak_amplitude_region_site_{nearby_channel_number}.csv')
+    
+    y_P_predict = regP.predict(peak_amplitude_df)
+    y_S_predict = regS.predict(peak_amplitude_df)
+    
+    plot_compare_prediction_vs_true_values(peak_amplitude_df, y_P_predict, y_S_predict, (1.0, 5.5), 
+    regression_results_dir + f'/validate_predicted__combined_site_terms_{nearby_channel_number}chan.png')
+
+
+#%%
+regression_results_dir = results_output_dir + '/regression_results_attenuation_smf'
+nearby_channel_number=-1
+file_name_P = f"/P_regression_combined_site_terms_{nearby_channel_number}chan"
+file_name_S = f"/S_regression_combined_site_terms_{nearby_channel_number}chan"
+
+regP = sm.load(regression_results_dir + '/' + file_name_P + '.pickle')
+regS = sm.load(regression_results_dir + '/' + file_name_S + '.pickle')
 
 #%%
 # # make a directory to store the regression results in text
