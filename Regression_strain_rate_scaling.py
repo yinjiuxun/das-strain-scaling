@@ -62,7 +62,11 @@ def fit_regression_with_attenuation_magnitude_range(peak_amplitude_df, M_thresho
 
 # ==============================  Ridgecrest data ========================================
 #%% Specify the file names
-results_output_dir = '/home/yinjx/kuafu/Ridgecrest/Ridgecrest_scaling/peak_ampliutde_scaling_results_strain_rate'
+# results_output_dir = '/home/yinjx/kuafu/Ridgecrest/Ridgecrest_scaling/peak_ampliutde_scaling_results_strain_rate'
+# das_pick_file_name = '/peak_amplitude_M3+.csv'
+# region_label = 'ridgecrest'
+
+results_output_dir = '/home/yinjx/kuafu/Ridgecrest/Ridgecrest_scaling/peak_ampliutde_scaling_results_strain_rate_refined'
 das_pick_file_name = '/peak_amplitude_M3+.csv'
 region_label = 'ridgecrest'
 
@@ -148,7 +152,7 @@ for nearby_channel_number in [10, 20, 50, 100, -1]:
     del regP, regS
 
 
-#%% ===================== Show the comparison between measured and predicted strain rate ==============================
+#%% ===================== Including the attenuation terms ==============================
 # directory to store the fitted results
 regression_results_dir = results_output_dir + '/regression_results_attenuation_smf'
 if not os.path.exists(regression_results_dir):
@@ -180,6 +184,32 @@ file_name_S = f"/S_regression_combined_site_terms_{nearby_channel_number}chan"
 regP = sm.load(regression_results_dir + '/' + file_name_P + '.pickle')
 regS = sm.load(regression_results_dir + '/' + file_name_S + '.pickle')
 
+#%% Try the two-stage regression (Need to think again...)
+
+regression_results_dir = results_output_dir + '/regression_results_smf'
+if not os.path.exists(regression_results_dir):
+    os.mkdir(regression_results_dir)
+
+nearby_channel_number = 20
+M_threshold = [0, 10]
+
+
+peak_amplitude_df = pd.read_csv(results_output_dir + f'/peak_amplitude_region_site_{nearby_channel_number}.csv')
+peak_amplitude_df = peak_amplitude_df[(peak_amplitude_df.magnitude >= M_threshold[0]) & (peak_amplitude_df.magnitude <= M_threshold[1])]
+    
+regP_stage1 = smf.ols(formula='np.log10(peak_P) ~ np.log10(distance_in_km) + C(event_label) + C(combined_channel_id) - 1', data=peak_amplitude_df).fit(method='pinv')
+
+magnitude_df = pd.DataFrame(columns=['magnitude', 'magnitude_params'])
+event_magnitude = peak_amplitude_df.groupby(by='event_label').mean().magnitude
+magnitude_df.magnitude = event_magnitude
+magnitude_df.magnitude_params = regP_stage1.params[:len(event_magnitude)].values
+
+regP_stage2 = smf.ols(formula='magnitude_params ~ magnitude', data=magnitude_df).fit(method='pinv')
+
+# regP_stage2 = smf.ols(formula='np.log10(peak_P) ~ np.log10(distance_in_km) + distance_in_km + C(event_label) + C(combined_channel_id) - 1', data=peak_amplitude_df).fit(method='qr')
+
+# magnitude = peak_amplitude_df.groupby(by='event_label').mean().magnitude
+# plt.plot(magnitude,regP_stage1.params[:230], 'x')
 #%%
 # # make a directory to store the regression results in text
 # regression_text = regression_results_dir + '/regression_results_txt'
