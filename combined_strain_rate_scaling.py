@@ -71,33 +71,43 @@ def fit_regression_with_attenuation_magnitude_range(peak_amplitude_df, M_thresho
 
 # TODO: Added a function to split data set and do the fitting
 
+#%% 
+peak_data_list = []
+das_index_list = []
 #%% ==============================  Ridgecrest data ========================================
-ridgecrest_peaks = '/home/yinjx/kuafu/Ridgecrest/Ridgecrest_scaling/peak_ampliutde_scaling_results_strain_rate/peak_amplitude_M3+.csv'
+#ridgecrest_peaks = '/home/yinjx/kuafu/Ridgecrest/Ridgecrest_scaling/peak_ampliutde_scaling_results_strain_rate/peak_amplitude_M3+.csv'
+ridgecrest_peaks = '/home/yinjx/kuafu/Ridgecrest/Ridgecrest_scaling/peak_ampliutde_scaling_results_strain_rate_refined/peak_amplitude_M3+.csv'
 peak_amplitude_df_ridgecrest, DAS_index_ridgecrest = load_and_add_region(ridgecrest_peaks, region_label='ridgecrest')
+peak_data_list.append(peak_amplitude_df_ridgecrest)
+das_index_list.append(DAS_index_ridgecrest)
 
 #%% ==============================  Olancha data ========================================
-olancha_peaks = '/home/yinjx/kuafu/Olancha_Plexus/Olancha_scaling/peak_ampliutde_scaling_results_strain_rate/peak_amplitude_M3+.csv'
+#olancha_peaks = '/home/yinjx/kuafu/Olancha_Plexus/Olancha_scaling/peak_ampliutde_scaling_results_strain_rate/peak_amplitude_M3+.csv'
+olancha_peaks = '/kuafu/yinjx/Olancha_Plexus_100km/Olancha_scaling/peak_amplitude_M3+.csv'
 peak_amplitude_df_olancha, DAS_index_olancha = load_and_add_region(olancha_peaks, region_label='olancha')
+peak_data_list.append(peak_amplitude_df_olancha)
+das_index_list.append(DAS_index_olancha)
 
 #%% ==============================  Mammoth south data ========================================
 mammoth_S_peaks = '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/South/Mammoth_South_Scaling_M3.csv'
 peak_amplitude_df_mammoth_S, DAS_index_mammoth_S = load_and_add_region(mammoth_S_peaks, region_label='mammothS')
+peak_data_list.append(peak_amplitude_df_mammoth_S)
+das_index_list.append(DAS_index_mammoth_S)
 
 #%% ==============================  Mammoth north data ========================================
 mammoth_N_peaks = '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/North/Mammoth_North_Scaling_M3.csv'
 peak_amplitude_df_mammoth_N, DAS_index_mammoth_N = load_and_add_region(mammoth_N_peaks, region_label='mammothN')
+peak_data_list.append(peak_amplitude_df_mammoth_N)
+das_index_list.append(DAS_index_mammoth_N)
 
-#%% use a list to contain all the data
-peak_data_list = [peak_amplitude_df_ridgecrest, peak_amplitude_df_olancha, peak_amplitude_df_mammoth_S, peak_amplitude_df_mammoth_N]
-das_index_list = [DAS_index_ridgecrest, DAS_index_olancha, DAS_index_mammoth_S, DAS_index_mammoth_N]
 
 #%% Combine the peak results from different regions
-results_output_dir = '/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_ROM'
+results_output_dir = '/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RO'
 if not os.path.exists(results_output_dir):
     os.mkdir(results_output_dir)
 
 #%% Preprocess the data file: combining different channels etc.
-combined_channel_number_list = [50, -1] #[10, 20, 50, 100, -1] # -1 means the constant model
+combined_channel_number_list = [10, 20, 50, 100, -1] # -1 means the constant model
 for nearby_channel_number in combined_channel_number_list:
     for ii, peak_data in enumerate(peak_data_list): # combine nearby channels for all the prepared data
         peak_data = combined_channels(das_index_list[ii], peak_data, nearby_channel_number)
@@ -128,17 +138,17 @@ for nearby_channel_number in combined_channel_number_list:
 
 #%% Linear regression on the data point including the site term, here assume that every X nearby channels share the same site terms
 # directory to store the fitted results, here attenuation is also included
-regression_results_dir = results_output_dir + '/regression_results_attenuation_smf'
-if not os.path.exists(regression_results_dir):
-    os.mkdir(regression_results_dir)
+# regression_results_dir = results_output_dir + '/regression_results_attenuation_smf'
+# if not os.path.exists(regression_results_dir):
+#     os.mkdir(regression_results_dir)
 
-combined_channel_number_list = [50]
-for nearby_channel_number in combined_channel_number_list:
-    # Load the processed DataFrame
-    peak_amplitude_df = pd.read_csv(results_output_dir + f'/peak_amplitude_region_site_{nearby_channel_number}.csv')
-    # Specify magnitude range to do regression
-    M_threshold = [0, 9]
-    fit_regression_with_attenuation_magnitude_range(peak_amplitude_df, M_threshold, regression_results_dir, nearby_channel_number)
+# combined_channel_number_list = [50]
+# for nearby_channel_number in combined_channel_number_list:
+#     # Load the processed DataFrame
+#     peak_amplitude_df = pd.read_csv(results_output_dir + f'/peak_amplitude_region_site_{nearby_channel_number}.csv')
+#     # Specify magnitude range to do regression
+#     M_threshold = [0, 9]
+#     fit_regression_with_attenuation_magnitude_range(peak_amplitude_df, M_threshold, regression_results_dir, nearby_channel_number)
 
 # ======================= Below are the part to use the small events to do the regression ===========================
 # %% Now only use the smaller earthquakes to do the regression
@@ -162,7 +172,7 @@ regression_results_dir = results_output_dir + '/regression_results_smf'
 if not os.path.exists(regression_results_dir):
     os.mkdir(regression_results_dir)
 
-for nearby_channel_number in [50, -1]:
+for nearby_channel_number in combined_channel_number_list:
     # Load the regression
     file_name_P = f"/P_regression_combined_site_terms_{nearby_channel_number}chan"
     file_name_S = f"/S_regression_combined_site_terms_{nearby_channel_number}chan"
