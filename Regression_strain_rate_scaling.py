@@ -72,7 +72,7 @@ region_label = 'ridgecrest'
 
 # ==============================  Olancha data ========================================
 #%% Specify the file names
-results_output_dir = '/home/yinjx/kuafu/Olancha_Plexus/Olancha_scaling/peak_ampliutde_scaling_results_strain_rate'
+results_output_dir = '/kuafu/yinjx/Olancha_Plexus_100km/Olancha_scaling'
 das_pick_file_name = '/peak_amplitude_M3+.csv'
 region_label = 'olancha'
 
