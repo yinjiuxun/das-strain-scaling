@@ -14,7 +14,6 @@ from utility_functions import *
 #%% Define functions
 # Use the predicted strain to calculate magnitude
 def calculate_magnitude_from_strain(peak_amplitude_df, reg, type, fitting_type='without_site', site_term_column='region_site'):
-    
     if fitting_type == 'with_site':
         # get the annoying categorical keys
         try:
@@ -35,7 +34,7 @@ def calculate_magnitude_from_strain(peak_amplitude_df, reg, type, fitting_type='
         else:
             raise NameError(f'{type} is not defined! Only "P" or "S"')
 
-    if fitting_type == 'with_attenuation':
+    elif fitting_type == 'with_attenuation':
         # get the annoying categorical keys C(region)[ridgecrest]:distance_in_km 
         try:
             site_term_keys = np.array([f'C({site_term_column})[{site_term}]' for site_term in peak_amplitude_df[site_term_column]])
@@ -145,6 +144,7 @@ def plot_magnitude_prediction(temp_df_P_list, temp_df_S_list):
 results_output_dir = '/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RO'
 regression_dir = 'regression_results_smf'
 site_term_column = 'region_site'
+fitting_type = 'with_site'
 nearby_channel_numbers = [-1, 100, 50, 20, 10]
 
 # List to hold the estiamted magnitude
@@ -152,7 +152,7 @@ temp_df_P_list = []
 temp_df_S_list = []
 
 for ii, nearby_channel_number in enumerate(nearby_channel_numbers):
-    temp_df_P, temp_df_S = estimate_magnitude(results_output_dir, regression_dir, nearby_channel_number, site_term_column)
+    temp_df_P, temp_df_S = estimate_magnitude(results_output_dir, regression_dir, nearby_channel_number, fitting_type, site_term_column)
     temp_df_P_list.append(temp_df_P)
     temp_df_S_list.append(temp_df_S)
 
@@ -164,6 +164,7 @@ plt.savefig(results_output_dir + '/' + regression_dir + "/predicted_magnitude.pn
 results_output_dir = '/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RO'
 regression_dir = 'regression_results_smf_M4'
 site_term_column = 'region_site'
+fitting_type = 'with_site'
 nearby_channel_numbers = [-1, 100, 50, 20, 10]
 
 # List to hold the estiamted magnitude
@@ -171,12 +172,13 @@ temp_df_P_list = []
 temp_df_S_list = []
 
 for ii, nearby_channel_number in enumerate(nearby_channel_numbers):
-    temp_df_P, temp_df_S = estimate_magnitude(results_output_dir, regression_dir, nearby_channel_number, site_term_column)
+    temp_df_P, temp_df_S = estimate_magnitude(results_output_dir, regression_dir, nearby_channel_number, fitting_type, site_term_column)
     temp_df_P_list.append(temp_df_P)
     temp_df_S_list.append(temp_df_S)
 
 plot_magnitude_prediction(temp_df_P_list, temp_df_S_list)
 plt.savefig(results_output_dir + '/' + regression_dir + "/predicted_magnitude.png")
+
 
 # ========================== work on Combined results from all Ridgecrest + Olancha + Mammoth S + Mammoth N ================================
 # First check how well the regression relation can be used to calculate Magnitude
@@ -222,9 +224,10 @@ plt.savefig(results_output_dir + '/' + regression_dir + "/predicted_magnitude.pn
 #%% ========================== work on the results from Ridgecrest ================================
 # First check how well the regression relation can be used to calculate Magnitude
 #%% load the results from combined regional site terms t
-results_output_dir = '/home/yinjx/kuafu/Ridgecrest/Ridgecrest_scaling/peak_ampliutde_scaling_results_strain_rate'
+results_output_dir = '/home/yinjx/kuafu/Ridgecrest/Ridgecrest_scaling/peak_ampliutde_scaling_results_strain_rate_refined'
 regression_dir = 'regression_results_smf'
 site_term_column='combined_channel_id'
+fitting_type = 'with_site'
 nearby_channel_numbers = [-1, 100, 50, 20, 10]
 
 # List to hold the estiamted magnitude
@@ -232,7 +235,7 @@ temp_df_P_list = []
 temp_df_S_list = []
 
 for ii, nearby_channel_number in enumerate(nearby_channel_numbers):
-    temp_df_P, temp_df_S = estimate_magnitude(results_output_dir, regression_dir, nearby_channel_number, site_term_column)
+    temp_df_P, temp_df_S = estimate_magnitude(results_output_dir, regression_dir, nearby_channel_number, fitting_type, site_term_column)
     temp_df_P_list.append(temp_df_P)
     temp_df_S_list.append(temp_df_S)
 
@@ -250,7 +253,7 @@ temp_df_P_list = []
 temp_df_S_list = []
 
 for ii, nearby_channel_number in enumerate(nearby_channel_numbers):
-    temp_df_P, temp_df_S = estimate_magnitude(results_output_dir, regression_dir, nearby_channel_number, site_term_column)
+    temp_df_P, temp_df_S = estimate_magnitude(results_output_dir, regression_dir, nearby_channel_number, fitting_type, site_term_column)
     temp_df_P_list.append(temp_df_P)
     temp_df_S_list.append(temp_df_S)
 
@@ -281,9 +284,10 @@ plt.savefig(results_output_dir + '/' + regression_dir + "/predicted_magnitude.pn
 #%% ========================== work on the results from Olancha ================================
 # First check how well the regression relation can be used to calculate Magnitude
 #%% load the results from combined regional site terms t
-results_output_dir = '/home/yinjx/kuafu/Olancha_Plexus/Olancha_scaling/peak_ampliutde_scaling_results_strain_rate'
+results_output_dir = '/kuafu/yinjx/Olancha_Plexus_100km/Olancha_scaling/'
 regression_dir = 'regression_results_smf'
 site_term_column='combined_channel_id'
+fitting_type = 'with_site'
 nearby_channel_numbers = [-1, 100, 50, 20, 10]
 
 # List to hold the estiamted magnitude
@@ -291,7 +295,7 @@ temp_df_P_list = []
 temp_df_S_list = []
 
 for ii, nearby_channel_number in enumerate(nearby_channel_numbers):
-    temp_df_P, temp_df_S = estimate_magnitude(results_output_dir, regression_dir, nearby_channel_number, site_term_column)
+    temp_df_P, temp_df_S = estimate_magnitude(results_output_dir, regression_dir, nearby_channel_number, fitting_type, site_term_column)
     temp_df_P_list.append(temp_df_P)
     temp_df_S_list.append(temp_df_S)
 
@@ -309,7 +313,7 @@ temp_df_P_list = []
 temp_df_S_list = []
 
 for ii, nearby_channel_number in enumerate(nearby_channel_numbers):
-    temp_df_P, temp_df_S = estimate_magnitude(results_output_dir, regression_dir, nearby_channel_number, site_term_column)
+    temp_df_P, temp_df_S = estimate_magnitude(results_output_dir, regression_dir, nearby_channel_number, fitting_type, site_term_column)
     temp_df_P_list.append(temp_df_P)
     temp_df_S_list.append(temp_df_S)
 
