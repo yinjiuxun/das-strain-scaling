@@ -11,25 +11,31 @@ from plotting_functions import *
 
 # ==============================  Ridgecrest data ========================================
 #%% Specify the file names
-results_output_dir = '/home/yinjx/kuafu/Ridgecrest/Ridgecrest_scaling/peak_ampliutde_scaling_results_strain_rate'
-#results_output_dir = '/home/yinjx/kuafu/Ridgecrest/Ridgecrest_scaling/peak_ampliutde_scaling_results_strain'
+# results_output_dir = '/home/yinjx/kuafu/Ridgecrest/Ridgecrest_scaling/peak_ampliutde_scaling_results_strain_rate'
+# das_pick_file_name = '/peak_amplitude_M3+.csv'
+# region_label = 'ridgecrest'
+
+results_output_dir = '/home/yinjx/kuafu/Ridgecrest/Ridgecrest_scaling/peak_ampliutde_scaling_results_strain_rate_refined'
 das_pick_file_name = '/peak_amplitude_M3+.csv'
+region_label = 'ridgecrest'
 
 # ==============================  Olancha data ========================================
 #%% Specify the file names
-results_output_dir = '/home/yinjx/kuafu/Olancha_Plexus/Olancha_scaling/peak_ampliutde_scaling_results_strain_rate'
-results_output_dir = '/home/yinjx/kuafu/Olancha_Plexus/Olancha_scaling/peak_ampliutde_scaling_results_strain'
+results_output_dir = '/kuafu/yinjx/Olancha_Plexus_100km/Olancha_scaling'
 das_pick_file_name = '/peak_amplitude_M3+.csv'
+region_label = 'olancha'
 
 # ==============================  Mammoth data - South========================================
 #%% Specify the file names
 results_output_dir = '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/South'
 das_pick_file_name = '/Mammoth_South_Scaling_M3.csv'
+region_label = 'mammothS'
 
 # ==============================  Mammoth data - North========================================
 #%% Specify the file names
 results_output_dir = '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/North'
 das_pick_file_name = '/Mammoth_North_Scaling_M3.csv'
+region_label = 'mammothN'
 
 #%% specify where the regression results are
 regression_results_dir = results_output_dir + '/regression_results_smf'
@@ -60,17 +66,10 @@ def combined_channels(DAS_index, peak_amplitude_df, nearby_channel_number):
     peak_amplitude_df['combined_channel_id'] = temp2[np.array(peak_amplitude_df.channel_id).astype('int')]
     return peak_amplitude_df
 
-def store_model_parameters_to_df(reg, parameter_df, combined_channel_number, digits=3):
-    parameter_df['combined_channels'][i_model] = combined_channel_number
-    parameter_df['magnitude'][i_model] = round(reg.params[-2],digits)
-    parameter_df['distance'][i_model] = round(reg.params[-1],digits)
-    parameter_df['magnitude_err'][i_model] = round(np.sqrt(reg.cov_params().iloc[-2][-2]),digits)
-    parameter_df['distance_err'][i_model] = round(np.sqrt(reg.cov_params().iloc[-1][-1]),digits)
-    return parameter_df
 
 # %% Compare the regression parameters and site terms
 fig, ax = plt.subplots(2, 1, figsize=(10, 12), sharex=True, sharey=True)
-combined_channel_number_list = [10, 20, 50, 100, -1] # -1 means the constant model
+combined_channel_number_list = [10]#[10, 20, 50, 100, -1] # -1 means the constant model
 
 # DataFrame to store parameters for all models
 P_parameters_comparison = pd.DataFrame(columns=['combined_channels', 'magnitude', 'distance', 'magnitude_err', 'distance_err'], 
@@ -79,28 +78,11 @@ S_parameters_comparison = pd.DataFrame(columns=['combined_channels', 'magnitude'
 index = np.arange(len(combined_channel_number_list)))
 
 for i_model, combined_channel_number in enumerate(combined_channel_number_list):
-    if combined_channel_number == 1:
-        regP = sm.load(regression_results_dir + "/P_regression_all_events_with_site_terms.pickle")
-        regS = sm.load(regression_results_dir + "/S_regression_all_events_with_site_terms.pickle")
 
-    elif combined_channel_number == -1:
-        regP = sm.load(regression_results_dir + "/P_regression_all_events_no_site_terms.pickle")
-        regS = sm.load(regression_results_dir + "/S_regression_all_events_no_site_terms.pickle")
-    else:
-        regP = sm.load(regression_results_dir + f"/P_regression_all_events_with_combined_site_terms_{combined_channel_number}chan.pickle")
-        regS = sm.load(regression_results_dir + f"/S_regression_all_events_with_combined_site_terms_{combined_channel_number}chan.pickle")
+    regP = sm.load(regression_results_dir + f"/P_regression_combined_site_terms_{combined_channel_number}chan.pickle")
+    regS = sm.load(regression_results_dir + f"/S_regression_combined_site_terms_{combined_channel_number}chan.pickle")
 
-        peak_amplitude_df = combined_channels(DAS_index, peak_amplitude_df, combined_channel_number)
-
-    # output to text files
-    with open(regression_text + f"/P_regression_all_events_with_combined_site_terms_{combined_channel_number}chan.txt", "w") as text_file:
-        text_file.write(regP.summary().as_text())
-    with open(regression_text + f"/S_regression_all_events_with_combined_site_terms_{combined_channel_number}chan.txt", "w") as text_file:
-        text_file.write(regS.summary().as_text())
-
-    # Store the parameters 
-    P_parameters_comparison = store_model_parameters_to_df(regP, P_parameters_comparison, combined_channel_number)
-    S_parameters_comparison = store_model_parameters_to_df(regS, S_parameters_comparison, combined_channel_number)
+    peak_amplitude_df = combined_channels(DAS_index, peak_amplitude_df, combined_channel_number)
     
 # Compare all the site terms
     site_term_P = regP.params[:-2]
@@ -113,11 +95,14 @@ for i_model, combined_channel_number in enumerate(combined_channel_number_list):
         ax[0].hlines(site_term_P, xmin=DAS_index.min(), xmax=DAS_index.max(), color='k', label=f'Same site terms, Cond.# {regP.condition_number:.2f}')
         ax[1].hlines(site_term_S, xmin=DAS_index.min(), xmax=DAS_index.max(), color='k', label=f'Same site terms, Cond.# {regS.condition_number:.2f}')
     else:
-        ax[0].plot(peak_amplitude_df['combined_channel_id'].unique() * combined_channel_number, site_term_P, label=f'{combined_channel_number} channels, Cond.# {regP.condition_number:.2f}')
-        ax[1].plot(peak_amplitude_df['combined_channel_id'].unique() * combined_channel_number, site_term_S, label=f'{combined_channel_number} channels, Cond.# {regS.condition_number:.2f}')
+
+
+
+        ax[0].plot(peak_amplitude_df['combined_channel_id'].unique() * combined_channel_number, np.array(site_term_P), 'o', label=f'{combined_channel_number} channels, Cond.# {regP.condition_number:.2f}')
+        ax[1].plot(peak_amplitude_df['combined_channel_id'].unique() * combined_channel_number, site_term_S, 'o', label=f'{combined_channel_number} channels, Cond.# {regS.condition_number:.2f}')
 
     # reset the regression models
-    del regP, regS
+    #del regP, regS
 
 ax[0].legend(fontsize=12)
 ax[1].legend(fontsize=12)
@@ -129,9 +114,5 @@ ax[1].set_ylabel('Site terms S')
 #ax[1].invert_xaxis()
 
 plt.savefig(regression_results_dir + '/compare_site_terms.png', bbox_inches='tight')
-
-P_parameters_comparison.to_csv(regression_results_dir + '/parameter_comparison_P.txt', index=False, sep='\t')
-S_parameters_comparison.to_csv(regression_results_dir + '/parameter_comparison_S.txt', index=False, sep='\t')
-# %%
 
 # %%
