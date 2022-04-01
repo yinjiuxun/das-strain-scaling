@@ -15,6 +15,15 @@ def load_and_add_region(peak_file, region_label):
     peak_amplitude_df['region'] = region_label # add the region label
     DAS_index = peak_amplitude_df.channel_id.unique().astype('int')
     peak_amplitude_df = peak_amplitude_df.dropna()
+
+    # Mammoth data contains the snrP and snrS, so if these two columns exist, only keep data with higher SNR
+    snr_threshold = 20
+    if 'snrP' in peak_amplitude_df.columns:
+        peak_amplitude_df = peak_amplitude_df[peak_amplitude_df.snrP >= snr_threshold]
+
+    if 'snrS' in peak_amplitude_df.columns:
+        peak_amplitude_df = peak_amplitude_df[peak_amplitude_df.snrS >= snr_threshold]
+        
     return peak_amplitude_df,DAS_index
 
  
