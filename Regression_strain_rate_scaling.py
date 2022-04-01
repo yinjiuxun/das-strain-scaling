@@ -106,20 +106,73 @@ peak_amplitude_df = peak_amplitude_df.dropna()
 peak_amplitude_df = add_event_label(peak_amplitude_df)
 
 #%% Regression no attenuation
+nearby_channel_number_list = [10, 20, 50, 100, -1]
+
 regression_results_dir = results_output_dir + '/regression_results_smf'
 if not os.path.exists(regression_results_dir):
     os.mkdir(regression_results_dir)
 
-for nearby_channel_number in [10, 20, 50, 100, -1]:
+regression_parameter_txt = regression_results_dir + '/regression_slopes'
+mag_slopeP, dist_slopeP, mag_slopeS, dist_slopeS = [], [], [], []
+
+for nearby_channel_number in nearby_channel_number_list:
     peak_amplitude_df = combined_channels(DAS_index, peak_amplitude_df, nearby_channel_number)
     # Store the processed DataFrame
     peak_amplitude_df.to_csv(results_output_dir + f'/peak_amplitude_region_site_{nearby_channel_number}.csv', index=False)
     # Specify magnitude range to do regression
     M_threshold = [0, 10]
     regP, regS = fit_regression_magnitude_range(peak_amplitude_df, M_threshold, regression_results_dir, nearby_channel_number)
+    
+    mag_slopeP.append(regP.params[-2])
+    dist_slopeP.append(regP.params[-1])
+    mag_slopeS.append(regS.params[-2])
+    dist_slopeS.append(regS.params[-1])
+    
     # reset the regression models
     del regP, regS
 
+P_regression_parameter_df = pd.DataFrame({'site_channels':nearby_channel_number_list, 'magnitude-P':mag_slopeP, 'log(distance)-P':dist_slopeP})  
+S_regression_parameter_df = pd.DataFrame({'site_channels':nearby_channel_number_list, 'magnitude-S':mag_slopeS, 'log(distance)-S':dist_slopeS})  
+P_regression_parameter_df.to_csv(regression_parameter_txt + '_P.txt', index=False, sep='\t', float_format='%.3f')
+S_regression_parameter_df.to_csv(regression_parameter_txt + '_S.txt', index=False, sep='\t', float_format='%.3f')
+
+#%% ======================= Below are the part to use the small events to do the regression ===========================
+nearby_channel_number_list = [10, 20, 50, 100, -1]
+# directory to store the fitted results
+regression_results_dir = results_output_dir + '/regression_results_smf_M4'
+if not os.path.exists(regression_results_dir):
+    os.mkdir(regression_results_dir)
+
+regression_parameter_txt = regression_results_dir + '/regression_slopes'
+mag_slopeP, dist_slopeP, mag_slopeS, dist_slopeS = [], [], [], []
+
+for nearby_channel_number in nearby_channel_number_list:
+    # Load the processed DataFrame
+    peak_amplitude_df = pd.read_csv(results_output_dir + f'/peak_amplitude_region_site_{nearby_channel_number}.csv')
+    # Specify magnitude range to do regression
+    M_threshold = [0, 4]
+    regP, regS = fit_regression_magnitude_range(peak_amplitude_df, M_threshold, regression_results_dir, nearby_channel_number)
+    
+    mag_slopeP.append(regP.params[-2])
+    dist_slopeP.append(regP.params[-1])
+    mag_slopeS.append(regS.params[-2])
+    dist_slopeS.append(regS.params[-1])
+
+    # reset the regression models
+    del regP, regS
+
+P_regression_parameter_df = pd.DataFrame({'site_channels':nearby_channel_number_list, 'magnitude-P':mag_slopeP, 'log(distance)-P':dist_slopeP})  
+S_regression_parameter_df = pd.DataFrame({'site_channels':nearby_channel_number_list, 'magnitude-S':mag_slopeS, 'log(distance)-S':dist_slopeS})  
+P_regression_parameter_df.to_csv(regression_parameter_txt + '_P.txt', index=False, sep='\t', float_format='%.3f')
+S_regression_parameter_df.to_csv(regression_parameter_txt + '_S.txt', index=False, sep='\t', float_format='%.3f')
+
+
+
+
+
+
+#%% ======================= Test other regression methods (NOT GOOD!) ===========================
+dda
 #%% Regression with attenuation (Ridgecrest and Mammoth North have issue: positive attenuation???!!!)
 regression_results_dir = results_output_dir + '/regression_results_attenuation_smf'
 if not os.path.exists(regression_results_dir):
@@ -134,24 +187,6 @@ for nearby_channel_number in [10, 20, 50, 100, -1]:
     regP, regS = fit_regression_with_attenuation_magnitude_range(peak_amplitude_df, M_threshold, regression_results_dir, nearby_channel_number)
     # reset the regression models
     del regP, regS
-
-# ======================= Below are the part to use the small events to do the regression ===========================
-# %%
-# directory to store the fitted results
-regression_results_dir = results_output_dir + '/regression_results_smf_M4'
-if not os.path.exists(regression_results_dir):
-    os.mkdir(regression_results_dir)
-
-for nearby_channel_number in [10, 20, 50, 100, -1]:
-    # Load the processed DataFrame
-    peak_amplitude_df = pd.read_csv(results_output_dir + f'/peak_amplitude_region_site_{nearby_channel_number}.csv')
-    # Specify magnitude range to do regression
-    M_threshold = [0, 4]
-    regP, regS = fit_regression_magnitude_range(peak_amplitude_df, M_threshold, regression_results_dir, nearby_channel_number)
-    # reset the regression models
-    del regP, regS
-
-
 #%% ===================== Including the attenuation terms ==============================
 # directory to store the fitted results
 regression_results_dir = results_output_dir + '/regression_results_attenuation_smf'
@@ -186,7 +221,7 @@ regS = sm.load(regression_results_dir + '/' + file_name_S + '.pickle')
 
 #%% Try the two-stage regression (Need to think again...)
 
-regression_results_dir = results_output_dir + '/regression_results_smf'
+regression_results_dir = results_output_dir + '/regression_results_smf_2_stages'
 if not os.path.exists(regression_results_dir):
     os.mkdir(regression_results_dir)
 
@@ -195,9 +230,22 @@ M_threshold = [0, 10]
 
 
 peak_amplitude_df = pd.read_csv(results_output_dir + f'/peak_amplitude_region_site_{nearby_channel_number}.csv')
+
+snr_threshold = 30
+if 'snrP' in peak_amplitude_df.columns:
+    peak_amplitude_df = peak_amplitude_df[peak_amplitude_df.snrP >= snr_threshold]
+
+if 'snrS' in peak_amplitude_df.columns:
+    peak_amplitude_df = peak_amplitude_df[peak_amplitude_df.snrS >= snr_threshold]
+
+# Preprocessing the peak amplitude data
+peak_amplitude_df = peak_amplitude_df.dropna()
+peak_amplitude_df = add_event_label(peak_amplitude_df)
+
+
 peak_amplitude_df = peak_amplitude_df[(peak_amplitude_df.magnitude >= M_threshold[0]) & (peak_amplitude_df.magnitude <= M_threshold[1])]
     
-regP_stage1 = smf.ols(formula='np.log10(peak_P) ~ np.log10(distance_in_km) + C(event_label) + C(combined_channel_id) - 1', data=peak_amplitude_df).fit(method='pinv')
+regP_stage1 = smf.ols(formula='np.log10(peak_P) ~ np.log10(distance_in_km) + distance_in_km + C(event_label) + C(combined_channel_id) - 1', data=peak_amplitude_df).fit(method='pinv')
 
 magnitude_df = pd.DataFrame(columns=['magnitude', 'magnitude_params'])
 event_magnitude = peak_amplitude_df.groupby(by='event_label').mean().magnitude
@@ -205,6 +253,37 @@ magnitude_df.magnitude = event_magnitude
 magnitude_df.magnitude_params = regP_stage1.params[:len(event_magnitude)].values
 
 regP_stage2 = smf.ols(formula='magnitude_params ~ magnitude', data=magnitude_df).fit(method='pinv')
+
+#%% Try mixed linear model 
+
+regression_results_dir = results_output_dir + '/regression_results_smf_mlm'
+if not os.path.exists(regression_results_dir):
+    os.mkdir(regression_results_dir)
+
+nearby_channel_number = 20
+M_threshold = [0, 10]
+
+
+peak_amplitude_df = pd.read_csv(results_output_dir + f'/peak_amplitude_region_site_{nearby_channel_number}.csv')
+
+snr_threshold = 30
+if 'snrP' in peak_amplitude_df.columns:
+    peak_amplitude_df = peak_amplitude_df[peak_amplitude_df.snrP >= snr_threshold]
+
+if 'snrS' in peak_amplitude_df.columns:
+    peak_amplitude_df = peak_amplitude_df[peak_amplitude_df.snrS >= snr_threshold]
+
+# Preprocessing the peak amplitude data
+peak_amplitude_df = peak_amplitude_df.dropna()
+peak_amplitude_df = add_event_label(peak_amplitude_df)
+
+
+peak_amplitude_df = peak_amplitude_df[(peak_amplitude_df.magnitude >= M_threshold[0]) & (peak_amplitude_df.magnitude <= M_threshold[1])]
+    
+regP = smf.mixedlm(formula='np.log10(peak_P) ~ np.log10(distance_in_km) + magnitude + C(combined_channel_id) - 1', 
+data=peak_amplitude_df, groups=peak_amplitude_df['event_id']).fit()
+print(regP.params)
+
 
 # regP_stage2 = smf.ols(formula='np.log10(peak_P) ~ np.log10(distance_in_km) + distance_in_km + C(event_label) + C(combined_channel_id) - 1', data=peak_amplitude_df).fit(method='qr')
 
