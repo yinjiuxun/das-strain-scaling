@@ -102,7 +102,7 @@ das_index_list.append(DAS_index_mammoth_N)
 
 
 #%% Combine the peak results from different regions
-results_output_dir = '/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RO'
+results_output_dir = '/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_ROM'
 if not os.path.exists(results_output_dir):
     os.mkdir(results_output_dir)
 
@@ -172,6 +172,9 @@ regression_results_dir = results_output_dir + '/regression_results_smf'
 if not os.path.exists(regression_results_dir):
     os.mkdir(regression_results_dir)
 
+regression_parameter_txt = regression_results_dir + '/regression_slopes'
+mag_slopeP, dist_slopeP, mag_slopeS, dist_slopeS = [], [], [], []
+
 for nearby_channel_number in combined_channel_number_list:
     # Load the regression
     file_name_P = f"/P_regression_combined_site_terms_{nearby_channel_number}chan"
@@ -179,6 +182,11 @@ for nearby_channel_number in combined_channel_number_list:
 
     regP = sm.load(regression_results_dir + '/' + file_name_P + '.pickle')
     regS = sm.load(regression_results_dir + '/' + file_name_S + '.pickle')
+
+    mag_slopeP.append(regP.params[-2])
+    dist_slopeP.append(regP.params[-1])
+    mag_slopeS.append(regS.params[-2])
+    dist_slopeS.append(regS.params[-1])
 
     peak_amplitude_df = pd.read_csv(results_output_dir + f'/peak_amplitude_region_site_{nearby_channel_number}.csv')
     
@@ -188,6 +196,10 @@ for nearby_channel_number in combined_channel_number_list:
     plot_compare_prediction_vs_true_values(peak_amplitude_df, y_P_predict, y_S_predict, (1.0, 5.5), 
     regression_results_dir + f'/validate_predicted__combined_site_terms_{nearby_channel_number}chan.png')
 
+P_regression_parameter_df = pd.DataFrame({'site_channels':combined_channel_number_list, 'magnitude-P':mag_slopeP, 'log(distance)-P':dist_slopeP})  
+S_regression_parameter_df = pd.DataFrame({'site_channels':combined_channel_number_list, 'magnitude-S':mag_slopeS, 'log(distance)-S':dist_slopeS})  
+P_regression_parameter_df.to_csv(regression_parameter_txt + '_P.txt', index=False, sep='\t', float_format='%.3f')
+S_regression_parameter_df.to_csv(regression_parameter_txt + '_S.txt', index=False, sep='\t', float_format='%.3f')
 
 
 # %%
