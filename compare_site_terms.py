@@ -37,15 +37,6 @@ results_output_dir = '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain
 das_pick_file_name = '/Mammoth_North_Scaling_M3.csv'
 region_label = 'mammothN'
 
-#%% specify where the regression results are
-regression_results_dir = results_output_dir + '/regression_results_smf'
-
-# make a directory to store the regression results in text
-regression_text = regression_results_dir + '/regression_results_txt'
-if not os.path.exists(regression_text):
-    os.mkdir(regression_text)
-
-
 #%% load the peak amplitude results
 # Load the peak amplitude results
 peak_amplitude_df = pd.read_csv(results_output_dir + '/' + das_pick_file_name)
@@ -69,7 +60,7 @@ def combined_channels(DAS_index, peak_amplitude_df, nearby_channel_number):
 
 # %% Compare the regression parameters and site terms
 fig, ax = plt.subplots(2, 1, figsize=(10, 12), sharex=True, sharey=True)
-combined_channel_number_list = [10]#[10, 20, 50, 100, -1] # -1 means the constant model
+combined_channel_number_list = [10, 20, 50, 100, -1] # -1 means the constant model
 
 # DataFrame to store parameters for all models
 P_parameters_comparison = pd.DataFrame(columns=['combined_channels', 'magnitude', 'distance', 'magnitude_err', 'distance_err'], 
@@ -83,23 +74,21 @@ for i_model, combined_channel_number in enumerate(combined_channel_number_list):
     regS = sm.load(regression_results_dir + f"/S_regression_combined_site_terms_{combined_channel_number}chan.pickle")
 
     peak_amplitude_df = combined_channels(DAS_index, peak_amplitude_df, combined_channel_number)
+    combined_channel_id = np.sort(peak_amplitude_df.combined_channel_id.unique())
     
 # Compare all the site terms
     site_term_P = regP.params[:-2]
     site_term_S = regS.params[:-2]
 
     if combined_channel_number == 1:
-        ax[0].plot(peak_amplitude_df['channel_id'].unique(), site_term_P, label=f'Individual site terms, Cond.# {regP.condition_number:.2f}')
-        ax[1].plot(peak_amplitude_df['channel_id'].unique(), site_term_S, label=f'Individual site terms, Cond.# {regS.condition_number:.2f}')
+        ax[0].plot(combined_channel_id, site_term_P, label=f'Individual site terms, Cond.# {regP.condition_number:.2f}')
+        ax[1].plot(combined_channel_id, site_term_S, label=f'Individual site terms, Cond.# {regS.condition_number:.2f}')
     elif combined_channel_number == -1:
         ax[0].hlines(site_term_P, xmin=DAS_index.min(), xmax=DAS_index.max(), color='k', label=f'Same site terms, Cond.# {regP.condition_number:.2f}')
         ax[1].hlines(site_term_S, xmin=DAS_index.min(), xmax=DAS_index.max(), color='k', label=f'Same site terms, Cond.# {regS.condition_number:.2f}')
     else:
-
-
-
-        ax[0].plot(peak_amplitude_df['combined_channel_id'].unique() * combined_channel_number, np.array(site_term_P), 'o', label=f'{combined_channel_number} channels, Cond.# {regP.condition_number:.2f}')
-        ax[1].plot(peak_amplitude_df['combined_channel_id'].unique() * combined_channel_number, site_term_S, 'o', label=f'{combined_channel_number} channels, Cond.# {regS.condition_number:.2f}')
+        ax[0].plot(combined_channel_id * combined_channel_number, np.array(site_term_P), '-', label=f'{combined_channel_number} channels, Cond.# {regP.condition_number:.2f}')
+        ax[1].plot(combined_channel_id * combined_channel_number, site_term_S, '-', label=f'{combined_channel_number} channels, Cond.# {regS.condition_number:.2f}')
 
     # reset the regression models
     #del regP, regS
