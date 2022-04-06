@@ -118,16 +118,16 @@ def plot_magnitude_prediction(temp_df_P_list, temp_df_S_list, label_extrapolate=
 
         ax[0].errorbar(temp_df_P.magnitude + horizontal_shift[ii], temp_df_P.predicted_M, yerr=temp_df_P.predicted_M_std, marker='o', linestyle='none')
         ax[0].plot([0, 10], [0, 10], '-k', zorder=1)
-        ax[0].set_xlim(2, 6)
-        ax[0].set_ylim(2, 6)
+        ax[0].set_xlim(2, 8.5)
+        ax[0].set_ylim(2, 8.5)
         ax[0].set_ylabel('P predicted M')
         ax[0].set_xlabel('true M')
         ax[0].xaxis.set_tick_params(which='both',labelbottom=True)
 
         ax[1].errorbar(temp_df_S.magnitude + horizontal_shift[ii], temp_df_S.predicted_M, yerr=temp_df_S.predicted_M_std, marker='o', linestyle='none')
         ax[1].plot([0, 10], [0, 10], '-k', zorder=1)
-        ax[1].set_xlim(2, 6.5)
-        ax[1].set_ylim(2, 6.5)
+        ax[1].set_xlim(2, 8.5)
+        ax[1].set_ylim(2, 8.5)
         ax[1].set_ylabel('S predicted M')
         ax[1].set_xlabel('true M')
 
@@ -151,7 +151,7 @@ def plot_magnitude_prediction_residual(temp_df_P_list, temp_df_S_list, label_ext
         ax[0].errorbar(temp_df_P.magnitude + horizontal_shift[ii], temp_df_P.predicted_M - temp_df_P.magnitude, yerr=temp_df_P.predicted_M_std, marker='o', linestyle='none')
         ax[0].plot([0, 10], [0, 0], '-k', zorder=1)
         
-        ax[0].set_xlim(2, 6)
+        ax[0].set_xlim(2, 8.5)
         ax[0].set_ylim(-3, 3)
         ax[0].set_ylabel('P predicted M residual')
         ax[0].set_xlabel('true M')
@@ -159,7 +159,7 @@ def plot_magnitude_prediction_residual(temp_df_P_list, temp_df_S_list, label_ext
 
         ax[1].errorbar(temp_df_S.magnitude + horizontal_shift[ii], temp_df_S.predicted_M - temp_df_S.magnitude, yerr=temp_df_S.predicted_M_std, marker='o', linestyle='none')
         ax[1].plot([0, 10], [0, 0], '-k', zorder=1)
-        ax[1].set_xlim(2, 6.5)
+        ax[1].set_xlim(2, 8.5)
         ax[1].set_ylim(-3, 3)
         ax[1].set_ylabel('S predicted M residual')
         ax[1].set_xlabel('true M')
@@ -279,8 +279,11 @@ for ii, nearby_channel_number in enumerate(nearby_channel_numbers):
     temp_df_P_list.append(temp_df_P)
     temp_df_S_list.append(temp_df_S)
 
-plot_magnitude_prediction(temp_df_P_list, temp_df_S_list)
+plot_magnitude_prediction(temp_df_P_list, temp_df_S_list, label_extrapolate=False)
 plt.savefig(results_output_dir + '/' + regression_dir + "/predicted_magnitude.png")
+
+plot_magnitude_prediction_residual(temp_df_P_list, temp_df_S_list, label_extrapolate=False)
+plt.savefig(results_output_dir + '/' + regression_dir + "/predicted_magnitude_residual.png")
 
 # Then try to use the regression relation from small events to predict the larger ones
 # load the results from combined regional site terms t
@@ -297,8 +300,11 @@ for ii, nearby_channel_number in enumerate(nearby_channel_numbers):
     temp_df_P_list.append(temp_df_P)
     temp_df_S_list.append(temp_df_S)
 
-plot_magnitude_prediction(temp_df_P_list, temp_df_S_list)
+plot_magnitude_prediction(temp_df_P_list, temp_df_S_list, label_extrapolate=True)
 plt.savefig(results_output_dir + '/' + regression_dir + "/predicted_magnitude.png")
+
+plot_magnitude_prediction_residual(temp_df_P_list, temp_df_S_list, label_extrapolate=True)
+plt.savefig(results_output_dir + '/' + regression_dir + "/predicted_magnitude_residual.png")
 
 
 #%% Test regression with attenuation
