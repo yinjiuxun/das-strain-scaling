@@ -74,35 +74,36 @@ def fit_regression_with_attenuation_magnitude_range(peak_amplitude_df, M_thresho
 #%% 
 peak_data_list = []
 das_index_list = []
+snr_threshold = 20
 #%% ==============================  Ridgecrest data ========================================
 #ridgecrest_peaks = '/home/yinjx/kuafu/Ridgecrest/Ridgecrest_scaling/peak_ampliutde_scaling_results_strain_rate/peak_amplitude_M3+.csv'
-ridgecrest_peaks = '/home/yinjx/kuafu/Ridgecrest/Ridgecrest_scaling/peak_ampliutde_scaling_results_strain_rate_refined/peak_amplitude_M3+.csv'
-peak_amplitude_df_ridgecrest, DAS_index_ridgecrest = load_and_add_region(ridgecrest_peaks, region_label='ridgecrest')
+ridgecrest_peaks = '/home/yinjx/kuafu/Ridgecrest/Ridgecrest_scaling/peak_amplitude_scaling_results_strain_rate_snr/peak_amplitude_M3+.csv'
+peak_amplitude_df_ridgecrest, DAS_index_ridgecrest = load_and_add_region(ridgecrest_peaks, region_label='ridgecrest', snr_threshold=snr_threshold)
 peak_data_list.append(peak_amplitude_df_ridgecrest)
 das_index_list.append(DAS_index_ridgecrest)
 
 #%% ==============================  Olancha data ========================================
 #olancha_peaks = '/home/yinjx/kuafu/Olancha_Plexus/Olancha_scaling/peak_ampliutde_scaling_results_strain_rate/peak_amplitude_M3+.csv'
 olancha_peaks = '/kuafu/yinjx/Olancha_Plexus_100km/Olancha_scaling/peak_amplitude_M3+.csv'
-peak_amplitude_df_olancha, DAS_index_olancha = load_and_add_region(olancha_peaks, region_label='olancha')
+peak_amplitude_df_olancha, DAS_index_olancha = load_and_add_region(olancha_peaks, region_label='olancha', snr_threshold=snr_threshold)
 peak_data_list.append(peak_amplitude_df_olancha)
 das_index_list.append(DAS_index_olancha)
 
 #%% ==============================  Mammoth south data ========================================
 mammoth_S_peaks = '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/South/Mammoth_South_Scaling_M3.csv'
-peak_amplitude_df_mammoth_S, DAS_index_mammoth_S = load_and_add_region(mammoth_S_peaks, region_label='mammothS')
+peak_amplitude_df_mammoth_S, DAS_index_mammoth_S = load_and_add_region(mammoth_S_peaks, region_label='mammothS', snr_threshold=snr_threshold)
 peak_data_list.append(peak_amplitude_df_mammoth_S)
 das_index_list.append(DAS_index_mammoth_S)
 
 #%% ==============================  Mammoth north data ========================================
 mammoth_N_peaks = '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/North/Mammoth_North_Scaling_M3.csv'
-peak_amplitude_df_mammoth_N, DAS_index_mammoth_N = load_and_add_region(mammoth_N_peaks, region_label='mammothN')
+peak_amplitude_df_mammoth_N, DAS_index_mammoth_N = load_and_add_region(mammoth_N_peaks, region_label='mammothN', snr_threshold=snr_threshold)
 peak_data_list.append(peak_amplitude_df_mammoth_N)
 das_index_list.append(DAS_index_mammoth_N)
 
 
 #%% Combine the peak results from different regions
-results_output_dir = '/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_ROM'
+results_output_dir = '/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_MM'
 if not os.path.exists(results_output_dir):
     os.mkdir(results_output_dir)
 
@@ -123,7 +124,8 @@ for nearby_channel_number in combined_channel_number_list:
     # Store the processed DataFrame
     peak_amplitude_df.to_csv(results_output_dir + f'/peak_amplitude_region_site_{nearby_channel_number}.csv', index=False)
 
-#%% Linear regression on the data point including the site term, here assume that every X nearby channels share the same site terms
+#%% 
+# Linear regression on the data point including the site term, here assume that every X nearby channels share the same site terms
 # directory to store the fitted results
 regression_results_dir = results_output_dir + '/regression_results_smf'
 if not os.path.exists(regression_results_dir):
@@ -136,22 +138,9 @@ for nearby_channel_number in combined_channel_number_list:
     M_threshold = [0, 9]
     fit_regression_magnitude_range(peak_amplitude_df, M_threshold, regression_results_dir, nearby_channel_number)
 
-#%% Linear regression on the data point including the site term, here assume that every X nearby channels share the same site terms
-# directory to store the fitted results, here attenuation is also included
-# regression_results_dir = results_output_dir + '/regression_results_attenuation_smf'
-# if not os.path.exists(regression_results_dir):
-#     os.mkdir(regression_results_dir)
-
-# combined_channel_number_list = [50]
-# for nearby_channel_number in combined_channel_number_list:
-#     # Load the processed DataFrame
-#     peak_amplitude_df = pd.read_csv(results_output_dir + f'/peak_amplitude_region_site_{nearby_channel_number}.csv')
-#     # Specify magnitude range to do regression
-#     M_threshold = [0, 9]
-#     fit_regression_with_attenuation_magnitude_range(peak_amplitude_df, M_threshold, regression_results_dir, nearby_channel_number)
-
+# %%
 # ======================= Below are the part to use the small events to do the regression ===========================
-# %% Now only use the smaller earthquakes to do the regression
+# Now only use the smaller earthquakes to do the regression
 # directory to store the fitted results
 regression_results_dir = results_output_dir + '/regression_results_smf_M4'
 if not os.path.exists(regression_results_dir):
@@ -166,7 +155,8 @@ for nearby_channel_number in combined_channel_number_list:
     # reset the regression models
     del regP, regS
 
-#%%===================== Show the comparison between measured and predicted strain rate ==============================
+#%%
+# ===================== Show the comparison between measured and predicted strain rate ==============================
 # directory to store the fitted results
 regression_results_dir = results_output_dir + '/regression_results_smf'
 if not os.path.exists(regression_results_dir):
@@ -201,6 +191,41 @@ S_regression_parameter_df = pd.DataFrame({'site_channels':combined_channel_numbe
 P_regression_parameter_df.to_csv(regression_parameter_txt + '_P.txt', index=False, sep='\t', float_format='%.3f')
 S_regression_parameter_df.to_csv(regression_parameter_txt + '_S.txt', index=False, sep='\t', float_format='%.3f')
 
+#%%
+# ===================== Show the comparison between measured and predicted strain rate ==============================
+# directory to store the fitted results
+regression_results_dir = results_output_dir + '/regression_results_smf_M4'
+if not os.path.exists(regression_results_dir):
+    os.mkdir(regression_results_dir)
+
+regression_parameter_txt = regression_results_dir + '/regression_slopes'
+mag_slopeP, dist_slopeP, mag_slopeS, dist_slopeS = [], [], [], []
+
+for nearby_channel_number in combined_channel_number_list:
+    # Load the regression
+    file_name_P = f"/P_regression_combined_site_terms_{nearby_channel_number}chan"
+    file_name_S = f"/S_regression_combined_site_terms_{nearby_channel_number}chan"
+
+    regP = sm.load(regression_results_dir + '/' + file_name_P + '.pickle')
+    regS = sm.load(regression_results_dir + '/' + file_name_S + '.pickle')
+
+    mag_slopeP.append(regP.params[-2])
+    dist_slopeP.append(regP.params[-1])
+    mag_slopeS.append(regS.params[-2])
+    dist_slopeS.append(regS.params[-1])
+
+    peak_amplitude_df = pd.read_csv(results_output_dir + f'/peak_amplitude_region_site_{nearby_channel_number}.csv')
+    
+    y_P_predict = regP.predict(peak_amplitude_df)
+    y_S_predict = regS.predict(peak_amplitude_df)
+    
+    plot_compare_prediction_vs_true_values(peak_amplitude_df, y_P_predict, y_S_predict, (1.0, 5.5), 
+    regression_results_dir + f'/validate_predicted_combined_site_terms_{nearby_channel_number}chan.png')
+
+P_regression_parameter_df = pd.DataFrame({'site_channels':combined_channel_number_list, 'magnitude-P':mag_slopeP, 'log(distance)-P':dist_slopeP})  
+S_regression_parameter_df = pd.DataFrame({'site_channels':combined_channel_number_list, 'magnitude-S':mag_slopeS, 'log(distance)-S':dist_slopeS})  
+P_regression_parameter_df.to_csv(regression_parameter_txt + '_P.txt', index=False, sep='\t', float_format='%.3f')
+S_regression_parameter_df.to_csv(regression_parameter_txt + '_S.txt', index=False, sep='\t', float_format='%.3f')
 
 # %%
 
@@ -216,9 +241,12 @@ S_regression_parameter_df.to_csv(regression_parameter_txt + '_S.txt', index=Fals
 # S_parameters_comparison.to_csv(regression_text + '/parameter_comparison_S.txt', index=False, sep='\t')
 
 
+#%%
+df_ridgecrest = peak_amplitude_df[peak_amplitude_df.region == 'ridgecrest']
+df_mammoth = peak_amplitude_df[peak_amplitude_df.region != 'ridgecrest']
 
-
-
+plt.plot(np.log10(df_ridgecrest.distance_in_km), np.log10(df_ridgecrest.peak_P), 'rx')
+plt.plot(np.log10(df_mammoth.distance_in_km), np.log10(df_mammoth.peak_P)-1.5, 'bx', alpha=0.01)
 #%% 
 from patsy import dmatrix, demo_data, ContrastMatrix, Poly
 
