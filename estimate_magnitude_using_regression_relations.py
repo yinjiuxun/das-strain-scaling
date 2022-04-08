@@ -152,7 +152,7 @@ def plot_magnitude_prediction_residual(temp_df_P_list, temp_df_S_list, label_ext
         ax[0].plot([0, 10], [0, 0], '-k', zorder=1)
         
         ax[0].set_xlim(2, 8.5)
-        ax[0].set_ylim(-3, 3)
+        ax[0].set_ylim(-4, 4)
         ax[0].set_ylabel('P predicted M residual')
         ax[0].set_xlabel('true M')
         ax[0].xaxis.set_tick_params(which='both',labelbottom=True)
@@ -160,7 +160,7 @@ def plot_magnitude_prediction_residual(temp_df_P_list, temp_df_S_list, label_ext
         ax[1].errorbar(temp_df_S.magnitude + horizontal_shift[ii], temp_df_S.predicted_M - temp_df_S.magnitude, yerr=temp_df_S.predicted_M_std, marker='o', linestyle='none')
         ax[1].plot([0, 10], [0, 0], '-k', zorder=1)
         ax[1].set_xlim(2, 8.5)
-        ax[1].set_ylim(-3, 3)
+        ax[1].set_ylim(-4, 4)
         ax[1].set_ylabel('S predicted M residual')
         ax[1].set_xlabel('true M')
 
@@ -213,10 +213,108 @@ for ii, nearby_channel_number in enumerate(nearby_channel_numbers):
 plot_magnitude_prediction(temp_df_P_list, temp_df_S_list)
 plt.savefig(results_output_dir + '/' + regression_dir + "/predicted_magnitude.png")
 
-
-# ========================== work on Combined results from all Ridgecrest + Olancha + Mammoth S + Mammoth N ================================
+# %%
+# ========================== work on Combined results from Mammoth S + Mammoth N ================================
 # First check how well the regression relation can be used to calculate Magnitude
-#%% load the results from combined regional site terms t
+# load the results from combined regional site terms t
+results_output_dir = '/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_MM'
+regression_dir = 'regression_results_smf'
+site_term_column = 'region_site'
+fitting_type = 'with_site'
+nearby_channel_numbers = [-1, 10, 20, 50, 100]
+
+# List to hold the estiamted magnitude
+temp_df_P_list = []
+temp_df_S_list = []
+
+for ii, nearby_channel_number in enumerate(nearby_channel_numbers):
+    temp_df_P, temp_df_S = estimate_magnitude(results_output_dir, regression_dir, nearby_channel_number, fitting_type, site_term_column)
+    temp_df_P_list.append(temp_df_P)
+    temp_df_S_list.append(temp_df_S)
+
+plot_magnitude_prediction(temp_df_P_list, temp_df_S_list, label_extrapolate=False)
+plt.savefig(results_output_dir + '/' + regression_dir + "/predicted_magnitude.png")
+
+plot_magnitude_prediction_residual(temp_df_P_list, temp_df_S_list, label_extrapolate=False)
+plt.savefig(results_output_dir + '/' + regression_dir + "/predicted_magnitude_residual.png")
+
+# %%
+# Then try to use the regression relation from small events to predict the larger ones
+# load the results from combined regional site terms t
+results_output_dir = '/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_MM'
+regression_dir = 'regression_results_smf_M4'
+site_term_column = 'region_site'
+fitting_type = 'with_site'
+nearby_channel_numbers = [-1, 10, 20, 50, 100]
+
+# List to hold the estiamted magnitude
+temp_df_P_list = []
+temp_df_S_list = []
+
+for ii, nearby_channel_number in enumerate(nearby_channel_numbers):
+    temp_df_P, temp_df_S = estimate_magnitude(results_output_dir, regression_dir, nearby_channel_number, fitting_type, site_term_column)
+    temp_df_P_list.append(temp_df_P)
+    temp_df_S_list.append(temp_df_S)
+
+plot_magnitude_prediction(temp_df_P_list, temp_df_S_list, label_extrapolate=True)
+plt.savefig(results_output_dir + '/' + regression_dir + "/predicted_magnitude.png")
+
+plot_magnitude_prediction_residual(temp_df_P_list, temp_df_S_list, label_extrapolate=True)
+plt.savefig(results_output_dir + '/' + regression_dir + "/predicted_magnitude_residual.png")
+
+# %%
+# ========================== work on Combined results from all Ridgecrest + Mammoth S + Mammoth N ================================
+# First check how well the regression relation can be used to calculate Magnitude
+# load the results from combined regional site terms t
+results_output_dir = '/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RM'
+regression_dir = 'regression_results_smf'
+site_term_column = 'region_site'
+fitting_type = 'with_site'
+nearby_channel_numbers = [-1, 10, 20, 50, 100]
+
+# List to hold the estiamted magnitude
+temp_df_P_list = []
+temp_df_S_list = []
+
+for ii, nearby_channel_number in enumerate(nearby_channel_numbers):
+    temp_df_P, temp_df_S = estimate_magnitude(results_output_dir, regression_dir, nearby_channel_number, fitting_type, site_term_column)
+    temp_df_P_list.append(temp_df_P)
+    temp_df_S_list.append(temp_df_S)
+
+plot_magnitude_prediction(temp_df_P_list, temp_df_S_list, label_extrapolate=False)
+plt.savefig(results_output_dir + '/' + regression_dir + "/predicted_magnitude.png")
+
+plot_magnitude_prediction_residual(temp_df_P_list, temp_df_S_list, label_extrapolate=False)
+plt.savefig(results_output_dir + '/' + regression_dir + "/predicted_magnitude_residual.png")
+
+# %%
+# Then try to use the regression relation from small events to predict the larger ones
+# load the results from combined regional site terms t
+results_output_dir = '/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RM'
+regression_dir = 'regression_results_smf_M4'
+site_term_column = 'region_site'
+fitting_type = 'with_site'
+nearby_channel_numbers = [-1, 10, 20, 50, 100]
+
+# List to hold the estiamted magnitude
+temp_df_P_list = []
+temp_df_S_list = []
+
+for ii, nearby_channel_number in enumerate(nearby_channel_numbers):
+    temp_df_P, temp_df_S = estimate_magnitude(results_output_dir, regression_dir, nearby_channel_number, fitting_type, site_term_column)
+    temp_df_P_list.append(temp_df_P)
+    temp_df_S_list.append(temp_df_S)
+
+plot_magnitude_prediction(temp_df_P_list, temp_df_S_list, label_extrapolate=True)
+plt.savefig(results_output_dir + '/' + regression_dir + "/predicted_magnitude.png")
+
+plot_magnitude_prediction_residual(temp_df_P_list, temp_df_S_list, label_extrapolate=True)
+plt.savefig(results_output_dir + '/' + regression_dir + "/predicted_magnitude_residual.png")
+
+#%%
+#  ========================== work on Combined results from all Ridgecrest + Olancha + Mammoth S + Mammoth N ================================
+# First check how well the regression relation can be used to calculate Magnitude
+# load the results from combined regional site terms t
 results_output_dir = '/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_ROM'
 regression_dir = 'regression_results_smf'
 site_term_column = 'region_site'
@@ -238,8 +336,9 @@ plt.savefig(results_output_dir + '/' + regression_dir + "/predicted_magnitude.pn
 plot_magnitude_prediction_residual(temp_df_P_list, temp_df_S_list, label_extrapolate=False)
 plt.savefig(results_output_dir + '/' + regression_dir + "/predicted_magnitude_residual.png")
 
-# Then try to use the regression relation from small events to predict the larger ones
-#%% load the results from combined regional site terms t
+#%%
+#  Then try to use the regression relation from small events to predict the larger ones
+# load the results from combined regional site terms t
 results_output_dir = '/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_ROM'
 regression_dir = 'regression_results_smf_M4'
 site_term_column = 'region_site'
@@ -261,9 +360,10 @@ plt.savefig(results_output_dir + '/' + regression_dir + "/predicted_magnitude.pn
 plot_magnitude_prediction_residual(temp_df_P_list, temp_df_S_list, label_extrapolate=True)
 plt.savefig(results_output_dir + '/' + regression_dir + "/predicted_magnitude_residual.png")
 
-#%% ========================== work on the results from Ridgecrest ================================
+#%% 
+# ========================== work on the results from Ridgecrest ================================
 # First check how well the regression relation can be used to calculate Magnitude
-#%% load the results from combined regional site terms t
+#% load the results from combined regional site terms t
 results_output_dir = '/home/yinjx/kuafu/Ridgecrest/Ridgecrest_scaling/peak_ampliutde_scaling_results_strain_rate_refined'
 regression_dir = 'regression_results_smf'
 site_term_column='combined_channel_id'
