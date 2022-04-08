@@ -69,7 +69,7 @@ def plot_magnitude_distance_coverage(peak_amplitude_df, figure_name):
     plt.savefig(figure_name, bbox_inches='tight')
 
 
-def plot_distance_variations(peak_amplitude_df, P_S_peak_keys ,figure_name):
+def plot_distance_variations(peak_amplitude_df, P_S_peak_keys, ymax, figure_name):
     '''Look at the rough variation of measured strain rate with distance'''
     fig, ax = plt.subplots(2, 1, figsize=(10, 20), sharex=True, sharey=True)
     ax[0].scatter(peak_amplitude_df.distance_in_km, peak_amplitude_df[P_S_peak_keys[0]], 
@@ -90,11 +90,11 @@ def plot_distance_variations(peak_amplitude_df, P_S_peak_keys ,figure_name):
     ax[1].set_title('(b) Maximum ' + P_S_peak_keys[1])
     ax[1].set_xlabel('log10(Distance)')
     ax[1].set_ylabel('Maximum amplitude')
-    ax[1].set_ylim(top=clipVal)
+    ax[1].set_ylim(top=ymax)
 
     plt.savefig(figure_name, bbox_inches='tight')
 
-def plot_magnitude_variations(peak_amplitude_df, P_S_peak_keys ,figure_name):
+def plot_magnitude_variations(peak_amplitude_df, P_S_peak_keys, ymax, figure_name):
     ''' Look at the rough variation of measured strain rate with magnitude'''
     fig, ax = plt.subplots(2, 1, figsize=(10, 20), sharex=True, sharey=True)
     ax[0].scatter(peak_amplitude_df.magnitude, peak_amplitude_df[P_S_peak_keys[0]], 
@@ -114,7 +114,31 @@ def plot_magnitude_variations(peak_amplitude_df, P_S_peak_keys ,figure_name):
     ax[1].set_title('(b) Maximum ' + P_S_peak_keys[1])
     ax[1].set_xlabel('Magnitude')
     ax[1].set_ylabel('Maximum amplitude')
-    ax[1].set_ylim(top=clipVal)
+    ax[1].set_ylim(top=ymax)
+
+    plt.savefig(figure_name, bbox_inches='tight')
+
+def plot_peak_time_distance_variations(peak_amplitude_df,ymax, figure_name):
+    ''' Look at the rough variation of measured peak time with distance'''
+    fig, ax = plt.subplots(2, 1, figsize=(10, 20), sharex=True, sharey=True)
+    ax[0].scatter(peak_amplitude_df.distance_in_km, peak_amplitude_df.max_P_time, 
+              s=10, c=peak_amplitude_df.event_label, marker='o', cmap='jet', alpha=0.1)
+    ax[0].plot(peak_amplitude_df.distance_in_km, peak_amplitude_df.max_P_time2 + peak_amplitude_df.max_P_time, 'k.')
+    
+    ax[1].scatter(peak_amplitude_df.distance_in_km, peak_amplitude_df.max_S_time, 
+              s=20, c=peak_amplitude_df.event_label, marker='x', cmap='jet', alpha=0.1)
+
+    #ax[1].set_xscale('log')
+
+
+    ax[0].set_ylabel('Peak P amplitude time after P')
+    ax[0].set_xlabel('Distance (km)')
+    ax[0].set_title('(a) Maximum P time')
+    ax[0].xaxis.set_tick_params(which='both',labelbottom=True)
+    ax[1].set_title('(b) Maximum S time')
+    ax[1].set_xlabel('Distance (km))')
+    ax[1].set_ylabel('Peak S amplitude time after S')
+    ax[1].set_ylim(top=ymax)
 
     plt.savefig(figure_name, bbox_inches='tight')
 
