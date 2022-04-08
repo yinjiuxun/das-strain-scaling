@@ -10,14 +10,13 @@ def combined_channels(DAS_index, peak_amplitude_df, nearby_channel_number):
     peak_amplitude_df['combined_channel_id'] = temp2[np.array(peak_amplitude_df.channel_id).astype('int')]
     return peak_amplitude_df
 
-def load_and_add_region(peak_file, region_label):
+def load_and_add_region(peak_file, region_label, snr_threshold):
     peak_amplitude_df = pd.read_csv(peak_file)
     peak_amplitude_df['region'] = region_label # add the region label
     DAS_index = peak_amplitude_df.channel_id.unique().astype('int')
     peak_amplitude_df = peak_amplitude_df.dropna()
 
     # Mammoth data contains the snrP and snrS, so if these two columns exist, only keep data with higher SNR
-    snr_threshold = 20
     if 'snrP' in peak_amplitude_df.columns:
         peak_amplitude_df = peak_amplitude_df[peak_amplitude_df.snrP >= snr_threshold]
 
