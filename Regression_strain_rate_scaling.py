@@ -67,6 +67,7 @@ def fit_regression_with_attenuation_magnitude_range(peak_amplitude_df, M_thresho
 # region_label = 'ridgecrest'
 
 results_output_dir = '/home/yinjx/kuafu/Ridgecrest/Ridgecrest_scaling/peak_ampliutde_scaling_results_strain_rate_refined'
+results_output_dir = '/home/yinjx/kuafu/Ridgecrest/Ridgecrest_scaling/peak_amplitude_scaling_results_strain_rate_snr'
 das_pick_file_name = '/peak_amplitude_M3+.csv'
 region_label = 'ridgecrest'
 
