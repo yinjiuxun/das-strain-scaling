@@ -9,6 +9,7 @@ from plotting_functions import *
 # import the utility functions
 from utility_functions import *
 
+import seaborn as sns
 # %%
 # ==============================  Ridgecrest data ========================================
 #% Specify the file names
@@ -55,6 +56,15 @@ cmp = ax.scatter(DAS_lon, DAS_lat, s=10, c=DAS_index, cmap='jet')
 ax.scatter(catalog_select[5], catalog_select[4], s=10**(catalog_select[7]/5), c='k')
 fig.colorbar(cmp)
 plt.savefig(results_output_dir + '/map_of_earthquakes_not_grouped.png', bbox_inches='tight')
+
+# plot data statistics
+peak_amplitude_df_temp = peak_amplitude_df.iloc[::5, :]
+peak_amplitude_df_temp['log10(distance)'] = np.log10(peak_amplitude_df_temp.distance_in_km)
+peak_amplitude_df_temp['log10(peak_P)'] = np.log10(peak_amplitude_df_temp.peak_P)
+peak_amplitude_df_temp['P/S'] = peak_amplitude_df_temp.peak_P/peak_amplitude_df_temp.peak_S
+plt.figure(figsize=(14,8))
+sns.pairplot(peak_amplitude_df_temp[['magnitude','log10(distance)', 'max_P_time', 'log10(peak_P)','P/S']], kind='hist', diag_kind="kde", corner=True)
+plt.savefig(results_output_dir + '/ridgecrest_data_statistics.png')
 
 # %%
 # ==============================  Mammoth data ========================================
@@ -109,6 +119,14 @@ ax.set_title(f'Total event number: {num_events}')
 fig.colorbar(cmp)
 plt.savefig(results_output_dir + '/map_of_earthquakes_not_grouped.png', bbox_inches='tight')
 
+# plot data statistics
+peak_amplitude_df_temp = peak_amplitude_df.iloc[::5, :]
+peak_amplitude_df_temp['log10(distance)'] = np.log10(peak_amplitude_df_temp.distance_in_km)
+peak_amplitude_df_temp['log10(peak_P)'] = np.log10(peak_amplitude_df_temp.peak_P)
+peak_amplitude_df_temp['P/S'] = peak_amplitude_df_temp.peak_P/peak_amplitude_df_temp.peak_S
+plt.figure(figsize=(14,8))
+sns.pairplot(peak_amplitude_df_temp[['magnitude','log10(distance)', 'log10(peak_P)','P/S']], kind='hist', diag_kind="kde", corner=True)
+plt.savefig(results_output_dir + '/mammoth_data_statistics.png')
 
 # %%
 # # ==============================  Olancha data ========================================
@@ -128,13 +146,13 @@ plt.savefig(results_output_dir + '/map_of_earthquakes_not_grouped.png', bbox_inc
 # DAS_lon = DAS_info[:, 1]
 # DAS_lat = DAS_info[:, 2]
 
-# %% 
+# %% This works for different regions
 # Show the peak strain rate amplitude variations
 plot_magnitude_distance_coverage(peak_amplitude_df, results_output_dir + '/magnitude_distance_distribution.png')
-plot_distance_variations(peak_amplitude_df, ['peak_P', 'peak_S'], results_output_dir + '/peak_strain_rate_vs_distance.png')
-plot_magnitude_variations(peak_amplitude_df, ['peak_P', 'peak_S'], results_output_dir + '/peak_strain_rate_vs_magnitude.png')
+plot_distance_variations(peak_amplitude_df, ['peak_P', 'peak_S'], 1e4, results_output_dir + '/peak_strain_rate_vs_distance.png')
+plot_magnitude_variations(peak_amplitude_df, ['peak_P', 'peak_S'], 1e4, results_output_dir + '/peak_strain_rate_vs_magnitude.png')
 plot_P_S_amplitude_ratio(peak_amplitude_df, ['peak_P', 'peak_S'], results_output_dir + '/peak_strain_rate_P_S_ratio.png')
-
+plot_peak_time_distance_variations(peak_amplitude_df, results_output_dir + '/peak_amplitude_time.png')
 # %% 
 # Show the peak strain amplitude variations
 plot_distance_variations(peak_amplitude_df, ['peak_P_strain', 'peak_S_strain'], results_output_dir + '/peak_strain_vs_distance.png')
@@ -143,3 +161,29 @@ plot_P_S_amplitude_ratio(peak_amplitude_df, ['peak_P_strain', 'peak_S_strain'], 
 # %%
 
 
+def plot_peak_time_distance_variations(peak_amplitude_df,ymax, figure_name):
+    ''' Look at the rough variation of measured peak time with distance'''
+    fig, ax = plt.subplots(2, 1, figsize=(10, 20), sharex=True, sharey=True)
+    ax[0].scatter(peak_amplitude_df.distance_in_km, peak_amplitude_df.max_P_time, 
+              s=10, c=peak_amplitude_df.event_label, marker='o', cmap='jet', alpha=0.01)
+    ax[0].plot(peak_amplitude_df.distance_in_km, peak_amplitude_df.max_P_time2 + peak_amplitude_df.max_P_time, 'k.',markersize=0.1)
+    
+    ax[1].scatter(peak_amplitude_df.distance_in_km, peak_amplitude_df.max_S_time, 
+              s=20, c=peak_amplitude_df.event_label, marker='x', cmap='jet', alpha=0.1)
+
+    #ax[1].set_xscale('log')
+
+
+    ax[0].set_ylabel('Peak P amplitude time after P')
+    ax[0].set_xlabel('Distance (km)')
+    ax[0].set_title('(a) Maximum P time')
+    ax[0].xaxis.set_tick_params(which='both',labelbottom=True)
+    ax[1].set_title('(b) Maximum S time')
+    ax[1].set_xlabel('Distance (km))')
+    ax[1].set_ylabel('Peak S amplitude time after S')
+    ax[1].set_ylim(top=ymax)
+
+    plt.savefig(figure_name, bbox_inches='tight')
+
+plot_peak_time_distance_variations(peak_amplitude_df, 20, results_output_dir + '/peak_amplitude_time.png')
+# %%
