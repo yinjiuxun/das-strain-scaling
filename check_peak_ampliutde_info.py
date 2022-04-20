@@ -10,6 +10,30 @@ from plotting_functions import *
 from utility_functions import *
 
 import seaborn as sns
+
+# Plotting
+import matplotlib
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+# %matplotlib inline
+params = {
+    'image.interpolation': 'nearest',
+    'image.cmap': 'gray',
+    'savefig.dpi': 300,  # to adjust notebook inline plot size
+    'axes.labelsize': 18, # fontsize for x and y labels (was 10)
+    'axes.titlesize': 18,
+    'font.size': 18,
+    'legend.fontsize': 18,
+    'xtick.labelsize': 18,
+    'ytick.labelsize': 18,
+    'text.usetex':False,
+    'axes.facecolor': 'white',
+    'savefig.facecolor': 'white'
+}
+matplotlib.rcParams.update(params)
+
+import pygmt
 # %%
 # ==============================  Ridgecrest data ========================================
 #% Specify the file names
@@ -52,9 +76,9 @@ plt.savefig(results_output_dir + '/time_variation_selected_earthquakes.png', bbo
 
 # plot map
 fig, ax = plt.subplots(figsize=(7, 6))
-cmp = ax.scatter(DAS_lon, DAS_lat, s=10, c=DAS_index, cmap='jet')
+cmp = ax.scatter(DAS_lon, DAS_lat, s=10, c='r')
 ax.scatter(catalog_select[5], catalog_select[4], s=10**(catalog_select[7]/5), c='k')
-fig.colorbar(cmp)
+#fig.colorbar(cmp)
 plt.savefig(results_output_dir + '/map_of_earthquakes_not_grouped.png', bbox_inches='tight')
 
 # plot data statistics
@@ -66,6 +90,44 @@ plt.figure(figsize=(14,8))
 sns.pairplot(peak_amplitude_df_temp[['magnitude','log10(distance)', 'max_P_time', 'log10(peak_P)','P/S']], kind='hist', diag_kind="kde", corner=True)
 plt.savefig(results_output_dir + '/ridgecrest_data_statistics.png')
 
+#%%
+# Define region of interest around Yosemite valley
+region = [-118.5, -117, 35, 36.5]
+projection = "M12c"
+# Load sample grid (3 arc second global relief) in target area
+grid = pygmt.datasets.load_earth_relief(resolution="03s", region=region)
+
+# calculate the reflection of a light source projecting from west to east
+# (azimuth of 270 degrees) and at a latitude of 30 degrees from the horizon
+dgrid = pygmt.grdgradient(grid=grid, radiance=[270, 30])
+
+fig = pygmt.Figure()
+# define figure configuration
+pygmt.config(FORMAT_GEO_MAP="ddd.x", MAP_FRAME_TYPE="plain", FONT_ANNOT_PRIMARY=15)
+
+# --------------- plotting the original Data Elevation Model -----------
+
+fig.basemap(region=region, 
+projection=projection, 
+frame=['WSrt+t"Ridgecrest"', "xa0.5", "ya0.5"]
+)
+pygmt.makecpt(cmap="dem4", series=[-1000, 3000])
+fig.grdimage(
+    grid=grid,
+    projection=projection,
+    cmap=True,
+    shading='+a45+nt1',
+    transparency=40
+)
+
+x = np.array(catalog_select[5])
+y = np.array(catalog_select[4])
+fig.plot(x=x, y=y, style="c0.15c", color="black")
+
+fig.plot(x=DAS_lon[::10], y=DAS_lat[::10], style="c0.05c", color="red")
+
+fig.show()
+fig.savefig(results_output_dir + '/map_of_earthquakes_GMT.png')
 # %%
 # ==============================  Mammoth data ========================================
 #%% Specify the file names
