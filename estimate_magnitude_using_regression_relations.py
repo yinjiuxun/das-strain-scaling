@@ -387,12 +387,11 @@ plt.savefig(results_output_dir + '/' + regression_dir + "/predicted_magnitude_re
 # ========================== work on the results from Ridgecrest ================================
 # First check how well the regression relation can be used to calculate Magnitude
 #% load the results from combined regional site terms t
-results_output_dir = '/home/yinjx/kuafu/Ridgecrest/Ridgecrest_scaling/peak_amplitude_scaling_results_strain_rate_snr'
+results_output_dir = '/home/yinjx/kuafu/Ridgecrest/Ridgecrest_scaling/peak_amplitude_scaling_results_strain_rate'
 regression_dir = 'regression_results_smf'
 site_term_column='combined_channel_id'
 fitting_type = 'with_site'
 nearby_channel_numbers = [-1, 100, 50, 20, 10]
-nearby_channel_numbers = [10]
 # List to hold the estiamted magnitude
 temp_df_P_list = []
 temp_df_S_list = []

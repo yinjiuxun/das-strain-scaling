@@ -39,7 +39,7 @@ import pygmt
 #% Specify the file names
 DAS_info_files = '/kuafu/DASdata/DASinfo/DAS_ChannelLocation/DAS_Ridgecrest_ODH3.txt'
 catalog_file =  '/home/yinjx/notebooks/strain_scaling/Ridgecrest_das_catalog_M2_M8.txt'
-results_output_dir = '/home/yinjx/kuafu/Ridgecrest/Ridgecrest_scaling/peak_amplitude_scaling_results_strain_rate_snr'
+results_output_dir = '/home/yinjx/kuafu/Ridgecrest/Ridgecrest_scaling/peak_amplitude_scaling_results_strain_rate'
 das_pick_file_name = '/peak_amplitude_M3+.csv'
 peak_df_file = results_output_dir + '/' + das_pick_file_name
 # Load the peak amplitude results
@@ -57,6 +57,10 @@ catalog = pd.read_csv(catalog_file, sep='\s+', header=None, skipfooter=1, engine
 event_id_selected = np.unique(peak_amplitude_df['event_id'])
 catalog_select = catalog[catalog[0].isin(event_id_selected)]
 num_events = catalog_select.shape[0]
+event_lon = np.array(catalog_select[5])
+event_lat = np.array(catalog_select[4])
+event_id = np.array(catalog_select[0])
+
 catalog_select
 
 # Add the event label for plotting
@@ -77,7 +81,7 @@ plt.savefig(results_output_dir + '/time_variation_selected_earthquakes.png', bbo
 # plot map
 fig, ax = plt.subplots(figsize=(7, 6))
 cmp = ax.scatter(DAS_lon, DAS_lat, s=10, c='r')
-ax.scatter(catalog_select[5], catalog_select[4], s=10**(catalog_select[7]/5), c='k')
+ax.scatter(event_lon, event_lat, s=10**(catalog_select[7]/5), c='k')
 #fig.colorbar(cmp)
 plt.savefig(results_output_dir + '/map_of_earthquakes_not_grouped.png', bbox_inches='tight')
 
@@ -91,7 +95,7 @@ sns.pairplot(peak_amplitude_df_temp[['magnitude','log10(distance)', 'max_P_time'
 plt.savefig(results_output_dir + '/ridgecrest_data_statistics.png')
 
 #%%
-# Define region of interest around Yosemite valley
+# Define region of interest around Ridgecrest
 region = [-118.5, -117, 35, 36.5]
 projection = "M12c"
 # Load sample grid (3 arc second global relief) in target area
@@ -120,14 +124,66 @@ fig.grdimage(
     transparency=40
 )
 
-x = np.array(catalog_select[5])
-y = np.array(catalog_select[4])
-fig.plot(x=x, y=y, style="c0.15c", color="black")
+fig.plot(x=event_lon, y=event_lat, style="c0.15c", color="black")
 
 fig.plot(x=DAS_lon[::10], y=DAS_lat[::10], style="c0.05c", color="red")
 
 fig.show()
 fig.savefig(results_output_dir + '/map_of_earthquakes_GMT.png')
+
+#%%
+# Looking into the azimuth pattern
+DAS_azi = np.arctan2(np.diff(DAS_lat), np.diff(DAS_lon))
+DAS_azi = np.concatenate((DAS_azi, [np.pi]))
+DAS_azi = DAS_azi - np.pi
+
+fig, ax = plt.subplots(subplot_kw={'projection': 'polar'}, figsize=(8, 8))
+
+ieq = 19
+for ieq in range(len(event_lon)):
+    eq_lon = event_lon[ieq]
+    eq_lat = event_lat[ieq]
+    eq_id = event_id[ieq]
+
+    eq_azi = np.arctan2((eq_lat - DAS_lat), (eq_lon - DAS_lon))
+    eq_DAZ_incident = eq_azi - DAS_azi
+
+    peak_amplitude_df_eq = peak_amplitude_df[peak_amplitude_df.event_id == eq_id]
+    station_index = [np.where(idx == DAS_index)[0][0] for idx in peak_amplitude_df_eq.channel_id]
+
+    eq_DAZ_incident = eq_DAZ_incident[station_index]
+
+    pclip=95
+    clipVal = np.percentile(np.absolute(peak_amplitude_df_eq.peak_P), pclip)
+
+    ax.plot(eq_DAZ_incident, peak_amplitude_df_eq.peak_P/clipVal, 'o', alpha=0.01)#, markeredgecolor='k')
+
+ax.set_rmax(1)
+plt.figure()
+plt.plot(eq_lon, eq_lat, 'rx')
+plt.plot(DAS_lon, DAS_lat, '-')
+
+#%%
+# Looking into the amplitude pattern
+DAS_azi = np.arctan2(np.diff(DAS_lat), np.diff(DAS_lon))
+DAS_azi = np.concatenate((DAS_azi, [np.pi]))
+DAS_azi = DAS_azi - np.pi
+
+mean_peak_P = []
+std_peak_P = []
+for ieq in range(len(event_lon)):
+    eq_id = event_id[ieq]
+    peak_amplitude_df_eq = peak_amplitude_df[peak_amplitude_df.event_id == eq_id]
+
+    peak_amplitude_df_eq.drop(peak_amplitude_df_eq[peak_amplitude_df_eq.peak_P > 10 * peak_amplitude_df_eq.peak_P.mean()].index, inplace=True)
+
+    mean_peak_P.append(peak_amplitude_df_eq.peak_P.mean())
+    std_peak_P.append(peak_amplitude_df_eq.peak_P.std())
+
+fig, ax = plt.subplots(figsize=(12 ,8))
+ax.errorbar(np.arange(len(event_lon)), mean_peak_P, yerr=std_peak_P, marker='s', linestyle='') 
+ax.set_ylim(-1e3, 10e3)
+
 # %%
 # ==============================  Mammoth data ========================================
 #%% Specify the file names

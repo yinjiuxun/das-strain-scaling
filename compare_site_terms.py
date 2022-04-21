@@ -16,7 +16,7 @@ from utility_functions import *
 # das_pick_file_name = '/peak_amplitude_M3+.csv'
 # region_label = 'ridgecrest'
 
-results_output_dir = '/home/yinjx/kuafu/Ridgecrest/Ridgecrest_scaling/peak_amplitude_scaling_results_strain_rate_snr'
+results_output_dir = '/home/yinjx/kuafu/Ridgecrest/Ridgecrest_scaling/peak_amplitude_scaling_results_strain_rate'
 das_pick_file_name = '/peak_amplitude_M3+.csv'
 region_label = 'ridgecrest'
 

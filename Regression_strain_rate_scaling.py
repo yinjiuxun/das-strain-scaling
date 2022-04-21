@@ -68,6 +68,7 @@ def fit_regression_with_attenuation_magnitude_range(peak_amplitude_df, M_thresho
 
 results_output_dir = '/home/yinjx/kuafu/Ridgecrest/Ridgecrest_scaling/peak_ampliutde_scaling_results_strain_rate_refined'
 results_output_dir = '/home/yinjx/kuafu/Ridgecrest/Ridgecrest_scaling/peak_amplitude_scaling_results_strain_rate_snr'
+results_output_dir = '/home/yinjx/kuafu/Ridgecrest/Ridgecrest_scaling/peak_amplitude_scaling_results_strain_rate'
 das_pick_file_name = '/peak_amplitude_M3+.csv'
 region_label = 'ridgecrest'
 
@@ -92,7 +93,7 @@ region_label = 'mammothN'
 #%% load the peak amplitude results
 # Load the peak amplitude results
 peak_amplitude_df, DAS_index = load_and_add_region(results_output_dir + '/' + das_pick_file_name, 
-                                                   region_label=region_label)
+                                                   region_label=region_label, snr_threshold=20)
 
 # Mammoth data contains the snrP and snrS, so if these two columns exist, only keep data with higher SNR
 snr_threshold = 20
