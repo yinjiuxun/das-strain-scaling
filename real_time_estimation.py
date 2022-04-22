@@ -94,8 +94,8 @@ def get_mean_magnitude(peak_amplitude_df, M_predict):
 # First check how well the regression relation can be used to calculate Magnitude
 # Then try to use the regression relation from small events to predict the larger ones
 #%% load the results from combined regional site terms t
-results_output_dir = '/home/yinjx/kuafu/Ridgecrest/Ridgecrest_scaling/peak_ampliutde_scaling_results_strain_rate_refined'#'/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RO'
-regression_dir = 'regression_results_smf_M4'
+results_output_dir = '/home/yinjx/kuafu/Ridgecrest/Ridgecrest_scaling/peak_amplitude_scaling_results_strain_rate'#'/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RO'
+regression_dir = 'regression_results_smf'
 site_term_column = 'region_site'
 fitting_type = 'with_site'
 
@@ -159,7 +159,7 @@ event_peak_df = peak_amplitude_df[peak_amplitude_df.magnitude > 4]
 event_id_list = event_peak_df.event_id.unique().astype('int')
 
 #%%
-for test_event_id in [39464303]:#event_id_list:
+for test_event_id in [39493944]:#event_id_list:
     # try:
     #test_event_id = 39493944 # 38548295 # 39462536 #39493944 # [39462536]
     eq_info = catalog[catalog[0] == test_event_id]
@@ -181,19 +181,19 @@ for test_event_id in [39464303]:#event_id_list:
     das_dt = 0.02
     das_time0 = np.arange(data_diff.shape[0]) * das_dt
 
-    # For Olancha only
-    if data_diff.shape[1] == 4772:
-        DAS_lat = DAS_lat_new
-        DAS_lon = DAS_lon_new
-        DAS_index = DAS_index_new
-        to_nano_factor = 1e3
-    else:
-        DAS_lat = DAS_lat_old
-        DAS_lon = DAS_lon_old
-        DAS_index = DAS_index_old
-        to_nano_factor = 1e9
+    # # For Olancha only
+    # if data_diff.shape[1] == 4772:
+    #     DAS_lat = DAS_lat_new
+    #     DAS_lon = DAS_lon_new
+    #     DAS_index = DAS_index_new
+    #     to_nano_factor = 1e3
+    # else:
+    #     DAS_lat = DAS_lat_old
+    #     DAS_lon = DAS_lon_old
+    #     DAS_index = DAS_index_old
+    #     to_nano_factor = 1e9
 
-    data_diff = data_diff * to_nano_factor
+    # data_diff = data_diff * to_nano_factor
 
     # get distance from earthquake to each channel
     distance_to_source = locations2degrees(DAS_lat, DAS_lon, eq_lat, eq_lon) * 113 # in km
@@ -230,13 +230,12 @@ for test_event_id in [39464303]:#event_id_list:
         nearby_channel_number = DAS_index.max()+1
         temp1= np.arange(0, DAS_index.max())
     else:
-        nearby_channel_number = DAS_index.max()+1
         temp1= np.arange(0, DAS_index.max()+1) # original channel number
-    temp2 = temp1 // nearby_channel_number # combined channel number
+    temp2 = DAS_index // nearby_channel_number # combined channel number
     site_term_keys = np.array([f'C(combined_channel_id)[{site_term}]' for site_term in temp2])
 
     site_terms = regP.params[site_term_keys]
-    site_terms = site_terms[DAS_index]
+    #site_terms = site_terms[DAS_index]
     site_terms = site_terms[np.newaxis, :]
 
     mag_estimate = (np.log10(data_peak_mat+1e-12) - site_terms - np.log10(distance_to_source)*regP.params['np.log10(distance_in_km)'])/regP.params['magnitude']
