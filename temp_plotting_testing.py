@@ -103,3 +103,14 @@ plt.savefig('/home/yinjx/Olancha_tap_test/simple_map.png')
 # %%
 catalog_select.to_csv('/home/yinjx/Olancha_tap_test/Olancha_tap_test_selected_events.txt', index=False)
 # %%
+
+
+
+
+import obspy
+# %%
+tr = obspy.read('/home/yinjx/39462536/*AZ.BZN*.sac')
+# %%
+tr.plot()
+plt.show()
+# %%
