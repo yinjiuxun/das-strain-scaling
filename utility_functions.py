@@ -1,6 +1,44 @@
 import pandas as pd
 import numpy as np
 import statsmodels.formula.api as smf
+import h5py
+import dateutil
+
+# Functions to save and load event h5 files
+def save_rawevent_h5(fn, data, info):
+   """
+   """
+   info_copy = info.copy()
+   with h5py.File(fn, 'w') as fid:
+       fid.create_dataset('data', data=data)
+       for key in info.keys():
+           if isinstance(info[key], str):
+               #fid['data'].attrs.modify(key, np.string_(info_copy[key]))
+               fid['data'].attrs.modify(key, info_copy[key])
+           else:
+               fid['data'].attrs.modify(key, info_copy[key])
+
+def load_rawevent_h5(fn):
+   """
+   """
+   with h5py.File(fn, 'r') as fid:
+       data = fid['data'][:]
+       info = {}
+       for key in fid['data'].attrs.keys():
+           info[key] = fid['data'].attrs[key]
+       info2 = {}
+       if 'begin_time' in info.keys():
+           info2['begTime'] = dateutil.parser.parse(info['begin_time'])
+       if 'end_time' in info.keys():
+           info2['endTime'] = dateutil.parser.parse(info['end_time'])
+       if 'event_time' in info.keys():
+           info2['time'] = dateutil.parser.parse(info['event_time'])
+       info2['nt'] = data.shape[0]
+       info2['nx'] = data.shape[1]
+       info2['dx'] = info['dx_m']
+       info2['dt'] = info['dt_s']
+   return data, info2
+   
 
 def combined_channels(DAS_index, peak_amplitude_df, nearby_channel_number):
     if nearby_channel_number == -1: # when nearby_channel_number == -1, combined all channels!
