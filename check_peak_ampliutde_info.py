@@ -205,7 +205,7 @@ DAS_lon = DAS_info['longitude']
 
 peak_amplitude_df1 = pd.read_csv(results_output_dir + '/' + das_pick_file_name1)
 peak_amplitude_df2 = pd.read_csv(results_output_dir + '/' + das_pick_file_name2)
-peak_amplitude_df = pd.concat([peak_amplitude_df1, peak_amplitude_df2], axis=0)
+peak_amplitude_df = pd.concat([peak_amplitude_df1, peak_amplitude_df2], axis=0, ignore_index=True)
 
 catalog = pd.read_csv(catalog_file, sep=',', engine='python')
 # Find events in the pick file
