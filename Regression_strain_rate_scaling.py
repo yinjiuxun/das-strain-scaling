@@ -22,7 +22,9 @@ def write_regression_summary(regression_results_dir, file_name, reg):
 def fit_regression_magnitude_range(peak_amplitude_df, M_threshold, regression_results_dir, nearby_channel_number):
    
     peak_amplitude_df = peak_amplitude_df[(peak_amplitude_df.magnitude >= M_threshold[0]) & (peak_amplitude_df.magnitude <= M_threshold[1])]
-    
+    # Remove some extreme data outliers before fitting
+    peak_amplitude_df = peak_amplitude_df.drop(peak_amplitude_df[(peak_amplitude_df.peak_S > 1e7) | (peak_amplitude_df.peak_P > 1e7)].index)
+
     regP = smf.ols(formula='np.log10(peak_P) ~ magnitude + np.log10(distance_in_km) + C(combined_channel_id) - 1', data=peak_amplitude_df).fit()
     regS = smf.ols(formula='np.log10(peak_S) ~ magnitude + np.log10(distance_in_km) + C(combined_channel_id) - 1', data=peak_amplitude_df).fit()
 
@@ -66,8 +68,6 @@ def fit_regression_with_attenuation_magnitude_range(peak_amplitude_df, M_thresho
 # das_pick_file_name = '/peak_amplitude_M3+.csv'
 # region_label = 'ridgecrest'
 
-results_output_dir = '/home/yinjx/kuafu/Ridgecrest/Ridgecrest_scaling/peak_ampliutde_scaling_results_strain_rate_refined'
-results_output_dir = '/home/yinjx/kuafu/Ridgecrest/Ridgecrest_scaling/peak_amplitude_scaling_results_strain_rate_snr'
 results_output_dir = '/home/yinjx/kuafu/Ridgecrest/Ridgecrest_scaling/peak_amplitude_scaling_results_strain_rate'
 das_pick_file_name = '/peak_amplitude_M3+.csv'
 region_label = 'ridgecrest'
@@ -131,7 +131,7 @@ for nearby_channel_number in nearby_channel_number_list:
     dist_slopeS.append(regS.params[-1])
     
     # reset the regression models
-    del regP, regS
+    #del regP, regS
 
 P_regression_parameter_df = pd.DataFrame({'site_channels':nearby_channel_number_list, 'magnitude-P':mag_slopeP, 'log(distance)-P':dist_slopeP})  
 S_regression_parameter_df = pd.DataFrame({'site_channels':nearby_channel_number_list, 'magnitude-S':mag_slopeS, 'log(distance)-S':dist_slopeS})  
@@ -161,7 +161,7 @@ for nearby_channel_number in nearby_channel_number_list:
     dist_slopeS.append(regS.params[-1])
 
     # reset the regression models
-    del regP, regS
+    #del regP, regS
 
 P_regression_parameter_df = pd.DataFrame({'site_channels':nearby_channel_number_list, 'magnitude-P':mag_slopeP, 'log(distance)-P':dist_slopeP})  
 S_regression_parameter_df = pd.DataFrame({'site_channels':nearby_channel_number_list, 'magnitude-S':mag_slopeS, 'log(distance)-S':dist_slopeS})  
