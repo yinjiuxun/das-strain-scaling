@@ -52,6 +52,12 @@ DAS_index = DAS_info[:, 0].astype('int')
 DAS_lon_Ridgecrest = DAS_info[:, 1]
 DAS_lat_Ridgecrest = DAS_info[:, 2]
 
+Ridgecrest_conversion_factor = 1550.12 / (0.78 * 2 * np.pi * 1.46 * 8)
+peak_amplitude_df_Ridgecrest.peak_P = peak_amplitude_df_Ridgecrest.peak_P * Ridgecrest_conversion_factor
+peak_amplitude_df_Ridgecrest.peak_S = peak_amplitude_df_Ridgecrest.peak_S * Ridgecrest_conversion_factor
+peak_amplitude_df_Ridgecrest.peak_P_strain = peak_amplitude_df_Ridgecrest.peak_P_strain * Ridgecrest_conversion_factor
+peak_amplitude_df_Ridgecrest.peak_S_strain = peak_amplitude_df_Ridgecrest.peak_S_strain * Ridgecrest_conversion_factor
+
 catalog_Ridgecrest = pd.read_csv(catalog_file, sep='\s+', header=None, skipfooter=1, engine='python')
 # Find events in the pick file
 event_id_selected_Ridgecrest = np.unique(peak_amplitude_df_Ridgecrest['event_id'])
@@ -69,7 +75,7 @@ peak_amplitude_df_Ridgecrest = add_event_label(peak_amplitude_df_Ridgecrest)
 #%%
 # plot time variation of events
 time_list_Ridgecrest = [obspy.UTCDateTime(time) for time in catalog_select_Ridgecrest[3]]
-time_span_Ridgecrest = np.array([time-time_list_Ridgecrest[0] for time in time_list])
+time_span_Ridgecrest = np.array([time-time_list_Ridgecrest[0] for time in time_list_Ridgecrest])
 time_span_days_Ridgecrest = time_span_Ridgecrest/3600/24
 
 fig, ax = plt.subplots(figsize=(10, 8))
@@ -89,9 +95,16 @@ plt.savefig(results_output_dir + '/map_of_earthquakes_not_grouped.png', bbox_inc
 peak_amplitude_df_temp = peak_amplitude_df_Ridgecrest.iloc[::5, :]
 peak_amplitude_df_temp['log10(distance)'] = np.log10(peak_amplitude_df_temp.distance_in_km)
 peak_amplitude_df_temp['log10(peak_P)'] = np.log10(peak_amplitude_df_temp.peak_P)
+peak_amplitude_df_temp['log10(peak_S)'] = np.log10(peak_amplitude_df_temp.peak_S)
 peak_amplitude_df_temp['P/S'] = peak_amplitude_df_temp.peak_P/peak_amplitude_df_temp.peak_S
 plt.figure(figsize=(14,8))
-sns.pairplot(peak_amplitude_df_temp[['magnitude','log10(distance)', 'max_P_time', 'log10(peak_P)','P/S']], kind='hist', diag_kind="kde", corner=True)
+g = sns.pairplot(peak_amplitude_df_temp[['magnitude','log10(distance)', 'log10(peak_P)','log10(peak_S)']], kind='hist', diag_kind="kde", corner=True)
+g.axes[2,0].set_ylim((1,7))
+g.axes[2,1].set_ylim((1,7))
+g.axes[3,0].set_ylim((1,7))
+g.axes[3,1].set_ylim((1,7))
+g.axes[3,2].set_ylim((1,7))
+g.axes[3,2].set_xlim((1,7))
 plt.savefig(results_output_dir + '/ridgecrest_data_statistics.png')
 
 #%%
@@ -241,9 +254,16 @@ plt.savefig(results_output_dir + '/map_of_earthquakes_not_grouped.png', bbox_inc
 peak_amplitude_df_temp = peak_amplitude_df.iloc[::5, :]
 peak_amplitude_df_temp['log10(distance)'] = np.log10(peak_amplitude_df_temp.distance_in_km)
 peak_amplitude_df_temp['log10(peak_P)'] = np.log10(peak_amplitude_df_temp.peak_P)
+peak_amplitude_df_temp['log10(peak_S)'] = np.log10(peak_amplitude_df_temp.peak_S)
 peak_amplitude_df_temp['P/S'] = peak_amplitude_df_temp.peak_P/peak_amplitude_df_temp.peak_S
 plt.figure(figsize=(14,8))
-sns.pairplot(peak_amplitude_df_temp[['magnitude','log10(distance)', 'log10(peak_P)','P/S']], kind='hist', diag_kind="kde", corner=True)
+g = sns.pairplot(peak_amplitude_df_temp[['magnitude','log10(distance)', 'log10(peak_P)','log10(peak_S)']], kind='hist', diag_kind="kde", corner=True)
+g.axes[2,0].set_ylim((1,7))
+g.axes[2,1].set_ylim((1,7))
+g.axes[3,0].set_ylim((1,7))
+g.axes[3,1].set_ylim((1,7))
+g.axes[3,2].set_ylim((1,7))
+g.axes[3,2].set_xlim((1,7))
 plt.savefig(results_output_dir + '/mammoth_data_statistics.png')
 
 #%%
@@ -285,9 +305,55 @@ fig.savefig(results_output_dir + '/map_of_earthquakes_GMT_Mammoth.png')
 
 
 #%%
-# ================================ Work on both events  =======================================
+# ================================ Work on both Ridgecrest and Mammoth arrays  =======================================
 results_output_dir = '/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RM'
+peak_amplitude_df_Ridgecrest_temp = peak_amplitude_df_Ridgecrest.copy()
+peak_amplitude_df_Ridgecrest_temp.peak_P = peak_amplitude_df_Ridgecrest_temp.peak_P  # Need to double check the scaling factor!!!
+peak_amplitude_df_Ridgecrest_temp.peak_S = peak_amplitude_df_Ridgecrest_temp.peak_S 
+peak_amplitude_df_all = pd.concat([peak_amplitude_df_Ridgecrest_temp, peak_amplitude_df_Mammoth], axis=0, ignore_index=True)
 
+# plot data statistics
+peak_amplitude_df_temp = peak_amplitude_df_all.iloc[::1, :]
+peak_amplitude_df_temp['log10(distance)'] = np.log10(peak_amplitude_df_temp.distance_in_km)
+peak_amplitude_df_temp['log10(peak_P)'] = np.log10(peak_amplitude_df_temp.peak_P)
+peak_amplitude_df_temp['log10(peak_S)'] = np.log10(peak_amplitude_df_temp.peak_S)
+peak_amplitude_df_temp['P/S'] = peak_amplitude_df_temp.peak_P/peak_amplitude_df_temp.peak_S
+
+plt.figure(figsize=(14,8))
+g = sns.pairplot(peak_amplitude_df_temp[['magnitude','log10(distance)', 'log10(peak_P)','log10(peak_S)']], kind='hist', diag_kind="kde", corner=True)
+g.axes[2,0].set_ylim((1,7))
+g.axes[2,1].set_ylim((1,7))
+g.axes[3,0].set_ylim((1,7))
+g.axes[3,1].set_ylim((1,7))
+g.axes[3,2].set_ylim((1,7))
+g.axes[3,2].set_xlim((1,7))
+plt.savefig(results_output_dir + '/RM_data_statistics.png')
+
+#%% This is just for comparison
+results_output_dir = '/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RM'
+peak_amplitude_df_Ridgecrest_temp = peak_amplitude_df_Ridgecrest.copy()
+peak_amplitude_df_Ridgecrest_temp.peak_P = peak_amplitude_df_Ridgecrest_temp.peak_P/Ridgecrest_conversion_factor  # Need to double check the scaling factor!!!
+peak_amplitude_df_Ridgecrest_temp.peak_S = peak_amplitude_df_Ridgecrest_temp.peak_S/Ridgecrest_conversion_factor
+peak_amplitude_df_all = pd.concat([peak_amplitude_df_Ridgecrest_temp, peak_amplitude_df_Mammoth], axis=0, ignore_index=True)
+
+# plot data statistics
+peak_amplitude_df_temp = peak_amplitude_df_all.iloc[::1, :]
+peak_amplitude_df_temp['log10(distance)'] = np.log10(peak_amplitude_df_temp.distance_in_km)
+peak_amplitude_df_temp['log10(peak_P)'] = np.log10(peak_amplitude_df_temp.peak_P)
+peak_amplitude_df_temp['log10(peak_S)'] = np.log10(peak_amplitude_df_temp.peak_S)
+peak_amplitude_df_temp['P/S'] = peak_amplitude_df_temp.peak_P/peak_amplitude_df_temp.peak_S
+
+plt.figure(figsize=(14,8))
+g = sns.pairplot(peak_amplitude_df_temp[['magnitude','log10(distance)', 'log10(peak_P)','log10(peak_S)']], kind='hist', diag_kind="kde", corner=True)
+g.axes[2,0].set_ylim((1,7))
+g.axes[2,1].set_ylim((1,7))
+g.axes[3,0].set_ylim((1,7))
+g.axes[3,1].set_ylim((1,7))
+g.axes[3,2].set_ylim((1,7))
+g.axes[3,2].set_xlim((1,7))
+plt.savefig(results_output_dir + '/RM_data_statistics_before.png')
+
+#%%
 time_span_Mammoth_ref = np.array([time-time_list_Ridgecrest[0] for time in time_list_Mammoth])
 time_span_days_Mammoth_ref = time_span_Mammoth_ref/3600/24
 
@@ -296,7 +362,7 @@ ax.plot(catalog_select_Ridgecrest[7], time_span_days_Ridgecrest, 'ro', label='Ri
 ax.plot(catalog_select_Mammoth['mag'], time_span_days_Mammoth_ref, 'bo', label='Mammoth earthquakes')
 
 ax.invert_yaxis()
-ax.set_ylim(10, 880)
+ax.set_ylim(-10, 880)
 ax.set_ylabel(f'Days from the {time_list_Ridgecrest[0].isoformat()[:10]}')
 ax.set_xlabel('magnitude')
 ax.grid()
