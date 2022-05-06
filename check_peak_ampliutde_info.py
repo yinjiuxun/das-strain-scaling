@@ -52,11 +52,11 @@ DAS_index = DAS_info[:, 0].astype('int')
 DAS_lon_Ridgecrest = DAS_info[:, 1]
 DAS_lat_Ridgecrest = DAS_info[:, 2]
 
-Ridgecrest_conversion_factor = 1550.12 / (0.78 * 2 * np.pi * 1.46 * 8)
-peak_amplitude_df_Ridgecrest.peak_P = peak_amplitude_df_Ridgecrest.peak_P * Ridgecrest_conversion_factor
-peak_amplitude_df_Ridgecrest.peak_S = peak_amplitude_df_Ridgecrest.peak_S * Ridgecrest_conversion_factor
-peak_amplitude_df_Ridgecrest.peak_P_strain = peak_amplitude_df_Ridgecrest.peak_P_strain * Ridgecrest_conversion_factor
-peak_amplitude_df_Ridgecrest.peak_S_strain = peak_amplitude_df_Ridgecrest.peak_S_strain * Ridgecrest_conversion_factor
+Ridgecrest_conversion_factor = 1550.12 / (0.78 * 4 * np.pi * 1.46 * 8)
+peak_amplitude_df_Ridgecrest.peak_P = peak_amplitude_df_Ridgecrest.peak_P 
+peak_amplitude_df_Ridgecrest.peak_S = peak_amplitude_df_Ridgecrest.peak_S 
+peak_amplitude_df_Ridgecrest.peak_P_strain = peak_amplitude_df_Ridgecrest.peak_P_strain 
+peak_amplitude_df_Ridgecrest.peak_S_strain = peak_amplitude_df_Ridgecrest.peak_S_strain 
 
 catalog_Ridgecrest = pd.read_csv(catalog_file, sep='\s+', header=None, skipfooter=1, engine='python')
 # Find events in the pick file
@@ -264,6 +264,14 @@ g.axes[3,0].set_ylim((1,7))
 g.axes[3,1].set_ylim((1,7))
 g.axes[3,2].set_ylim((1,7))
 g.axes[3,2].set_xlim((1,7))
+
+letter_list = [str(chr(k+97)) for k in range(0, 20)]
+k=0
+for gca in g.axes.flatten():
+    if gca is not None:
+        gca.annotate(f'({letter_list[k]})', xy=(0.05, 0.95), xycoords=gca.transAxes)
+        k += 1
+
 plt.savefig(results_output_dir + '/mammoth_data_statistics.png')
 
 #%%
@@ -327,6 +335,14 @@ g.axes[3,0].set_ylim((1,7))
 g.axes[3,1].set_ylim((1,7))
 g.axes[3,2].set_ylim((1,7))
 g.axes[3,2].set_xlim((1,7))
+
+letter_list = [str(chr(k+97)) for k in range(0, 20)]
+k=0
+for gca in g.axes.flatten():
+    if gca is not None:
+        gca.annotate(f'({letter_list[k]})', xy=(0.05, 0.95), xycoords=gca.transAxes)
+        k += 1
+
 plt.savefig(results_output_dir + '/RM_data_statistics.png')
 
 #%% This is just for comparison
@@ -351,6 +367,14 @@ g.axes[3,0].set_ylim((1,7))
 g.axes[3,1].set_ylim((1,7))
 g.axes[3,2].set_ylim((1,7))
 g.axes[3,2].set_xlim((1,7))
+
+letter_list = [str(chr(k+97)) for k in range(0, 20)]
+k=0
+for gca in g.axes.flatten():
+    if gca is not None:
+        gca.annotate(f'({letter_list[k]})', xy=(0.05, 0.95), xycoords=gca.transAxes)
+        k += 1
+
 plt.savefig(results_output_dir + '/RM_data_statistics_before.png')
 
 #%%
