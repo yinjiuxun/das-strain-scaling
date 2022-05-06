@@ -32,7 +32,9 @@ def write_regression_summary(regression_results_dir, file_name, reg):
 def fit_regression_magnitude_range(peak_amplitude_df, M_threshold, regression_results_dir, nearby_channel_number):
     
     peak_amplitude_df = peak_amplitude_df[(peak_amplitude_df.magnitude >= M_threshold[0]) & (peak_amplitude_df.magnitude <= M_threshold[1])]
-    
+    # Remove some extreme data outliers before fitting
+    peak_amplitude_df = peak_amplitude_df.drop(peak_amplitude_df[(peak_amplitude_df.peak_S > 1e7) | (peak_amplitude_df.peak_P > 1e7)].index)
+
     regP = smf.ols(formula='np.log10(peak_P) ~ magnitude + np.log10(distance_in_km) + C(region_site) - 1', data=peak_amplitude_df).fit()
     regS = smf.ols(formula='np.log10(peak_S) ~ magnitude + np.log10(distance_in_km) + C(region_site) - 1', data=peak_amplitude_df).fit()
 
@@ -77,7 +79,7 @@ das_index_list = []
 snr_threshold = 20
 #%% ==============================  Ridgecrest data ========================================
 #ridgecrest_peaks = '/home/yinjx/kuafu/Ridgecrest/Ridgecrest_scaling/peak_ampliutde_scaling_results_strain_rate/peak_amplitude_M3+.csv'
-ridgecrest_peaks = '/home/yinjx/kuafu/Ridgecrest/Ridgecrest_scaling/peak_amplitude_scaling_results_strain_rate_snr/peak_amplitude_M3+.csv'
+ridgecrest_peaks = '/home/yinjx/kuafu/Ridgecrest/Ridgecrest_scaling/peak_amplitude_scaling_results_strain_rate/peak_amplitude_M3+.csv'
 peak_amplitude_df_ridgecrest, DAS_index_ridgecrest = load_and_add_region(ridgecrest_peaks, region_label='ridgecrest', snr_threshold=snr_threshold)
 peak_data_list.append(peak_amplitude_df_ridgecrest)
 das_index_list.append(DAS_index_ridgecrest)
@@ -183,7 +185,7 @@ for nearby_channel_number in combined_channel_number_list:
     y_P_predict = regP.predict(peak_amplitude_df)
     y_S_predict = regS.predict(peak_amplitude_df)
     
-    plot_compare_prediction_vs_true_values(peak_amplitude_df, y_P_predict, y_S_predict, (1.0, 5.5), 
+    plot_compare_prediction_vs_true_values(peak_amplitude_df, y_P_predict, y_S_predict, (2.5, 6.5), 
     regression_results_dir + f'/validate_predicted__combined_site_terms_{nearby_channel_number}chan.png')
 
 P_regression_parameter_df = pd.DataFrame({'site_channels':combined_channel_number_list, 'magnitude-P':mag_slopeP, 'log(distance)-P':dist_slopeP})  
@@ -219,7 +221,7 @@ for nearby_channel_number in combined_channel_number_list:
     y_P_predict = regP.predict(peak_amplitude_df)
     y_S_predict = regS.predict(peak_amplitude_df)
     
-    plot_compare_prediction_vs_true_values(peak_amplitude_df, y_P_predict, y_S_predict, (1.0, 5.5), 
+    plot_compare_prediction_vs_true_values(peak_amplitude_df, y_P_predict, y_S_predict, (2.5, 6.5), 
     regression_results_dir + f'/validate_predicted_combined_site_terms_{nearby_channel_number}chan.png')
 
 P_regression_parameter_df = pd.DataFrame({'site_channels':combined_channel_number_list, 'magnitude-P':mag_slopeP, 'log(distance)-P':dist_slopeP})  
