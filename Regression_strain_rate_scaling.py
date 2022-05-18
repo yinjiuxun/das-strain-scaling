@@ -69,7 +69,7 @@ def fit_regression_with_attenuation_magnitude_range(peak_amplitude_df, M_thresho
 # region_label = 'ridgecrest'
 
 results_output_dir = '/home/yinjx/kuafu/Ridgecrest/Ridgecrest_scaling/peak_amplitude_scaling_results_strain_rate'
-das_pick_file_name = '/peak_amplitude_M3+.csv'
+das_pick_file_name = '/Ridgecrest_peak_amplitude.csv'
 region_label = 'ridgecrest'
 
 # ==============================  Olancha data ========================================
@@ -92,16 +92,9 @@ region_label = 'mammothN'
 
 #%% load the peak amplitude results
 # Load the peak amplitude results
+snr_threshold = 0
 peak_amplitude_df, DAS_index = load_and_add_region(results_output_dir + '/' + das_pick_file_name, 
-                                                   region_label=region_label, snr_threshold=20)
-
-# Mammoth data contains the snrP and snrS, so if these two columns exist, only keep data with higher SNR
-snr_threshold = 20
-if 'snrP' in peak_amplitude_df.columns:
-    peak_amplitude_df = peak_amplitude_df[peak_amplitude_df.snrP >= snr_threshold]
-
-if 'snrS' in peak_amplitude_df.columns:
-    peak_amplitude_df = peak_amplitude_df[peak_amplitude_df.snrS >= snr_threshold]
+                                                   region_label=region_label, snr_threshold=snr_threshold)
 
 # Preprocessing the peak amplitude data
 peak_amplitude_df = peak_amplitude_df.dropna()
