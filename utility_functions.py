@@ -3,6 +3,29 @@ import numpy as np
 import statsmodels.formula.api as smf
 import h5py
 import dateutil
+import contextlib
+import joblib
+from tqdm import tqdm
+from joblib import Parallel, delayed
+
+@contextlib.contextmanager
+def tqdm_joblib(tqdm_object):
+    """Context manager to patch joblib to report into tqdm progress bar given as argument"""
+
+    def tqdm_print_progress(self):
+        if self.n_completed_tasks > tqdm_object.n:
+            n_completed = self.n_completed_tasks - tqdm_object.n
+            tqdm_object.update(n=n_completed)
+
+    original_print_progress = joblib.parallel.Parallel.print_progress
+    joblib.parallel.Parallel.print_progress = tqdm_print_progress
+
+    try:
+        yield tqdm_object
+    finally:
+        joblib.parallel.Parallel.print_progress = original_print_progress
+        tqdm_object.close()
+
 
 # Functions to save and load event h5 files
 def save_rawevent_h5(fn, data, info):
@@ -38,6 +61,57 @@ def load_rawevent_h5(fn):
        info2['dx'] = info['dx_m']
        info2['dt'] = info['dt_s']
    return data, info2
+
+def load_event_data(data_path, eq_id):
+    with h5py.File(data_path + '/' + str(eq_id) + '.h5', 'r') as fid:
+       data = fid['data'][:]
+       info = {}
+       for key in fid['data'].attrs.keys():
+           info[key] = fid['data'].attrs[key]
+       info2 = {}
+       if 'begin_time' in info.keys():
+           info2['begTime'] = dateutil.parser.parse(info['begin_time'])
+       if 'end_time' in info.keys():
+           info2['endTime'] = dateutil.parser.parse(info['end_time'])
+       if 'event_time' in info.keys():
+           info2['event_time'] = dateutil.parser.parse(info['event_time'])
+       info2['nt'] = data.shape[0]
+       info2['nx'] = data.shape[1]
+       info2['dx'] = info['dx_m']
+       info2['dt'] = info['dt_s']
+       return data, info2
+
+def load_phase_pick(pick_path, eq_id, das_time, channel, time_range=None, include_nan=False):
+    picks = pd.read_csv(pick_path + f'/{eq_id}.csv')
+
+    picks_P = picks[picks.phase_type == 'P']
+    picks_S = picks[picks.phase_type == 'S']
+    # Adding restriction on the time
+    if time_range is not None:
+        dt = das_time[1] - das_time[0]
+        picks_P = picks_P[(picks_P.phase_type == 'P') & 
+                            (picks_P.phase_index <= time_range[1]/dt) & 
+                            (picks_P.phase_index >= time_range[0]/dt)]
+
+        picks_S = picks_S[(picks_S.phase_type == 'S') & 
+                            (picks_S.phase_index <= time_range[3]/dt) & 
+                            (picks_S.phase_index >= time_range[2]/dt)]
+    
+    if include_nan:
+        picks_P_time = np.ones(channel.shape) * np.nan
+        picks_S_time = np.ones(channel.shape) * np.nan
+        picks_P_time[picks_P.channel_index] = das_time[picks_P.phase_index]
+        picks_S_time[picks_S.channel_index] = das_time[picks_S.phase_index]
+        channel_P, channel_S = channel, channel
+
+    else:
+        picks_P_time = das_time[picks_P.phase_index]
+        channel_P = channel[picks_P.channel_index]
+
+        picks_S_time = das_time[picks_S.phase_index]
+        channel_S = channel[picks_S.channel_index]
+
+    return picks_P_time, channel_P, picks_S_time, channel_S
    
 
 def combined_channels(DAS_index, peak_amplitude_df, nearby_channel_number):
