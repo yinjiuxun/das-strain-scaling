@@ -11,6 +11,11 @@ import tqdm
 import obspy
 import datetime
 import os
+import glob
+import psutil 
+Ncores = psutil.cpu_count(logical = False) # Maximum number of cores that can be employed
+
+import warnings
 
 from utility_functions import *
 from obspy.geodetics import locations2degrees
@@ -139,26 +144,207 @@ def load_phase_pick(pick_path, eq_id, das_time, channel, time_range=None, includ
 
     return picks_P_time, channel_P, picks_S_time, channel_S
 
+# # The below are from Jiaxuan TODO: TEST later.
+# def read_picks(fn_pick, event_time):
+#     df = pd.read_csv(fn_pick)
+#     df['phase_time'] = pd.to_datetime(df['phase_time'])
+#     df['traveltime'] = (df['phase_time']-event_time).apply(lambda x: x.total_seconds())
+#     return df
+
+# def read_clean_picks(fn_pick, event_time, tt_table, twinP=2, twinS=2):
+#     """
+#     read in the picks picked by PhaseNet
+#     keep only the picks in good channels
+#     keep only the picks that are within a threshold of the predicted traveltime
+#     """
+#     ichan_good = tt_table['ichan'].values
+#     tp_model = tt_table['tp'].values
+#     ts_model = tt_table['ts'].values
+#     df = read_picks(fn_pick, event_time)
+#     df=df[df['channel_index'].isin(ichan_good)]
+#     pick_P = -10*np.ones_like(tp_model)
+#     score_P = np.zeros_like(tp_model)
+#     pick_S = -10*np.ones_like(tp_model)
+#     score_S = np.zeros_like(tp_model)
+#     # P phase
+#     df_P = df[df['phase_type'] == 'P'].sort_values(by='channel_index')
+#     df_P.reset_index(inplace=True, drop=True)
+#     # S phase
+#     df_S = df[df['phase_type'] == 'S'].sort_values(by='channel_index')
+#     df_S.reset_index(inplace=True, drop=True)
+#     i_pt_P = 0
+#     i_pt_S = 0
+#     # Loop over channel
+#     for i, ichan in enumerate(ichan_good):
+#         # P phase
+#         pick_model = tp_model[i]
+#         if df_P.loc[i_pt_P, 'channel_index'] != ichan:
+#             pick_P[i] = pick_model
+#         else:
+#             while i_pt_P < len(df_P) and df_P.loc[i_pt_P, 'channel_index'] == ichan:
+#                 pick_tmp = df_P.loc[i_pt_P, 'traveltime']
+#                 if abs(pick_tmp-pick_model) < abs(pick_P[i]-pick_model):
+#                     pick_P[i] = pick_tmp
+#                     score_P[i] = df_P.loc[i_pt_P, 'phase_score']
+#                 i_pt_P += 1
+#             if abs(pick_P[i]-pick_model) > twinP:
+#                 pick_P[i] = pick_model
+#                 score_P[i] = 0
+#         # S phase
+#         pick_model = ts_model[i]
+#         if df_S.loc[i_pt_S, 'channel_index'] != ichan:
+#             pick_S[i] = pick_model
+#         else:
+#             while i_pt_S < len(df_S) and df_S.loc[i_pt_S, 'channel_index'] == ichan:
+#                 pick_tmp = df_S.loc[i_pt_S, 'traveltime']
+#                 if abs(pick_tmp-pick_model) < abs(pick_S[i]-pick_model):
+#                     pick_S[i] = pick_tmp
+#                     score_S[i] = df_S.loc[i_pt_S, 'phase_score']
+#                 i_pt_S += 1
+#             if abs(pick_S[i]-pick_model) > twinS:
+#                 pick_S[i] = pick_model
+#                 score_S[i] = 0
+#     return pick_P, score_P, pick_S, score_S
 
 Ridgecrest_conversion_factor = 1550.12 / (0.78 * 4 * np.pi * 1.46 * 8)
 # %%
 # Setup the paths
-event_folder = '/kuafu/EventData/Ridgecrest'
-# event_folder = '/kuafu/EventData/Mammoth_north'
-# event_folder = '/kuafu/EventData/Mammoth_south'
-
-# Output directory of peak amplitude for each event
-peak_amplitude_dir = '/kuafu/yinjx/Ridgecrest/Ridgecrest_scaling/peak_amplitude_events'
-# peak_amplitude_dir = '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/North/peak_amplitude_events'
-# peak_amplitude_dir = '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/South/peak_amplitude_events'
-
-
 event_folder_list = ['/kuafu/EventData/Ridgecrest', '/kuafu/EventData/Mammoth_north', '/kuafu/EventData/Mammoth_south']
 peak_amplitude_dir_list = ['/kuafu/yinjx/Ridgecrest/Ridgecrest_scaling/peak_amplitude_events', 
                            '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/North/peak_amplitude_events', 
                            '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/South/peak_amplitude_events']
 
-for ii_region in [1]:
+def extract_peak_amplitude(event_folder, peak_amplitude_dir, ii_region, data_path, pick_path, catalog, das_info, P_window_list, S_window_list, snr_window, i_eq):
+    matplotlib.rcParams.update(params) # Set up the plotting parameters
+    warnings.filterwarnings('ignore')
+
+    try:
+        event_now = catalog.iloc[i_eq, :]
+        if 'eventID' in event_now.keys():
+            event_now = event_now.rename({"eventID": "event_id"})
+
+        event_data, event_info = load_event_data(data_path, event_now.event_id)
+
+        if event_data.shape[1] > das_info.shape[0]:
+            event_data = event_data[:, das_info.index]
+
+        das_time = np.arange(0, event_info['nt']) * event_info['dt']
+
+        # TODO: update with new travel time format!
+        if ii_region == 0:
+            tt_1d_path = event_folder + '/theoretical_arrival_time'
+            tt_1d = pd.read_csv(tt_1d_path + f'/1D_tt_{event_now.event_id}.csv')
+
+
+        elif ii_region == 1:
+            tt_1d_path = '/kuafu/jxli/TemplateMatch/Events/Mammoth/North/TravelTime'
+            tt_1d = pd.read_csv(tt_1d_path + f'/{event_now.event_id}.table')
+            tt_1d.rename(columns = {'ichan':'index', 'tp':'P_arrival', 'ts':'S_arrival'}, inplace = True)
+            tt_1d.P_arrival = tt_1d.P_arrival + 30
+            tt_1d.S_arrival = tt_1d.S_arrival + 30
+
+        elif ii_region == 2:
+            tt_1d_path = '/kuafu/jxli/TemplateMatch/Events/Mammoth/South/TravelTime'
+            tt_1d = pd.read_csv(tt_1d_path + f'/{event_now.event_id}.table')
+            tt_1d.rename(columns = {'ichan':'index', 'tp':'P_arrival', 'ts':'S_arrival'}, inplace = True)
+            tt_1d.P_arrival = tt_1d.P_arrival + 30
+            tt_1d.S_arrival = tt_1d.S_arrival + 30
+
+        min_P_1d = tt_1d.P_arrival.min()
+        min_S_1d = tt_1d.S_arrival.min()   
+
+        time_range = (min_P_1d-15, min_P_1d+15, min_S_1d-15, min_S_1d+15)#(25, 40, 25, 60)
+        pick_P, channel_P, pick_S, channel_S = load_phase_pick(pick_path, event_now.event_id, das_time, das_info.index, time_range, include_nan=True)
+        # except:
+        #     continue
+        
+        # Calculate the SNR based on the P arrival time
+        event_arrival_P_temp = pick_P[np.newaxis, :]
+        event_arrival_S_temp = pick_S[np.newaxis, :]
+        twin_noise = [event_arrival_P_temp-1-snr_window, event_arrival_P_temp-1]
+        twin_signal_P = [event_arrival_P_temp, event_arrival_P_temp + snr_window]
+        twin_signal_S = [event_arrival_S_temp, event_arrival_S_temp + snr_window]
+        snrP = calculate_SNR(das_time, event_data, twin_noise, twin_signal_P)
+        snrS = calculate_SNR(das_time, event_data, twin_noise, twin_signal_S)
+
+
+        # Extract the maximum given the P and S arrival time
+        max_P_amplitude_list = []
+        max_P_time_list = []
+        max_S_amplitude_list = []
+        max_S_time_list = []
+
+        for P_window in P_window_list:
+            P_max_window = np.nanmin(np.array([pick_P+P_window-0.5, pick_S-0.5]), axis=0)
+            max_P_amplitude, max_P_time, _ = extract_maximum_amplitude(das_time, event_data, pick_P, P_max_window)
+            max_P_amplitude_list.append(max_P_amplitude)
+            max_P_time_list.append(max_P_time)
+            if P_window == P_window_list[0]:
+                peak_P_time = max_P_time.copy()
+
+        for S_window in S_window_list:
+            max_S_amplitude, max_S_time, _ = extract_maximum_amplitude(das_time, event_data, pick_S, pick_S+S_window)
+            max_S_amplitude_list.append(max_S_amplitude)
+            max_S_time_list.append(max_S_time)
+            if S_window == S_window_list[0]:
+                peak_S_time = max_S_time.copy()
+
+        # Convert to array
+        max_P_amplitude_list = np.array(max_P_amplitude_list).T
+        max_P_time_list = np.array(max_P_time_list).T
+        max_S_amplitude_list = np.array(max_S_amplitude_list).T
+        max_S_time_list = np.array(max_S_time_list).T
+
+        # Source information from catalog
+        event_id_list = (np.ones(das_info.shape[0]) * event_now.event_id).astype('int')
+        distance_list = locations2degrees(das_info.latitude, das_info.longitude, event_now.latitude, event_now.longitude) * 113
+        magnitude_list = np.ones(das_info.shape[0]) * event_now.magnitude
+        channel_id_list = np.array(das_info.index)
+        # combined into one 
+        all_combined1 = np.array([event_id_list, magnitude_list, channel_id_list, distance_list, snrP, snrS]).T
+
+        all_combined = np.concatenate([all_combined1, 
+                                    max_P_amplitude_list, max_S_amplitude_list, max_P_time_list, max_S_time_list], axis=1)
+
+        # Convert to DataFrame
+        peak_amplitude_df = pd.DataFrame(data=all_combined, 
+                                        columns=['event_id', 'magnitude', 'channel_id', 'distance_in_km', 'snrP', 'snrS', 
+                                        'peak_P', 'peak_P_1s', 'peak_P_3s', 'peak_P_4s', 
+                                        'peak_P_time', 'peak_P_time_1s', 'peak_P_time_3s', 'peak_P_time_4s',
+                                        'peak_S', 'peak_S_4s', 'peak_S_6s', 'peak_S_8s', 'peak_S_10s', 
+                                        'peak_S_time', 'peak_S_time_4s', 'peak_S_time_6s', 'peak_S_time_8s', 'peak_S_time_10s'])
+
+        # Remove NaNs
+        peak_amplitude_df = peak_amplitude_df.dropna()
+        # Adjust the format
+        peak_amplitude_df.event_id = peak_amplitude_df.event_id.astype('int')
+        # Store to csv
+        peak_amplitude_df.to_csv(peak_amplitude_dir + f'/{event_now.event_id}.csv',index=False)
+
+
+        #%%
+        # Show data
+        fig, ax = plt.subplots(figsize=(12,6))
+        # Main
+        gca = ax
+        show_event_data(event_data, das_time, gca, pclip=95)
+        gca.plot(channel_P, pick_P, '.k', markersize=2)
+        gca.scatter(channel_S, pick_S + peak_S_time, s=10, c=snrS, cmap='jet')
+        cbar = gca.scatter(channel_P, pick_P + peak_P_time, s=10, c=snrP, cmap='jet')
+        plt.colorbar(cbar, label='SNR')
+        gca.plot(channel_S, pick_S, '.k', markersize=2)
+
+        gca.plot(tt_1d.index, tt_1d.P_arrival, '--g')
+        gca.plot(tt_1d.index, tt_1d.S_arrival, '-g')
+        gca.set_ylim(time_range[0], time_range[-1]+10)
+        gca.set_title(f'ID {event_now.event_id}, M {event_now.magnitude}')
+        plt.savefig(peak_amplitude_dir + f'/figures/{event_now.event_id}.png', bbox_inches='tight')
+        plt.close('all')
+    except:
+        print('nothing')
+        pass
+
+for ii_region in [0, 1, 2]:
     event_folder, peak_amplitude_dir = event_folder_list[ii_region], peak_amplitude_dir_list[ii_region]
 
     print('='*10 + peak_amplitude_dir + '='*10)
@@ -177,186 +363,28 @@ for ii_region in [1]:
     S_window_list = [2, 4, 6, 8, 10]
     snr_window = 2
 
-    # load event waveform
-    for i_eq in tqdm.tqdm(range(1514,catalog.shape[0])): # 0 - 1000 are still left.
-    #i_eq = 1199
-        if catalog.iloc[i_eq, :].magnitude >= 3:
-            continue
+    n_eq = catalog.shape[0]
 
-        try:
-            event_now = catalog.iloc[i_eq, :]
-            if 'eventID' in event_now.keys():
-                event_now = event_now.rename({"eventID": "event_id"})
+    # Non-parallel version for testing purpose
+    # for i_eq in range(n_eq):
+    # i_eq = 20
+    # extract_peak_amplitude(event_folder, peak_amplitude_dir, ii_region, data_path, pick_path, catalog, das_info, P_window_list, S_window_list, snr_window, i_eq)
 
-            event_data, event_info = load_event_data(data_path, event_now.event_id)
-            if event_data.shape[1] > das_info.shape[0]:
-                event_data = event_data[:, das_info.index]
-
-            das_time = np.arange(0, event_info['nt']) * event_info['dt']
-
-
-            if ii_region == 0:
-                tt_1d_path = event_folder + '/theoretical_arrival_time'
-                tt_1d = pd.read_csv(tt_1d_path + f'/1D_tt_{event_now.event_id}.csv')
-
-
-            elif ii_region == 1:
-                tt_1d_path = '/kuafu/jxli/TemplateMatch/Events/Mammoth/North/TravelTime'
-                tt_1d = pd.read_csv(tt_1d_path + f'/{event_now.event_id}.table')
-                tt_1d.rename(columns = {'ichan':'index', 'tp':'P_arrival', 'ts':'S_arrival'}, inplace = True)
-                tt_1d.P_arrival = tt_1d.P_arrival + 30
-                tt_1d.S_arrival = tt_1d.S_arrival + 30
-
-            elif ii_region == 2:
-                tt_1d_path = '/kuafu/jxli/TemplateMatch/Events/Mammoth/South/TravelTime'
-                tt_1d = pd.read_csv(tt_1d_path + f'/{event_now.event_id}.table')
-                tt_1d.rename(columns = {'ichan':'index', 'tp':'P_arrival', 'ts':'S_arrival'}, inplace = True)
-                tt_1d.P_arrival = tt_1d.P_arrival + 30
-                tt_1d.S_arrival = tt_1d.S_arrival + 30
-
-            min_P_1d = tt_1d.P_arrival.min()
-            min_S_1d = tt_1d.S_arrival.min()   
-
-            time_range = (min_P_1d-15, min_P_1d+15, min_S_1d-15, min_S_1d+15)#(25, 40, 25, 60)
-            pick_P, channel_P, pick_S, channel_S = load_phase_pick(pick_path, event_now.event_id, das_time, das_info.index, time_range, include_nan=True)
-            # except:
-            #     continue
-            
-            # Calculate the SNR based on the P arrival time
-            event_arrival_P_temp = pick_P[np.newaxis, :]
-            event_arrival_S_temp = pick_S[np.newaxis, :]
-            twin_noise = [event_arrival_P_temp-1-snr_window, event_arrival_P_temp-1]
-            twin_signal_P = [event_arrival_P_temp, event_arrival_P_temp + snr_window]
-            twin_signal_S = [event_arrival_S_temp, event_arrival_S_temp + snr_window]
-            snrP = calculate_SNR(das_time, event_data, twin_noise, twin_signal_P)
-            snrS = calculate_SNR(das_time, event_data, twin_noise, twin_signal_S)
-
-
-            # Extract the maximum given the P and S arrival time
-            max_P_amplitude_list = []
-            max_P_time_list = []
-            max_S_amplitude_list = []
-            max_S_time_list = []
-
-            for P_window in P_window_list:
-                P_max_window = np.nanmin(np.array([pick_P+P_window-0.5, pick_S-0.5]), axis=0)
-                max_P_amplitude, max_P_time, _ = extract_maximum_amplitude(das_time, event_data, pick_P, P_max_window)
-                max_P_amplitude_list.append(max_P_amplitude)
-                max_P_time_list.append(max_P_time)
-                if P_window == P_window_list[0]:
-                    peak_P_time = max_P_time.copy()
-
-            for S_window in S_window_list:
-                max_S_amplitude, max_S_time, _ = extract_maximum_amplitude(das_time, event_data, pick_S, pick_S+S_window)
-                max_S_amplitude_list.append(max_S_amplitude)
-                max_S_time_list.append(max_S_time)
-                if S_window == S_window_list[0]:
-                    peak_S_time = max_S_time.copy()
-
-            # Convert to array
-            max_P_amplitude_list = np.array(max_P_amplitude_list).T
-            max_P_time_list = np.array(max_P_time_list).T
-            max_S_amplitude_list = np.array(max_S_amplitude_list).T
-            max_S_time_list = np.array(max_S_time_list).T
-
-            # Source information from catalog
-            event_id_list = (np.ones(das_info.shape[0]) * event_now.event_id).astype('int')
-            distance_list = locations2degrees(das_info.latitude, das_info.longitude, event_now.latitude, event_now.longitude) * 113
-            magnitude_list = np.ones(das_info.shape[0]) * event_now.magnitude
-            channel_id_list = np.array(das_info.index)
-            # combined into one 
-            all_combined1 = np.array([event_id_list, magnitude_list, channel_id_list, distance_list, snrP, snrS]).T
-
-            all_combined = np.concatenate([all_combined1, 
-                                        max_P_amplitude_list, max_S_amplitude_list, max_P_time_list, max_S_time_list], axis=1)
-
-            # Convert to DataFrame
-            peak_amplitude_df = pd.DataFrame(data=all_combined, 
-                                            columns=['event_id', 'magnitude', 'channel_id', 'distance_in_km', 'snrP', 'snrS', 
-                                            'peak_P', 'peak_P_1s', 'peak_P_3s', 'peak_P_4s', 
-                                            'peak_P_time', 'peak_P_time_1s', 'peak_P_time_3s', 'peak_P_time_4s',
-                                            'peak_S', 'peak_S_4s', 'peak_S_6s', 'peak_S_8s', 'peak_S_10s', 
-                                            'peak_S_time', 'peak_S_time_4s', 'peak_S_time_6s', 'peak_S_time_8s', 'peak_S_time_10s'])
-
-            # Remove NaNs
-            peak_amplitude_df = peak_amplitude_df.dropna()
-            # Adjust the format
-            peak_amplitude_df.event_id = peak_amplitude_df.event_id.astype('int')
-            # Store to csv
-            peak_amplitude_df.to_csv(peak_amplitude_dir + f'/{event_now.event_id}.csv',index=False)
-
-
-            #%%
-            # Show data
-            fig, ax = plt.subplots(figsize=(12,6))
-            # Main
-            gca = ax
-            show_event_data(event_data, das_time, gca, pclip=95)
-            gca.plot(channel_P, pick_P, '.k', markersize=2)
-            gca.scatter(channel_S, pick_S + peak_S_time, s=10, c=snrS, cmap='jet')
-            cbar = gca.scatter(channel_P, pick_P + peak_P_time, s=10, c=snrP, cmap='jet')
-            plt.colorbar(cbar, label='SNR')
-            gca.plot(channel_S, pick_S, '.k', markersize=2)
-
-            gca.plot(tt_1d.index, tt_1d.P_arrival, '--g')
-            gca.plot(tt_1d.index, tt_1d.S_arrival, '-g')
-            gca.set_ylim(time_range[0], time_range[-1]+10)
-            gca.set_title(f'ID {event_now.event_id}, M {event_now.magnitude}')
-            plt.savefig(peak_amplitude_dir + f'/figures/{event_now.event_id}.png', bbox_inches='tight')
-            plt.close('all')
-        except:
-            continue
-
+    # Parallel extracting peak amplitude
+    with tqdm_joblib(tqdm(desc="File desampling", total=n_eq)) as progress_bar:
+        Parallel(n_jobs=Ncores)(delayed(extract_peak_amplitude)(event_folder, peak_amplitude_dir, ii_region, data_path, pick_path, catalog, das_info, P_window_list, S_window_list, snr_window, i_eq) for i_eq in range(n_eq))
 
 
 # %%
-# # Combine individual event csv files to form a large one
-# import glob
+# Combine all the individual peak amplitude files into one for regression
+event_folder_list = ['/kuafu/EventData/Ridgecrest', '/kuafu/EventData/Mammoth_north', '/kuafu/EventData/Mammoth_south']
+peak_amplitude_dir_list = ['/kuafu/yinjx/Ridgecrest/Ridgecrest_scaling/peak_amplitude_events', 
+                           '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/North/peak_amplitude_events', 
+                           '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/South/peak_amplitude_events']
+for ii_region in [0, 1, 2]:
+    peak_amplitude_dir = peak_amplitude_dir_list[ii_region]
 
-# results_folder = '/kuafu/yinjx/Ridgecrest/Ridgecrest_scaling'
-# peak_amplitude_dir = results_folder + '/peak_amplitude_events'
-
-# # results_folder = '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/North'
-# # peak_amplitude_dir = results_folder + '/peak_amplitude_events'
-
-# #%%
-# temp = glob.glob(peak_amplitude_dir + '/*.csv')
-# # %%
-# temp_df = pd.concat(map(pd.read_csv, temp), ignore_index=True)
-# temp_df.to_csv(results_folder + '/Ridgecrest_peak_amplitude.csv', index=False)
-
-# #%%
-# #temp_df = pd.read_csv(results_folder + '/Ridgecrest_peak_amplitude.csv')
-# temp_df = pd.read_csv(results_folder + '/Ridgecrest_peak_amplitude.csv')
-# import seaborn as sns
-# peak_amplitude_df = temp_df[(temp_df.snrP > 0) & (temp_df.snrS > 0)]#& (temp_df.magnitude >=3)]
-
-# # plot data statistics
-# peak_amplitude_df_temp = peak_amplitude_df.iloc[::1, :]
-# peak_amplitude_df_temp['log10(distance)'] = np.log10(peak_amplitude_df_temp.distance_in_km.astype('float'))
-# peak_amplitude_df_temp['log10(peak_P)'] = np.log10(peak_amplitude_df_temp.peak_P_1s.astype('float')*1e3)
-# peak_amplitude_df_temp['log10(peak_S)'] = np.log10(peak_amplitude_df_temp.peak_S.astype('float')*1e3)
-# #peak_amplitude_df_temp['P/S'] = peak_amplitude_df_temp.peak_P/peak_amplitude_df_temp.peak_S
-
-# plt.figure(figsize=(14,8))
-# g = sns.pairplot(peak_amplitude_df_temp[['magnitude','log10(distance)', 'log10(peak_P)','log10(peak_S)']], kind='hist', diag_kind="kde", corner=True)
-# g.axes[2,0].set_ylim((2,5))
-# g.axes[2,1].set_ylim((2,5))
-# g.axes[3,0].set_ylim((2,5))
-# g.axes[3,1].set_ylim((2,5))
-# g.axes[3,2].set_ylim((2,5))
-# g.axes[3,2].set_xlim((2,5))
-
-# # %%
-# peak_amplitude_df_RC = peak_amplitude_df_temp.copy()
-# # %%
-# peak_amplitude_df_LV_N = peak_amplitude_df_temp.copy()
-# # %%
-# fig, gca = plt.subplots(figsize=(8, 6))
-# gca.plot(peak_amplitude_df_RC['log10(distance)']+ np.log10(113), peak_amplitude_df_RC['log10(peak_S)'] - np.log10(Ridgecrest_conversion_factor), 'ro', label='Ridgecrest')
-# gca.plot(peak_amplitude_df_LV_N['log10(distance)']+ np.log10(113), peak_amplitude_df_LV_N['log10(peak_S)'], 'bo', label='Mammoth N')
-# gca.set_ylim(0.5, 3.5)
-# gca.set_xlabel('log10(Distance)')
-# gca.set_ylabel('Peak S strain rate')
-# gca.legend()
-# %%
+    print('='*10 + peak_amplitude_dir + '='*10)
+    temp = glob.glob(peak_amplitude_dir + '/*.csv')
+    temp_df = pd.concat(map(pd.read_csv, temp), ignore_index=True)
+    temp_df.to_csv(peak_amplitude_dir + '/peak_amplitude.csv', index=False)
