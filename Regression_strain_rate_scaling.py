@@ -23,10 +23,36 @@ def fit_regression_magnitude_range(peak_amplitude_df, M_threshold, regression_re
    
     peak_amplitude_df = peak_amplitude_df[(peak_amplitude_df.magnitude >= M_threshold[0]) & (peak_amplitude_df.magnitude <= M_threshold[1])]
     # Remove some extreme data outliers before fitting
-    peak_amplitude_df = peak_amplitude_df.drop(peak_amplitude_df[(peak_amplitude_df.peak_S > 1e7) | (peak_amplitude_df.peak_P > 1e7)].index)
+    peak_amplitude_df = peak_amplitude_df.drop(peak_amplitude_df[(peak_amplitude_df.peak_S > 1e3) | (peak_amplitude_df.peak_P > 1e3)].index)
 
     regP = smf.ols(formula='np.log10(peak_P) ~ magnitude + np.log10(distance_in_km) + C(combined_channel_id) - 1', data=peak_amplitude_df).fit()
     regS = smf.ols(formula='np.log10(peak_S) ~ magnitude + np.log10(distance_in_km) + C(combined_channel_id) - 1', data=peak_amplitude_df).fit()
+
+    print(regP.params[-2:])
+    print(regS.params[-2:])
+    print('\n\n')
+    
+    file_name_P = f"/P_regression_combined_site_terms_{nearby_channel_number}chan"
+    write_regression_summary(regression_results_dir, file_name_P, regP)
+    file_name_S = f"/S_regression_combined_site_terms_{nearby_channel_number}chan"
+    write_regression_summary(regression_results_dir, file_name_S, regS)
+
+    regP.save(regression_results_dir + '/' + file_name_P + '.pickle', remove_data=True)
+    regS.save(regression_results_dir + '/' + file_name_S + '.pickle', remove_data=True)
+    return regP,regS
+
+
+def fit_regression_with_weight_magnitude_range(peak_amplitude_df, M_threshold, regression_results_dir, nearby_channel_number):
+    """ Linear regression with weight, the weight is 10**magnitude """
+
+    peak_amplitude_df = peak_amplitude_df[(peak_amplitude_df.magnitude >= M_threshold[0]) & (peak_amplitude_df.magnitude <= M_threshold[1])]
+    # Remove some extreme data outliers before fitting
+    peak_amplitude_df = peak_amplitude_df.drop(peak_amplitude_df[(peak_amplitude_df.peak_S > 1e3) | (peak_amplitude_df.peak_P > 1e3)].index)
+
+    regP = smf.wls(formula='np.log10(peak_P) ~ magnitude + np.log10(distance_in_km) + C(combined_channel_id) - 1', 
+                data=peak_amplitude_df, weights = (10**peak_amplitude_df.magnitude)).fit()
+    regS = smf.wls(formula='np.log10(peak_S) ~ magnitude + np.log10(distance_in_km) + C(combined_channel_id) - 1', 
+                data=peak_amplitude_df, weights = (10**peak_amplitude_df.magnitude)).fit()
 
     print(regP.params[-2:])
     print(regS.params[-2:])
@@ -69,7 +95,7 @@ def fit_regression_with_attenuation_magnitude_range(peak_amplitude_df, M_thresho
 # region_label = 'ridgecrest'
 
 results_output_dir = '/home/yinjx/kuafu/Ridgecrest/Ridgecrest_scaling/peak_amplitude_scaling_results_strain_rate'
-das_pick_file_name = '/Ridgecrest_peak_amplitude.csv'
+das_pick_file_name = '/peak_amplitude.csv'
 region_label = 'ridgecrest'
 
 # ==============================  Olancha data ========================================
@@ -81,18 +107,18 @@ region_label = 'olancha'
 # ==============================  Mammoth data - South========================================
 #%% Specify the file names
 results_output_dir = '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/South'
-das_pick_file_name = '/Mammoth_South_Scaling_M3.csv'
+das_pick_file_name = '/peak_amplitude.csv'
 region_label = 'mammothS'
 
 # ==============================  Mammoth data - North========================================
 #%% Specify the file names
 results_output_dir = '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/North'
-das_pick_file_name = '/Mammoth_North_Scaling_M3.csv'
+das_pick_file_name = '/peak_amplitude.csv'
 region_label = 'mammothN'
 
 #%% load the peak amplitude results
 # Load the peak amplitude results
-snr_threshold = 0
+snr_threshold = 10
 peak_amplitude_df, DAS_index = load_and_add_region(results_output_dir + '/' + das_pick_file_name, 
                                                    region_label=region_label, snr_threshold=snr_threshold)
 
@@ -113,10 +139,43 @@ mag_slopeP, dist_slopeP, mag_slopeS, dist_slopeS = [], [], [], []
 for nearby_channel_number in nearby_channel_number_list:
     peak_amplitude_df = combined_channels(DAS_index, peak_amplitude_df, nearby_channel_number)
     # Store the processed DataFrame
-    peak_amplitude_df.to_csv(results_output_dir + f'/peak_amplitude_region_site_{nearby_channel_number}.csv', index=False)
+    if not os.path.exists(results_output_dir + f'/peak_amplitude_region_site_{nearby_channel_number}.csv'):
+        peak_amplitude_df.to_csv(results_output_dir + f'/peak_amplitude_region_site_{nearby_channel_number}.csv', index=False)
     # Specify magnitude range to do regression
     M_threshold = [0, 10]
     regP, regS = fit_regression_magnitude_range(peak_amplitude_df, M_threshold, regression_results_dir, nearby_channel_number)
+    
+    mag_slopeP.append(regP.params[-2])
+    dist_slopeP.append(regP.params[-1])
+    mag_slopeS.append(regS.params[-2])
+    dist_slopeS.append(regS.params[-1])
+    
+    # reset the regression models
+    #del regP, regS
+
+P_regression_parameter_df = pd.DataFrame({'site_channels':nearby_channel_number_list, 'magnitude-P':mag_slopeP, 'log(distance)-P':dist_slopeP})  
+S_regression_parameter_df = pd.DataFrame({'site_channels':nearby_channel_number_list, 'magnitude-S':mag_slopeS, 'log(distance)-S':dist_slopeS})  
+P_regression_parameter_df.to_csv(regression_parameter_txt + '_P.txt', index=False, sep='\t', float_format='%.3f')
+S_regression_parameter_df.to_csv(regression_parameter_txt + '_S.txt', index=False, sep='\t', float_format='%.3f')
+
+#%% Regression with weight
+nearby_channel_number_list = [10, 20, 50, 100, -1]
+
+regression_results_dir = results_output_dir + '/regression_results_smf_weighted'
+if not os.path.exists(regression_results_dir):
+    os.mkdir(regression_results_dir)
+
+regression_parameter_txt = regression_results_dir + '/regression_slopes'
+mag_slopeP, dist_slopeP, mag_slopeS, dist_slopeS = [], [], [], []
+
+for nearby_channel_number in nearby_channel_number_list:
+    peak_amplitude_df = combined_channels(DAS_index, peak_amplitude_df, nearby_channel_number)
+    # Store the processed DataFrame
+    if not os.path.exists(results_output_dir + f'/peak_amplitude_region_site_{nearby_channel_number}.csv'):
+        peak_amplitude_df.to_csv(results_output_dir + f'/peak_amplitude_region_site_{nearby_channel_number}.csv', index=False)
+    # Specify magnitude range to do regression
+    M_threshold = [0, 10]
+    regP, regS = fit_regression_with_weight_magnitude_range(peak_amplitude_df, M_threshold, regression_results_dir, nearby_channel_number)
     
     mag_slopeP.append(regP.params[-2])
     dist_slopeP.append(regP.params[-1])

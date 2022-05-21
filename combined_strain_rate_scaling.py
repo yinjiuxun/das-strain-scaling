@@ -51,6 +51,32 @@ def fit_regression_magnitude_range(peak_amplitude_df, M_threshold, regression_re
     regS.save(regression_results_dir + '/' + file_name_S + '.pickle', remove_data=True)
     return regP,regS
 
+def fit_regression_with_weight_magnitude_range(peak_amplitude_df, M_threshold, regression_results_dir, nearby_channel_number):
+    """ Linear regression with weight, the weight is 10**magnitude """
+
+    peak_amplitude_df = peak_amplitude_df[(peak_amplitude_df.magnitude >= M_threshold[0]) & (peak_amplitude_df.magnitude <= M_threshold[1])]
+    # Remove some extreme data outliers before fitting
+    peak_amplitude_df = peak_amplitude_df.drop(peak_amplitude_df[(peak_amplitude_df.peak_S > 1e3) | (peak_amplitude_df.peak_P > 1e3)].index)
+
+    regP = smf.wls(formula='np.log10(peak_P) ~ magnitude + np.log10(distance_in_km) + C(region_site) - 1', 
+                data=peak_amplitude_df, weights = (10**peak_amplitude_df.magnitude)).fit()
+    regS = smf.wls(formula='np.log10(peak_S) ~ magnitude + np.log10(distance_in_km) + C(region_site) - 1', 
+                data=peak_amplitude_df, weights = (10**peak_amplitude_df.magnitude)).fit()
+
+    print(regP.params[-2:])
+    print(regS.params[-2:])
+    print('\n\n')
+    
+    file_name_P = f"/P_regression_combined_site_terms_{nearby_channel_number}chan"
+    write_regression_summary(regression_results_dir, file_name_P, regP)
+    file_name_S = f"/S_regression_combined_site_terms_{nearby_channel_number}chan"
+    write_regression_summary(regression_results_dir, file_name_S, regS)
+
+    regP.save(regression_results_dir + '/' + file_name_P + '.pickle', remove_data=True)
+    regS.save(regression_results_dir + '/' + file_name_S + '.pickle', remove_data=True)
+    return regP,regS
+
+
 def fit_regression_with_attenuation_magnitude_range(peak_amplitude_df, M_threshold, regression_results_dir, nearby_channel_number):
     '''Regression including the distance attenuation that is specific to the DAS array'''
     peak_amplitude_df = peak_amplitude_df[(peak_amplitude_df.magnitude >= M_threshold[0]) & (peak_amplitude_df.magnitude <= M_threshold[1])]
@@ -76,36 +102,40 @@ def fit_regression_with_attenuation_magnitude_range(peak_amplitude_df, M_thresho
 #%% 
 peak_data_list = []
 das_index_list = []
-snr_threshold = 20
+snr_threshold = 10
+magnitude_threshold = [2, 10]
 #%% ==============================  Ridgecrest data ========================================
 #ridgecrest_peaks = '/home/yinjx/kuafu/Ridgecrest/Ridgecrest_scaling/peak_ampliutde_scaling_results_strain_rate/peak_amplitude_M3+.csv'
-ridgecrest_peaks = '/home/yinjx/kuafu/Ridgecrest/Ridgecrest_scaling/peak_amplitude_scaling_results_strain_rate/peak_amplitude_M3+.csv'
-peak_amplitude_df_ridgecrest, DAS_index_ridgecrest = load_and_add_region(ridgecrest_peaks, region_label='ridgecrest', snr_threshold=snr_threshold)
+ridgecrest_peaks = '/home/yinjx/kuafu/Ridgecrest/Ridgecrest_scaling/peak_amplitude_scaling_results_strain_rate/peak_amplitude.csv'
+peak_amplitude_df_ridgecrest, DAS_index_ridgecrest = load_and_add_region(ridgecrest_peaks, region_label='ridgecrest', 
+                                                                         snr_threshold=snr_threshold, magnitude_threshold=magnitude_threshold)
 peak_data_list.append(peak_amplitude_df_ridgecrest)
 das_index_list.append(DAS_index_ridgecrest)
 
-#%% ==============================  Olancha data ========================================
-#olancha_peaks = '/home/yinjx/kuafu/Olancha_Plexus/Olancha_scaling/peak_ampliutde_scaling_results_strain_rate/peak_amplitude_M3+.csv'
-olancha_peaks = '/kuafu/yinjx/Olancha_Plexus_100km/Olancha_scaling/peak_amplitude_M3+.csv'
-peak_amplitude_df_olancha, DAS_index_olancha = load_and_add_region(olancha_peaks, region_label='olancha', snr_threshold=snr_threshold)
-peak_data_list.append(peak_amplitude_df_olancha)
-das_index_list.append(DAS_index_olancha)
+# #%% ==============================  Olancha data ========================================
+# #olancha_peaks = '/home/yinjx/kuafu/Olancha_Plexus/Olancha_scaling/peak_ampliutde_scaling_results_strain_rate/peak_amplitude_M3+.csv'
+# olancha_peaks = '/kuafu/yinjx/Olancha_Plexus_100km/Olancha_scaling/peak_amplitude_M3+.csv'
+# peak_amplitude_df_olancha, DAS_index_olancha = load_and_add_region(olancha_peaks, region_label='olancha', snr_threshold=snr_threshold)
+# peak_data_list.append(peak_amplitude_df_olancha)
+# das_index_list.append(DAS_index_olancha)
 
 #%% ==============================  Mammoth south data ========================================
-mammoth_S_peaks = '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/South/Mammoth_South_Scaling_M3.csv'
-peak_amplitude_df_mammoth_S, DAS_index_mammoth_S = load_and_add_region(mammoth_S_peaks, region_label='mammothS', snr_threshold=snr_threshold)
+mammoth_S_peaks = '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/South/peak_amplitude.csv'
+peak_amplitude_df_mammoth_S, DAS_index_mammoth_S = load_and_add_region(mammoth_S_peaks, region_label='mammothS', 
+                                                                       snr_threshold=snr_threshold, magnitude_threshold=magnitude_threshold)
 peak_data_list.append(peak_amplitude_df_mammoth_S)
 das_index_list.append(DAS_index_mammoth_S)
 
 #%% ==============================  Mammoth north data ========================================
-mammoth_N_peaks = '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/North/Mammoth_North_Scaling_M3.csv'
-peak_amplitude_df_mammoth_N, DAS_index_mammoth_N = load_and_add_region(mammoth_N_peaks, region_label='mammothN', snr_threshold=snr_threshold)
+mammoth_N_peaks = '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/North/peak_amplitude.csv'
+peak_amplitude_df_mammoth_N, DAS_index_mammoth_N = load_and_add_region(mammoth_N_peaks, region_label='mammothN', 
+                                                                       snr_threshold=snr_threshold, magnitude_threshold=magnitude_threshold)
 peak_data_list.append(peak_amplitude_df_mammoth_N)
 das_index_list.append(DAS_index_mammoth_N)
 
 
 #%% Combine the peak results from different regions
-results_output_dir = '/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_MM'
+results_output_dir = '/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RM'
 if not os.path.exists(results_output_dir):
     os.mkdir(results_output_dir)
 
@@ -139,6 +169,20 @@ for nearby_channel_number in combined_channel_number_list:
     # Specify magnitude range to do regression
     M_threshold = [0, 9]
     fit_regression_magnitude_range(peak_amplitude_df, M_threshold, regression_results_dir, nearby_channel_number)
+
+#%% 
+# Weighted Linear regression on the data point including the site term, here assume that every X nearby channels share the same site terms
+# directory to store the fitted results
+regression_results_dir = results_output_dir + '/regression_results_smf_weighted'
+if not os.path.exists(regression_results_dir):
+    os.mkdir(regression_results_dir)
+
+for nearby_channel_number in combined_channel_number_list:
+    # Load the processed DataFrame
+    peak_amplitude_df = pd.read_csv(results_output_dir + f'/peak_amplitude_region_site_{nearby_channel_number}.csv')
+    # Specify magnitude range to do regression
+    M_threshold = [0, 9]
+    fit_regression_with_weight_magnitude_range(peak_amplitude_df, M_threshold, regression_results_dir, nearby_channel_number)
 
 # %%
 # ======================= Below are the part to use the small events to do the regression ===========================
