@@ -168,13 +168,13 @@ def plot_compare_prediction_vs_true_values(peak_amplitude_df, y_P_predict, y_S_p
 
     fig, ax = plt.subplots(2, 1, figsize=(10, 20), sharex=True, sharey=True)
 
-    ax[0].plot([0, 10], [0, 10], '-k', zorder=1)
+    ax[0].plot([-10, 10], [-10, 10], '-k', zorder=1)
     ax[0].scatter(y_P, y_P_predict, s=10, c=peak_amplitude_df.event_label, marker='o', alpha=0.01, cmap='jet')
     ax[0].set_ylabel('P predicted log10(E)')
     ax[0].set_xlabel('P measured log10(E)')
     ax[0].xaxis.set_tick_params(which='both',labelbottom=True)
 
-    ax[1].plot([0, 10], [0, 10], '-k', zorder=1)
+    ax[1].plot([-10, 10], [-10, 10], '-k', zorder=1)
     ax[1].scatter(y_S, y_S_predict, s=10, c=peak_amplitude_df.event_label, marker='o', alpha=0.01, cmap='jet')
     ax[1].set_ylabel('S predicted log10(E)')
     ax[1].set_xlabel('S measured log10(E)')
