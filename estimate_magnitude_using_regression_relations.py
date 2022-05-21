@@ -17,6 +17,8 @@ import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+
+import seaborn as sns
 # %matplotlib inline
 params = {
     'image.interpolation': 'nearest',
@@ -149,8 +151,8 @@ def plot_magnitude_prediction(temp_df_P_list, temp_df_S_list, label_extrapolate=
 
         ax[1].errorbar(temp_df_S.magnitude + horizontal_shift[ii], temp_df_S.predicted_M, yerr=temp_df_S.predicted_M_std, marker='o', linestyle='none')
         ax[1].plot([0, 10], [0, 10], '-k', zorder=1)
-        ax[1].set_xlim(2, 8.5)
-        ax[1].set_ylim(2, 8.5)
+        ax[1].set_xlim(0, 8.5)
+        ax[1].set_ylim(0, 8.5)
         ax[1].set_ylabel('S predicted M')
         ax[1].set_xlabel('true M')
 
@@ -173,7 +175,7 @@ def plot_magnitude_prediction_residual(temp_df_P_list, temp_df_S_list, label_ext
         ax[0].errorbar(temp_df_P.magnitude + horizontal_shift[ii], temp_df_P.predicted_M - temp_df_P.magnitude, yerr=temp_df_P.predicted_M_std, marker='o', linestyle='none')
         ax[0].plot([0, 10], [0, 0], '-k', zorder=1)
         
-        ax[0].set_xlim(2, 8.5)
+        ax[0].set_xlim(0, 8.5)
         ax[0].set_ylim(-4, 4)
         ax[0].set_ylabel('P predicted M residual')
         ax[0].set_xlabel('true M')
@@ -181,7 +183,7 @@ def plot_magnitude_prediction_residual(temp_df_P_list, temp_df_S_list, label_ext
 
         ax[1].errorbar(temp_df_S.magnitude + horizontal_shift[ii], temp_df_S.predicted_M - temp_df_S.magnitude, yerr=temp_df_S.predicted_M_std, marker='o', linestyle='none')
         ax[1].plot([0, 10], [0, 0], '-k', zorder=1)
-        ax[1].set_xlim(2, 8.5)
+        ax[1].set_xlim(0, 8.5)
         ax[1].set_ylim(-4, 4)
         ax[1].set_ylabel('S predicted M residual')
         ax[1].set_xlabel('true M')
@@ -217,7 +219,7 @@ def plot_fitting_and_magnitude(temp_df, phase_key, peak_amplitude_df, peak_predi
     # Plot figure
     fig, ax = plt.subplots(2, 2, figsize=(18, 12), gridspec_kw={'height_ratios':[3,1]})
 
-    data_lim = (2, 7)
+    data_lim = (-2, 4)
     gca = ax[0, 0]
     gca.plot([0, 10], [0, 10], '-k', zorder=1)
     # gca.scatter(np.log10(peak_amplitude_df['peak_P']), peak_P_predicted, s=10, c=peak_amplitude_df.event_label, marker='o', alpha=0.1, cmap='jet')
@@ -225,8 +227,8 @@ def plot_fitting_and_magnitude(temp_df, phase_key, peak_amplitude_df, peak_predi
     gca.set_ylabel('predicted log10(E)')
     gca.set_xlabel('measured log10(E)')
 
-    gca.set_xticks(np.arange(0, 10))
-    gca.set_yticks(np.arange(0, 10))
+    gca.set_xticks(np.arange(-2, 10))
+    gca.set_yticks(np.arange(-2, 10))
 
     gca.set_xlim(data_lim)
     gca.set_ylim(data_lim)
@@ -234,7 +236,7 @@ def plot_fitting_and_magnitude(temp_df, phase_key, peak_amplitude_df, peak_predi
     gca.annotate('(a)', xy=(-0.1, 1.05), xycoords=gca.transAxes)
 
 
-    data_lim = (2, 7)
+    data_lim = (-2, 4)
     gca = ax[1, 0]
     gca.plot([0, 10], [0, 0], '-k', zorder=1)
     # gca.scatter(np.log10(peak_amplitude_df['peak_P']), np.log10(peak_amplitude_df['peak_P']) - peak_P_predicted, s=10, c=peak_amplitude_df.event_label, marker='o', alpha=0.1, cmap='jet')
@@ -248,7 +250,7 @@ def plot_fitting_and_magnitude(temp_df, phase_key, peak_amplitude_df, peak_predi
     gca.annotate('(b)', xy=(-0.1, 1.05), xycoords=gca.transAxes)
 
 
-    data_lim = (2, 7)
+    data_lim = (-2, 7)
     gca = ax[0, 1]
     gca.plot([0, 10], [0, 10], '-k', zorder=1)
     gca.errorbar(temp_df.magnitude, temp_df.predicted_M, yerr=temp_df.predicted_M_std, marker='o', linestyle='none')
@@ -267,7 +269,7 @@ def plot_fitting_and_magnitude(temp_df, phase_key, peak_amplitude_df, peak_predi
     gca.annotate('(c)', xy=(-0.1, 1.05), xycoords=gca.transAxes)
 
 
-    data_lim = (2, 7)
+    data_lim = (-2, 7)
     gca = ax[1, 1]
     gca.plot([0, 10], [0, 0], '-k', zorder=1)
     gca.errorbar(temp_df.magnitude, temp_df.magnitude - temp_df.predicted_M, yerr=temp_df.predicted_M_std, marker='o', linestyle='none')
@@ -284,6 +286,32 @@ def plot_fitting_and_magnitude(temp_df, phase_key, peak_amplitude_df, peak_predi
     gca.grid()
     gca.annotate('(d)', xy=(-0.1, 1.05), xycoords=gca.transAxes)
     return fig
+
+# %% Test joint plot
+
+def plot_magnitude_seaborn(df_magnitude):
+    sns.set_theme(style="ticks", font_scale=2)
+
+    g = sns.JointGrid(data=df_magnitude, x="magnitude", y="predicted_M", marginal_ticks=True,
+    xlim=(1, 7), ylim=(1, 7), height=10, space=0.3)
+
+
+    # Create an inset legend for the histogram colorbar
+    cax = g.figure.add_axes([.65, .2, .02, .2])
+
+    # Add the joint and marginal histogram plots 03012d
+    g.plot_joint(
+    sns.histplot, discrete=(False, False),
+    cmap="light:#9C4D4D", pmax=.7, cbar=True, cbar_ax=cax, cbar_kws={'label': 'counts'})
+    g.plot_marginals(sns.histplot, element="step", color="#9C4D4D")
+
+    g.ax_joint.plot([1,8], [1,8], 'k-', linewidth = 2)
+    g.ax_joint.plot([1,8], [2,9], 'k--', linewidth = 1)
+    g.ax_joint.plot([1,8], [0,7], 'k--', linewidth = 1)
+    g.ax_joint.set_xlabel('catalog magnitude')
+    g.ax_joint.set_ylabel('predicted magnitude')
+
+    return g
 
 # %%
 # ========================== work on Combined results from Mammoth S + Mammoth N ================================
@@ -324,7 +352,7 @@ for ii, nearby_channel_number in enumerate(nearby_channel_numbers):
 # First check how well the regression relation can be used to calculate Magnitude
 # load the results from combined regional site terms t
 results_output_dir = '/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RM'
-regression_dir = 'regression_results_smf' # 'regression_results_smf_M4'
+regression_dir = 'regression_results_smf_weighted' # 'regression_results_smf_M4'
 site_term_column = 'region_site'
 fitting_type = 'with_site'
 nearby_channel_numbers = [-1, 10, 20, 50, 100]
@@ -338,6 +366,12 @@ for ii, nearby_channel_number in enumerate(nearby_channel_numbers):
     temp_df_P_list.append(temp_df_P)
     temp_df_S_list.append(temp_df_S)
 
+    gP = plot_magnitude_seaborn(temp_df_P)
+    gS = plot_magnitude_seaborn(temp_df_S)
+    gP.savefig(results_output_dir + '/' + regression_dir + f"/predicted_magnitude_P_{nearby_channel_number}_seaborn.png",bbox_inches='tight')
+    gS.savefig(results_output_dir + '/' + regression_dir + f"/predicted_magnitude_S_{nearby_channel_number}_seaborn.png",bbox_inches='tight')
+    plt.close('all')
+    
 plot_magnitude_prediction(temp_df_P_list, temp_df_S_list, label_extrapolate=False)
 plt.savefig(results_output_dir + '/' + regression_dir + "/predicted_magnitude.png")
 
@@ -358,7 +392,7 @@ for ii, nearby_channel_number in enumerate(nearby_channel_numbers):
 # First check how well the regression relation can be used to calculate Magnitude
 #% load the results from combined regional site terms t
 results_output_dir = '/home/yinjx/kuafu/Ridgecrest/Ridgecrest_scaling/peak_amplitude_scaling_results_strain_rate'
-regression_dir = 'regression_results_smf' # 'regression_results_smf_M4'
+regression_dir = 'regression_results_smf_weighted' # 'regression_results_smf_M4'
 site_term_column='combined_channel_id'
 fitting_type = 'with_site'
 nearby_channel_numbers = [-1, 100, 50, 20, 10]
@@ -370,6 +404,12 @@ for ii, nearby_channel_number in enumerate(nearby_channel_numbers):
     temp_df_P, temp_df_S = estimate_magnitude(results_output_dir, regression_dir, nearby_channel_number, fitting_type, site_term_column)
     temp_df_P_list.append(temp_df_P)
     temp_df_S_list.append(temp_df_S)
+
+    gP = plot_magnitude_seaborn(temp_df_P)
+    gS = plot_magnitude_seaborn(temp_df_S)
+    gP.savefig(results_output_dir + '/' + regression_dir + f"/predicted_magnitude_P_{nearby_channel_number}_seaborn.png",bbox_inches='tight')
+    gS.savefig(results_output_dir + '/' + regression_dir + f"/predicted_magnitude_S_{nearby_channel_number}_seaborn.png",bbox_inches='tight')
+    plt.close('all')
 
 plot_magnitude_prediction(temp_df_P_list, temp_df_S_list, label_extrapolate=False)
 plt.savefig(results_output_dir + '/' + regression_dir + "/predicted_magnitude.png")
@@ -385,13 +425,6 @@ for ii, nearby_channel_number in enumerate(nearby_channel_numbers):
     plt.figure(figS.number)
     plt.savefig(results_output_dir + '/' + regression_dir + f"/S_predicted_strain_and_magnitude_{nearby_channel_number}.png")
     plt.close('all')
-
-
-
-
-
-
-
 
 #%% ========================== work on the results from Olancha ================================
 # First check how well the regression relation can be used to calculate Magnitude
@@ -410,6 +443,12 @@ for ii, nearby_channel_number in enumerate(nearby_channel_numbers):
     temp_df_P, temp_df_S = estimate_magnitude(results_output_dir, regression_dir, nearby_channel_number, fitting_type, site_term_column)
     temp_df_P_list.append(temp_df_P)
     temp_df_S_list.append(temp_df_S)
+
+    gP = plot_magnitude_seaborn(temp_df_P)
+    gS = plot_magnitude_seaborn(temp_df_S)
+    gP.savefig(results_output_dir + '/' + regression_dir + f"/predicted_magnitude_P_{nearby_channel_number}_seaborn.png",bbox_inches='tight')
+    gS.savefig(results_output_dir + '/' + regression_dir + f"/predicted_magnitude_S_{nearby_channel_number}_seaborn.png",bbox_inches='tight')
+    plt.close('all')
 
 plot_magnitude_prediction(temp_df_P_list, temp_df_S_list)
 plt.savefig(results_output_dir + '/' + regression_dir + "/predicted_magnitude.png")
@@ -436,7 +475,7 @@ plt.savefig(results_output_dir + '/' + regression_dir + "/predicted_magnitude.pn
 # First check how well the regression relation can be used to calculate Magnitude
 #%% load the results from combined regional site terms t
 results_output_dir = '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/South'
-regression_dir = 'regression_results_smf'
+regression_dir = 'regression_results_smf_weighted'
 site_term_column='combined_channel_id'
 nearby_channel_numbers = [-1, 100, 50, 20, 10]
 fitting_type = 'with_site'
@@ -450,32 +489,32 @@ for ii, nearby_channel_number in enumerate(nearby_channel_numbers):
     temp_df_P_list.append(temp_df_P)
     temp_df_S_list.append(temp_df_S)
 
-plot_magnitude_prediction(temp_df_P_list, temp_df_S_list)
+    gP = plot_magnitude_seaborn(temp_df_P)
+    gS = plot_magnitude_seaborn(temp_df_S)
+    gP.savefig(results_output_dir + '/' + regression_dir + f"/predicted_magnitude_P_{nearby_channel_number}_seaborn.png",bbox_inches='tight')
+    gS.savefig(results_output_dir + '/' + regression_dir + f"/predicted_magnitude_S_{nearby_channel_number}_seaborn.png",bbox_inches='tight')
+    plt.close('all')
+
+plot_magnitude_prediction(temp_df_P_list, temp_df_S_list, label_extrapolate=False)
 plt.savefig(results_output_dir + '/' + regression_dir + "/predicted_magnitude.png")
 
-# Then try to use the regression relation from small events to predict the larger ones
-# load the results from combined regional site terms t
-regression_dir = 'regression_results_smf_M4'
-site_term_column='combined_channel_id'
-nearby_channel_numbers = [-1, 100, 50, 20, 10]
-
-# List to hold the estiamted magnitude
-temp_df_P_list = []
-temp_df_S_list = []
+plot_magnitude_prediction_residual(temp_df_P_list, temp_df_S_list, label_extrapolate=False)
+plt.savefig(results_output_dir + '/' + regression_dir + "/predicted_magnitude_residual.png")
 
 for ii, nearby_channel_number in enumerate(nearby_channel_numbers):
-    temp_df_P, temp_df_S = estimate_magnitude(results_output_dir, regression_dir, nearby_channel_number, fitting_type, site_term_column)
-    temp_df_P_list.append(temp_df_P)
-    temp_df_S_list.append(temp_df_S)
+    figP, figS = show_all_results(results_output_dir, regression_dir, site_term_column, fitting_type, nearby_channel_number)
+    plt.figure(figP.number)
+    plt.savefig(results_output_dir + '/' + regression_dir + f"/P_predicted_strain_and_magnitude_{nearby_channel_number}.png")
 
-plot_magnitude_prediction(temp_df_P_list, temp_df_S_list)
-plt.savefig(results_output_dir + '/' + regression_dir + "/predicted_magnitude.png")
+    plt.figure(figS.number)
+    plt.savefig(results_output_dir + '/' + regression_dir + f"/S_predicted_strain_and_magnitude_{nearby_channel_number}.png")
+    plt.close('all')
 
 #%% ========================== work on the results from Mammoth North ================================
 # First check how well the regression relation can be used to calculate Magnitude
 #%% load the results from combined regional site terms t
 results_output_dir = '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/North'
-regression_dir = 'regression_results_smf'
+regression_dir = 'regression_results_smf_weighted'
 site_term_column='combined_channel_id'
 fitting_type = 'with_site'
 nearby_channel_numbers = [-1, 100, 50, 20, 10]
@@ -489,26 +528,26 @@ for ii, nearby_channel_number in enumerate(nearby_channel_numbers):
     temp_df_P_list.append(temp_df_P)
     temp_df_S_list.append(temp_df_S)
 
-plot_magnitude_prediction(temp_df_P_list, temp_df_S_list)
+    gP = plot_magnitude_seaborn(temp_df_P)
+    gS = plot_magnitude_seaborn(temp_df_S)
+    gP.savefig(results_output_dir + '/' + regression_dir + f"/predicted_magnitude_P_{nearby_channel_number}_seaborn.png",bbox_inches='tight')
+    gS.savefig(results_output_dir + '/' + regression_dir + f"/predicted_magnitude_S_{nearby_channel_number}_seaborn.png",bbox_inches='tight')
+    plt.close('all')
+
+plot_magnitude_prediction(temp_df_P_list, temp_df_S_list, label_extrapolate=False)
 plt.savefig(results_output_dir + '/' + regression_dir + "/predicted_magnitude.png")
 
-# Then try to use the regression relation from small events to predict the larger ones
-# load the results from combined regional site terms t
-regression_dir = 'regression_results_smf_M4'
-site_term_column='combined_channel_id'
-nearby_channel_numbers = [-1, 100, 50, 20, 10]
-
-# List to hold the estiamted magnitude
-temp_df_P_list = []
-temp_df_S_list = []
+plot_magnitude_prediction_residual(temp_df_P_list, temp_df_S_list, label_extrapolate=False)
+plt.savefig(results_output_dir + '/' + regression_dir + "/predicted_magnitude_residual.png")
 
 for ii, nearby_channel_number in enumerate(nearby_channel_numbers):
-    temp_df_P, temp_df_S = estimate_magnitude(results_output_dir, regression_dir, nearby_channel_number, fitting_type, site_term_column)
-    temp_df_P_list.append(temp_df_P)
-    temp_df_S_list.append(temp_df_S)
+    figP, figS = show_all_results(results_output_dir, regression_dir, site_term_column, fitting_type, nearby_channel_number)
+    plt.figure(figP.number)
+    plt.savefig(results_output_dir + '/' + regression_dir + f"/P_predicted_strain_and_magnitude_{nearby_channel_number}.png")
 
-plot_magnitude_prediction(temp_df_P_list, temp_df_S_list)
-plt.savefig(results_output_dir + '/' + regression_dir + "/predicted_magnitude.png")
+    plt.figure(figS.number)
+    plt.savefig(results_output_dir + '/' + regression_dir + f"/S_predicted_strain_and_magnitude_{nearby_channel_number}.png")
+    plt.close('all')
 # %%
 #%%
 #  ========================== work on Combined results from all Ridgecrest + Olancha + Mammoth S + Mammoth N ================================
