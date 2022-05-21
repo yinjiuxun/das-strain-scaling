@@ -122,7 +122,7 @@ def combined_channels(DAS_index, peak_amplitude_df, nearby_channel_number):
     peak_amplitude_df['combined_channel_id'] = temp2[np.array(peak_amplitude_df.channel_id).astype('int')]
     return peak_amplitude_df
 
-def load_and_add_region(peak_file, region_label, snr_threshold):
+def load_and_add_region(peak_file, region_label, snr_threshold, magnitude_threshold=None):
     peak_amplitude_df = pd.read_csv(peak_file)
     peak_amplitude_df['region'] = region_label # add the region label
     DAS_index = peak_amplitude_df.channel_id.unique().astype('int')
@@ -134,6 +134,9 @@ def load_and_add_region(peak_file, region_label, snr_threshold):
 
     if 'snrS' in peak_amplitude_df.columns:
         peak_amplitude_df = peak_amplitude_df[peak_amplitude_df.snrS >= snr_threshold]
+
+    if magnitude_threshold is not None:
+        peak_amplitude_df = peak_amplitude_df[(peak_amplitude_df.magnitude >= magnitude_threshold[0]) & (peak_amplitude_df.magnitude <= magnitude_threshold[1])]
         
     return peak_amplitude_df,DAS_index
 
