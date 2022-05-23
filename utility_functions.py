@@ -42,44 +42,33 @@ def save_rawevent_h5(fn, data, info):
                fid['data'].attrs.modify(key, info_copy[key])
 
 def load_rawevent_h5(fn):
-   """
-   """
-   with h5py.File(fn, 'r') as fid:
-       data = fid['data'][:]
-       info = {}
-       for key in fid['data'].attrs.keys():
-           info[key] = fid['data'].attrs[key]
-       info2 = {}
-       if 'begin_time' in info.keys():
-           info2['begTime'] = dateutil.parser.parse(info['begin_time'])
-       if 'end_time' in info.keys():
-           info2['endTime'] = dateutil.parser.parse(info['end_time'])
-       if 'event_time' in info.keys():
-           info2['time'] = dateutil.parser.parse(info['event_time'])
-       info2['nt'] = data.shape[0]
-       info2['nx'] = data.shape[1]
-       info2['dx'] = info['dx_m']
-       info2['dt'] = info['dt_s']
-   return data, info2
+    with h5py.File(fn, 'r') as fid:
+        data = fid['data'][:]
+        info = {}
+        for key in fid['data'].attrs.keys():
+            info[key] = fid['data'].attrs[key]
+        if 'begin_time' in info.keys():
+            info['begin_time'] = dateutil.parser.parse(info['begin_time'])
+        if 'end_time' in info.keys():
+            info['end_time'] = dateutil.parser.parse(info['end_time'])
+        if 'event_time' in info.keys():
+            info['event_time'] = dateutil.parser.parse(info['event_time'])
+    return data, info
 
 def load_event_data(data_path, eq_id):
     with h5py.File(data_path + '/' + str(eq_id) + '.h5', 'r') as fid:
-       data = fid['data'][:]
-       info = {}
-       for key in fid['data'].attrs.keys():
-           info[key] = fid['data'].attrs[key]
-       info2 = {}
-       if 'begin_time' in info.keys():
-           info2['begTime'] = dateutil.parser.parse(info['begin_time'])
-       if 'end_time' in info.keys():
-           info2['endTime'] = dateutil.parser.parse(info['end_time'])
-       if 'event_time' in info.keys():
-           info2['event_time'] = dateutil.parser.parse(info['event_time'])
-       info2['nt'] = data.shape[0]
-       info2['nx'] = data.shape[1]
-       info2['dx'] = info['dx_m']
-       info2['dt'] = info['dt_s']
-       return data, info2
+        data = fid['data'][:]
+        info = {}
+        for key in fid['data'].attrs.keys():
+            info[key] = fid['data'].attrs[key]
+        if 'begin_time' in info.keys():
+            info['begin_time'] = dateutil.parser.parse(info['begin_time'])
+        if 'end_time' in info.keys():
+            info['end_time'] = dateutil.parser.parse(info['end_time'])
+        if 'event_time' in info.keys():
+            info['event_time'] = dateutil.parser.parse(info['event_time'])
+    return data, info
+
 
 def load_phase_pick(pick_path, eq_id, das_time, channel, time_range=None, include_nan=False):
     picks = pd.read_csv(pick_path + f'/{eq_id}.csv')
