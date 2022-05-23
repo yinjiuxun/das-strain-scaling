@@ -163,12 +163,25 @@ regression_results_dir = results_output_dir + '/regression_results_smf'
 if not os.path.exists(regression_results_dir):
     os.mkdir(regression_results_dir)
 
+regression_parameter_txt = regression_results_dir + '/regression_slopes'
+mag_slopeP, dist_slopeP, mag_slopeS, dist_slopeS = [], [], [], []
+
 for nearby_channel_number in combined_channel_number_list:
     # Load the processed DataFrame
     peak_amplitude_df = pd.read_csv(results_output_dir + f'/peak_amplitude_region_site_{nearby_channel_number}.csv')
     # Specify magnitude range to do regression
     M_threshold = [0, 9]
-    fit_regression_magnitude_range(peak_amplitude_df, M_threshold, regression_results_dir, nearby_channel_number)
+    regP, regS = fit_regression_magnitude_range(peak_amplitude_df, M_threshold, regression_results_dir, nearby_channel_number)
+
+    mag_slopeP.append(regP.params[-2])
+    dist_slopeP.append(regP.params[-1])
+    mag_slopeS.append(regS.params[-2])
+    dist_slopeS.append(regS.params[-1])
+
+P_regression_parameter_df = pd.DataFrame({'site_channels':combined_channel_number_list, 'magnitude-P':mag_slopeP, 'log(distance)-P':dist_slopeP})  
+S_regression_parameter_df = pd.DataFrame({'site_channels':combined_channel_number_list, 'magnitude-S':mag_slopeS, 'log(distance)-S':dist_slopeS})  
+P_regression_parameter_df.to_csv(regression_parameter_txt + '_P.txt', index=False, sep='\t', float_format='%.3f')
+S_regression_parameter_df.to_csv(regression_parameter_txt + '_S.txt', index=False, sep='\t', float_format='%.3f')
 
 #%% 
 # Weighted Linear regression on the data point including the site term, here assume that every X nearby channels share the same site terms
@@ -177,12 +190,48 @@ regression_results_dir = results_output_dir + '/regression_results_smf_weighted'
 if not os.path.exists(regression_results_dir):
     os.mkdir(regression_results_dir)
 
+regression_parameter_txt = regression_results_dir + '/regression_slopes'
+mag_slopeP, dist_slopeP, mag_slopeS, dist_slopeS = [], [], [], []
+
 for nearby_channel_number in combined_channel_number_list:
     # Load the processed DataFrame
     peak_amplitude_df = pd.read_csv(results_output_dir + f'/peak_amplitude_region_site_{nearby_channel_number}.csv')
     # Specify magnitude range to do regression
     M_threshold = [0, 9]
-    fit_regression_with_weight_magnitude_range(peak_amplitude_df, M_threshold, regression_results_dir, nearby_channel_number)
+    regP, regS = fit_regression_with_weight_magnitude_range(peak_amplitude_df, M_threshold, regression_results_dir, nearby_channel_number)
+
+    mag_slopeP.append(regP.params[-2])
+    dist_slopeP.append(regP.params[-1])
+    mag_slopeS.append(regS.params[-2])
+    dist_slopeS.append(regS.params[-1])
+
+P_regression_parameter_df = pd.DataFrame({'site_channels':combined_channel_number_list, 'magnitude-P':mag_slopeP, 'log(distance)-P':dist_slopeP})  
+S_regression_parameter_df = pd.DataFrame({'site_channels':combined_channel_number_list, 'magnitude-S':mag_slopeS, 'log(distance)-S':dist_slopeS})  
+P_regression_parameter_df.to_csv(regression_parameter_txt + '_P.txt', index=False, sep='\t', float_format='%.3f')
+S_regression_parameter_df.to_csv(regression_parameter_txt + '_S.txt', index=False, sep='\t', float_format='%.3f')
+
+#%%
+regression_parameter_txt = regression_results_dir + '/regression_slopes'
+mag_slopeP, dist_slopeP, mag_slopeS, dist_slopeS = [], [], [], []
+
+for nearby_channel_number in combined_channel_number_list:
+    M_threshold = [0, 10]
+    regP = sm.load(regression_results_dir + f"/P_regression_combined_site_terms_{nearby_channel_number}chan.pickle")
+    regS = sm.load(regression_results_dir + f"/S_regression_combined_site_terms_{nearby_channel_number}chan.pickle")
+
+    
+    mag_slopeP.append(regP.params[-2])
+    dist_slopeP.append(regP.params[-1])
+    mag_slopeS.append(regS.params[-2])
+    dist_slopeS.append(regS.params[-1])
+    
+    # reset the regression models
+    #del regP, regS
+
+P_regression_parameter_df = pd.DataFrame({'site_channels':combined_channel_number_list, 'magnitude-P':mag_slopeP, 'log(distance)-P':dist_slopeP})  
+S_regression_parameter_df = pd.DataFrame({'site_channels':combined_channel_number_list, 'magnitude-S':mag_slopeS, 'log(distance)-S':dist_slopeS})  
+P_regression_parameter_df.to_csv(regression_parameter_txt + '_P.txt', index=False, sep='\t', float_format='%.3f')
+S_regression_parameter_df.to_csv(regression_parameter_txt + '_S.txt', index=False, sep='\t', float_format='%.3f')
 
 # %%
 # ======================= Below are the part to use the small events to do the regression ===========================
