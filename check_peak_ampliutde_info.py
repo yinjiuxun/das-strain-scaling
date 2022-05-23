@@ -247,24 +247,46 @@ ax.legend(loc=4)
 plt.savefig(combined_results_output_dir + '/time_variation_selected_earthquakes_vertical.png', bbox_inches='tight')
 
 
-# plot data statistics
+#%% plot data statistics
 peak_amplitude_df_temp = peak_amplitude_df_all#.iloc[::5, :]
 peak_amplitude_df_temp['log10(distance)'] = np.log10(peak_amplitude_df_temp.distance_in_km.astype('float'))
 peak_amplitude_df_temp['log10(peak_P)'] = np.log10(peak_amplitude_df_temp.peak_P.astype('float'))
 peak_amplitude_df_temp['log10(peak_S)'] = np.log10(peak_amplitude_df_temp.peak_S.astype('float'))
 peak_amplitude_df_temp['P/S'] = peak_amplitude_df_temp.peak_P/peak_amplitude_df_temp.peak_S
-plt.figure(figsize=(14,8))
-g = sns.pairplot(peak_amplitude_df_temp[['magnitude','log10(distance)', 'log10(peak_P)','log10(peak_S)']], kind='hist', diag_kind="kde", corner=True)
+fig = plt.figure(figsize=(14,8))
+g = sns.pairplot(peak_amplitude_df_temp[['magnitude','log10(distance)', 'log10(peak_P)','log10(peak_S)']], 
+                 kind='hist', diag_kind="kde", corner=True, height=3)
+
+g.axes[1,0].set_yticks(np.arange(0,10))
+g.axes[1,0].set_ylim((0, 2.3))
+
+g.axes[2,0].set_yticks(np.arange(-3,5))
 g.axes[2,0].set_ylim((-2,2))
 g.axes[2,1].set_ylim((-2,2))
-g.axes[3,0].set_ylim((-2,2))
-g.axes[3,1].set_ylim((-2,2))
-g.axes[3,2].set_ylim((-2,2))
+
+g.axes[3,0].set_yticks(np.arange(-3,5))
+g.axes[3,0].set_ylim((-2,2.5))
+g.axes[3,1].set_ylim((-2,2.5))
+g.axes[3,2].set_ylim((-2,2.5))
+g.axes[3,2].set_xticks(np.arange(-3,5))
 g.axes[3,2].set_xlim((-2,2.5))
 g.axes[3,3].set_xlim((-2,2.5))
 
+g.axes[2,0].set_xticks(np.arange(0,10))
+g.axes[2,0].set_xlim(1.5, 6)
+g.axes[2,1].set_xticks(np.arange(0,3,1))
 g.axes[2,1].set_xlim((0, 2.3))
 g.axes[3,1].set_xlim((0, 2.3))
+
+
+# Adding annotation
+letter_list = [str(chr(k+97)) for k in range(0, 20)]
+k=0
+for gca in g.axes.flatten():
+    if gca is not None:
+        gca.annotate(f'({letter_list[k]})', xy=(0.05, 0.95), xycoords=gca.transAxes)
+        k += 1
+        
 plt.savefig(combined_results_output_dir + '/data_statistics.png')
 
 
