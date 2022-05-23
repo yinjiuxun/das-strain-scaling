@@ -128,10 +128,10 @@ for i_model, combined_channel_number in enumerate(combined_channel_number_list):
     peak_comparison_df = pd.DataFrame(data=temp_peaks,
                                   columns=['peak_P', 'peak_S', 'peak_P_predict', 'peak_S_predict'])
     
-    g = plot_prediction_vs_measure_seaborn(peak_comparison_df, [0.1, 100], phase='P')
+    g = plot_prediction_vs_measure_seaborn(peak_comparison_df, [0.01, 100], phase='P')
     g.savefig(regression_results_dir + f'/P_validate_predicted_combined_site_terms_{combined_channel_number}chan_seaborn.png')
 
-    g = plot_prediction_vs_measure_seaborn(peak_comparison_df, [0.1, 100], phase='S')
+    g = plot_prediction_vs_measure_seaborn(peak_comparison_df, [0.01, 100], phase='S')
     g.savefig(regression_results_dir + f'/S_validate_predicted_combined_site_terms_{combined_channel_number}chan_seaborn.png')
     # plot_compare_prediction_vs_true_values(peak_amplitude_df, y_P_predict, y_S_predict, (-2.0, 2), 
     # regression_results_dir + f'/validate_predicted__combined_site_terms_{combined_channel_number}chan.png')
@@ -168,65 +168,65 @@ plt.savefig(regression_results_dir + '/compare_site_terms.png', bbox_inches='tig
 
 
 
-# %% Compare the regression parameters and site terms
-fig, ax = plt.subplots(2, 1, figsize=(10, 12), sharex=True, sharey=True)
-combined_channel_number_list = [10] # -1 means the constant model
-# DataFrame to store parameters for all models
-P_parameters_comparison = pd.DataFrame(columns=['combined_channels', 'magnitude', 'distance', 'magnitude_err', 'distance_err'], 
-index = np.arange(len(combined_channel_number_list)))
-S_parameters_comparison = pd.DataFrame(columns=['combined_channels', 'magnitude', 'distance', 'magnitude_err', 'distance_err'],
-index = np.arange(len(combined_channel_number_list)))
+# # %% Compare the regression parameters and site terms
+# fig, ax = plt.subplots(2, 1, figsize=(10, 12), sharex=True, sharey=True)
+# combined_channel_number_list = [10] # -1 means the constant model
+# # DataFrame to store parameters for all models
+# P_parameters_comparison = pd.DataFrame(columns=['combined_channels', 'magnitude', 'distance', 'magnitude_err', 'distance_err'], 
+# index = np.arange(len(combined_channel_number_list)))
+# S_parameters_comparison = pd.DataFrame(columns=['combined_channels', 'magnitude', 'distance', 'magnitude_err', 'distance_err'],
+# index = np.arange(len(combined_channel_number_list)))
 
-for i_model, combined_channel_number in enumerate(combined_channel_number_list):
+# for i_model, combined_channel_number in enumerate(combined_channel_number_list):
 
-    regP = sm.load(regression_results_dir + f"/P_regression_combined_site_terms_{combined_channel_number}chan.pickle")
-    regS = sm.load(regression_results_dir + f"/S_regression_combined_site_terms_{combined_channel_number}chan.pickle")
+#     regP = sm.load(regression_results_dir + f"/P_regression_combined_site_terms_{combined_channel_number}chan.pickle")
+#     regS = sm.load(regression_results_dir + f"/S_regression_combined_site_terms_{combined_channel_number}chan.pickle")
 
-    peak_amplitude_df = combined_channels(DAS_index, peak_amplitude_df, combined_channel_number)
+#     peak_amplitude_df = combined_channels(DAS_index, peak_amplitude_df, combined_channel_number)
 
 
-    y_P_predict = regP.predict(peak_amplitude_df)
-    y_S_predict = regS.predict(peak_amplitude_df)
+#     y_P_predict = regP.predict(peak_amplitude_df)
+#     y_S_predict = regS.predict(peak_amplitude_df)
     
-# Compare all the site terms
-    site_term_P = regP.params[:-2]
-    site_term_S = regS.params[:-2]
+# # Compare all the site terms
+#     site_term_P = regP.params[:-2]
+#     site_term_S = regS.params[:-2]
 
-site_term_keys = np.array([f'C(combined_channel_id)[{site_term}]' for site_term in peak_amplitude_df['combined_channel_id']])
-site_calibration_P= np.array(10**site_term_P[site_term_keys])
-#%%
-
-
+# site_term_keys = np.array([f'C(combined_channel_id)[{site_term}]' for site_term in peak_amplitude_df['combined_channel_id']])
+# site_calibration_P= np.array(10**site_term_P[site_term_keys])
+# #%%
 
 
 
-#%%
 
 
-plot_prediction_vs_measure_seaborn(peak_comparison_df)
-# g.ax_joint.plot([1,8], [2,9], 'k--', linewidth = 1)
-# g.ax_joint.plot([1,8], [0,7], 'k--', linewidth = 1)
+# #%%
 
 
-#%%
-N_test = 5
-distance_test = np.logspace(0.1, 2.5, 10)
-peak_P_test = []
-for M_test in np.linspace(2, 5.5, N_test, endpoint=True):
-    peak_P_test.append(distance_test**regP.params['np.log10(distance_in_km)'] * (10**(M_test*regP.params['magnitude'])))
+# plot_prediction_vs_measure_seaborn(peak_comparison_df)
+# # g.ax_joint.plot([1,8], [2,9], 'k--', linewidth = 1)
+# # g.ax_joint.plot([1,8], [0,7], 'k--', linewidth = 1)
 
-colors = plt.cm.jet(np.linspace(0,1,N_test))
-fig, gca = plt.subplots(figsize=(8, 8))
-temp = gca.scatter(peak_amplitude_df.distance_in_km, peak_amplitude_df.peak_P/site_calibration_P, s=0.1, c=peak_amplitude_df.magnitude, 
-            vmax=5.5, vmin=2, cmap='jet')
 
-for i, line_color in enumerate(colors):
-    gca.plot(distance_test, peak_P_test[i], '-', color=line_color)
+# #%%
+# N_test = 5
+# distance_test = np.logspace(0.1, 2.5, 10)
+# peak_P_test = []
+# for M_test in np.linspace(2, 5.5, N_test, endpoint=True):
+#     peak_P_test.append(distance_test**regP.params['np.log10(distance_in_km)'] * (10**(M_test*regP.params['magnitude'])))
 
-#gca.set_ylim(0.1, 200)
-#gca.set_xlim(5, 200)
-gca.set_yscale('log')
-gca.set_xscale('log')
+# colors = plt.cm.jet(np.linspace(0,1,N_test))
+# fig, gca = plt.subplots(figsize=(8, 8))
+# temp = gca.scatter(peak_amplitude_df.distance_in_km, peak_amplitude_df.peak_P/site_calibration_P, s=0.1, c=peak_amplitude_df.magnitude, 
+#             vmax=5.5, vmin=2, cmap='jet')
+
+# for i, line_color in enumerate(colors):
+#     gca.plot(distance_test, peak_P_test[i], '-', color=line_color)
+
+# #gca.set_ylim(0.1, 200)
+# #gca.set_xlim(5, 200)
+# gca.set_yscale('log')
+# gca.set_xscale('log')
 
 # %%
 # ==============================  Looking into the multiple array case ========================================
