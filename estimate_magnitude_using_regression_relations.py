@@ -113,9 +113,11 @@ def get_mean_magnitude(peak_amplitude_df, M_predict):
     temp_df = pd.concat([temp_df, temp_df2['predicted_M_std']], axis=1)
     return temp_df
 
-def estimate_magnitude(results_output_dir, regression_dir, nearby_channel_number, fitting_type='without_site', site_term_column='region_site'):
+def estimate_magnitude(results_output_dir, regression_dir, nearby_channel_number, fitting_type='without_site', site_term_column='region_site', magnitude_threshold=None):
     """High level function to estimate magnitude"""
     peak_amplitude_df = pd.read_csv(results_output_dir + f'/peak_amplitude_region_site_{nearby_channel_number}.csv')
+    if magnitude_threshold is not None:
+        peak_amplitude_df = peak_amplitude_df[(peak_amplitude_df.magnitude>=magnitude_threshold[0]) & (peak_amplitude_df.magnitude<=magnitude_threshold[1])]
     
     # %% load regression with different regional site terms
     regP = sm.load(results_output_dir + '/' + regression_dir + f"/P_regression_combined_site_terms_{nearby_channel_number}chan.pickle")
@@ -479,13 +481,14 @@ regression_dir = 'regression_results_smf_weighted'
 site_term_column='combined_channel_id'
 nearby_channel_numbers = [-1, 100, 50, 20, 10]
 fitting_type = 'with_site'
+magnitude_threshold = [2, 10]
 
 # List to hold the estiamted magnitude
 temp_df_P_list = []
 temp_df_S_list = []
 
 for ii, nearby_channel_number in enumerate(nearby_channel_numbers):
-    temp_df_P, temp_df_S = estimate_magnitude(results_output_dir, regression_dir, nearby_channel_number, fitting_type, site_term_column)
+    temp_df_P, temp_df_S = estimate_magnitude(results_output_dir, regression_dir, nearby_channel_number, fitting_type, site_term_column, magnitude_threshold)
     temp_df_P_list.append(temp_df_P)
     temp_df_S_list.append(temp_df_S)
 
@@ -518,13 +521,14 @@ regression_dir = 'regression_results_smf_weighted'
 site_term_column='combined_channel_id'
 fitting_type = 'with_site'
 nearby_channel_numbers = [-1, 100, 50, 20, 10]
+magnitude_threshold = [2, 10]
 
 # List to hold the estiamted magnitude
 temp_df_P_list = []
 temp_df_S_list = []
 
 for ii, nearby_channel_number in enumerate(nearby_channel_numbers):
-    temp_df_P, temp_df_S = estimate_magnitude(results_output_dir, regression_dir, nearby_channel_number, fitting_type, site_term_column)
+    temp_df_P, temp_df_S = estimate_magnitude(results_output_dir, regression_dir, nearby_channel_number, fitting_type, site_term_column, magnitude_threshold)
     temp_df_P_list.append(temp_df_P)
     temp_df_S_list.append(temp_df_S)
 

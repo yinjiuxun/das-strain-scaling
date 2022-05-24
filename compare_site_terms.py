@@ -41,6 +41,7 @@ region_label = 'mammothN'
 #%% load the peak amplitude results
 # Load the peak amplitude results
 snr_threshold = 10
+magnitude_threshold = [2, 10]
 peak_amplitude_df = pd.read_csv(results_output_dir + '/' + das_pick_file_name)
 
 # directory to store the fitted results
@@ -49,6 +50,8 @@ if not os.path.exists(regression_results_dir):
     os.mkdir(regression_results_dir)
 
 peak_amplitude_df = peak_amplitude_df[(peak_amplitude_df.snrP >=snr_threshold) & (peak_amplitude_df.snrS >=snr_threshold)]
+peak_amplitude_df = peak_amplitude_df[(peak_amplitude_df.magnitude >=magnitude_threshold[0]) & (peak_amplitude_df.magnitude <=magnitude_threshold[1])]
+
 peak_amplitude_df = peak_amplitude_df.dropna()
 DAS_index = peak_amplitude_df.channel_id.unique().astype('int')
 

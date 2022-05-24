@@ -142,7 +142,7 @@ for nearby_channel_number in nearby_channel_number_list:
     if not os.path.exists(results_output_dir + f'/peak_amplitude_region_site_{nearby_channel_number}.csv'):
         peak_amplitude_df.to_csv(results_output_dir + f'/peak_amplitude_region_site_{nearby_channel_number}.csv', index=False)
     # Specify magnitude range to do regression
-    M_threshold = [0, 10]
+    M_threshold = [2, 10]
     regP, regS = fit_regression_magnitude_range(peak_amplitude_df, M_threshold, regression_results_dir, nearby_channel_number)
     
     mag_slopeP.append(regP.params[-2])
@@ -174,7 +174,7 @@ for nearby_channel_number in nearby_channel_number_list:
     if not os.path.exists(results_output_dir + f'/peak_amplitude_region_site_{nearby_channel_number}.csv'):
         peak_amplitude_df.to_csv(results_output_dir + f'/peak_amplitude_region_site_{nearby_channel_number}.csv', index=False)
     # Specify magnitude range to do regression
-    M_threshold = [0, 10]
+    M_threshold = [2, 10]
     regP, regS = fit_regression_with_weight_magnitude_range(peak_amplitude_df, M_threshold, regression_results_dir, nearby_channel_number)
     
     mag_slopeP.append(regP.params[-2])
