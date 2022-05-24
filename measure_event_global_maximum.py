@@ -49,7 +49,7 @@ peak_amplitude_dir_list = ['/kuafu/yinjx/Ridgecrest/Ridgecrest_scaling/peak_ampl
                            '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/North/peak_amplitude_events', 
                            '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/South/peak_amplitude_events']
 
-for ii_region in [0]:# [0, 1, 2]:
+for ii_region in [2]:# [0, 1, 2]:
     event_folder, peak_amplitude_dir = event_folder_list[ii_region], peak_amplitude_dir_list[ii_region]
 
     print('='*10 + peak_amplitude_dir + '='*10)
@@ -75,8 +75,10 @@ for ii_region in [0]:# [0, 1, 2]:
                 event_data = event_data[:, das_info.index]
 
             array_maximum[i_eq, :] = np.nanmax(event_data, axis=0)
-            
         except:
             continue
+    np.savez(peak_amplitude_dir + '/global_maximum.npz', array_maximum=array_maximum)
 
 # %%
+# temp = np.load(peak_amplitude_dir + '/global_maximum.npz')
+# temp['array_maximum']
