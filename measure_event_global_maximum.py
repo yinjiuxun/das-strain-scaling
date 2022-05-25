@@ -80,5 +80,36 @@ for ii_region in [2]:# [0, 1, 2]:
     np.savez(peak_amplitude_dir + '/global_maximum.npz', array_maximum=array_maximum)
 
 # %%
-# temp = np.load(peak_amplitude_dir + '/global_maximum.npz')
-# temp['array_maximum']
+# Setup the paths
+event_folder_list = ['/kuafu/EventData/Ridgecrest', '/kuafu/EventData/Mammoth_north', '/kuafu/EventData/Mammoth_south']
+peak_amplitude_dir_list = ['/kuafu/yinjx/Ridgecrest/Ridgecrest_scaling/peak_amplitude_events', 
+                           '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/North/peak_amplitude_events', 
+                           '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/South/peak_amplitude_events']
+
+region_label = ['Ridgecrest', 'Mammoth-N', 'Mammoth-S']
+fig, ax = plt.subplots(2, 1, figsize=(10, 12))
+for ii_region in [0, 1, 2]:
+
+    event_folder, peak_amplitude_dir = event_folder_list[ii_region], peak_amplitude_dir_list[ii_region]
+
+    catalog = pd.read_csv(event_folder + '/catalog.csv')
+    ii_M2 = catalog.magnitude >=2
+
+    temp = np.load(peak_amplitude_dir + '/global_maximum.npz')
+    temp = temp['array_maximum']
+    temp = temp[ii_M2, :]
+    channel_max = np.nanmax(temp, axis=0)
+    global_max = temp[temp>0].flatten()
+
+    gca = ax[0]
+    gca.hist(np.log10(global_max), range=(-4,8), bins=100, label=region_label[ii_region], alpha=0.5)
+    gca.set_yscale('log')
+    gca.set_ylim(ymin=1)
+
+    gca = ax[1]
+    gca.semilogy(np.linspace(0, 1000, len(channel_max)), channel_max, label=region_label[ii_region])
+
+ax[0].legend()
+ax[1].legend()
+
+# %%
