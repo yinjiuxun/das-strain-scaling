@@ -40,22 +40,23 @@ import pygmt
 # ==============================  event data ========================================
 
 #%% Specify the file names
-#Ridgecrest
-event_folder = '/kuafu/EventData/Ridgecrest'
-results_output_dir = '/kuafu/yinjx/Ridgecrest/Ridgecrest_scaling/peak_amplitude_scaling_results_strain_rate'
-gmt_region = [-118.5, -117, 35, 36.5]
+# #Ridgecrest
+# event_folder = '/kuafu/EventData/Ridgecrest'
+# results_output_dir = '/kuafu/yinjx/Ridgecrest/Ridgecrest_scaling/peak_amplitude_scaling_results_strain_rate'
+# gmt_region = [-118.5, -117, 35, 36.5]
 
 # # Mammoth North
 # event_folder = '/kuafu/EventData/Mammoth_north'
 # results_output_dir = '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/North'
 # gmt_region = [-120, -117.5, 36.5, 39]
 
-# # Mammoth South
-# event_folder = '/kuafu/EventData/Mammoth_south'
-# results_output_dir = '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/South'
-# gmt_region = [-120, -117.5, 36.5, 39]
+# Mammoth South
+event_folder = '/kuafu/EventData/Mammoth_south'
+results_output_dir = '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/South'
+gmt_region = [-120, -117.5, 36.5, 39]
 
 snr_threshold = 10
+magnitude_threshold = [2, 10]
 #%% Common part of code
 DAS_info_files = event_folder + '/das_info.csv'
 catalog_file =  event_folder + '/catalog.csv'
@@ -65,6 +66,7 @@ peak_df_file = results_output_dir + '/' + das_pick_file_name
 # Load the peak amplitude results
 peak_amplitude_df = pd.read_csv(peak_df_file)
 peak_amplitude_df = peak_amplitude_df[(peak_amplitude_df.snrP >= snr_threshold) & (peak_amplitude_df.snrS >= snr_threshold)]
+peak_amplitude_df = peak_amplitude_df[(peak_amplitude_df.magnitude >= magnitude_threshold[0]) & (peak_amplitude_df.magnitude <= magnitude_threshold[1])]
 
 #  load the information about the Ridgecrest DAS channel
 DAS_info = pd.read_csv(DAS_info_files)
@@ -112,12 +114,36 @@ peak_amplitude_df_temp['log10(peak_S)'] = np.log10(peak_amplitude_df_temp.peak_S
 peak_amplitude_df_temp['P/S'] = peak_amplitude_df_temp.peak_P/peak_amplitude_df_temp.peak_S
 plt.figure(figsize=(14,8))
 g = sns.pairplot(peak_amplitude_df_temp[['magnitude','log10(distance)', 'log10(peak_P)','log10(peak_S)']], kind='hist', diag_kind="kde", corner=True)
+g.axes[1,0].set_yticks(np.arange(0,10))
+g.axes[1,0].set_ylim((0, 2.3))
+
+g.axes[2,0].set_yticks(np.arange(-3,5))
 g.axes[2,0].set_ylim((-2,2))
 g.axes[2,1].set_ylim((-2,2))
-g.axes[3,0].set_ylim((-2,2))
-g.axes[3,1].set_ylim((-2,2))
-g.axes[3,2].set_ylim((-2,2))
-g.axes[3,2].set_xlim((-2,2))
+
+g.axes[3,0].set_yticks(np.arange(-3,5))
+g.axes[3,0].set_ylim((-2,2.5))
+g.axes[3,1].set_ylim((-2,2.5))
+g.axes[3,2].set_ylim((-2,2.5))
+g.axes[3,2].set_xticks(np.arange(-3,5))
+g.axes[3,2].set_xlim((-2,2.5))
+g.axes[3,3].set_xlim((-2,2.5))
+
+g.axes[2,0].set_xticks(np.arange(0,10))
+g.axes[2,0].set_xlim(1.5, 6)
+g.axes[2,1].set_xticks(np.arange(0,3,1))
+g.axes[2,1].set_xlim((0, 2.3))
+g.axes[3,1].set_xlim((0, 2.3))
+
+
+# Adding annotation
+letter_list = [str(chr(k+97)) for k in range(0, 20)]
+k=0
+for gca in g.axes.flatten():
+    if gca is not None:
+        gca.annotate(f'({letter_list[k]})', xy=(0.05, 0.95), xycoords=gca.transAxes)
+        k += 1
+        
 plt.savefig(results_output_dir + '/data_statistics.png')
 
 #%%
@@ -170,15 +196,18 @@ results_output_dir_list = ['/kuafu/yinjx/Ridgecrest/Ridgecrest_scaling/peak_ampl
                            '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/North',
                            '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/South']
 
+region_label = ['RC', 'LV-N', 'LV-S']
+
 gmt_region = [-118.5, -117, 35, 36.5]
 snr_threshold = 10
+magnitude_threshold = [2, 10]
 #%% Combined all data
 peak_amplitude_df_all = pd.DataFrame(columns=['event_id', 'magnitude', 'channel_id', 'distance_in_km', 'snrP', 'snrS',
        'peak_P', 'peak_P_1s', 'peak_P_3s', 'peak_P_4s', 'peak_P_time',
        'peak_P_time_1s', 'peak_P_time_3s', 'peak_P_time_4s', 'peak_S',
        'peak_S_4s', 'peak_S_6s', 'peak_S_8s', 'peak_S_10s', 'peak_S_time',
        'peak_S_time_4s', 'peak_S_time_6s', 'peak_S_time_8s',
-       'peak_S_time_10s'])
+       'peak_S_time_10s', 'Array'])
 DAS_info_all = pd.DataFrame(columns=['index', 'latitude', 'longitude', 'elevation_m'])
 catalog_select_all = pd.DataFrame(columns=['event_id', 'event_time', 'longitude', 'latitude','depth_km','magnitude','magnitude_type','source'])
 for i_region in range(len(event_folder_list)):
@@ -193,7 +222,9 @@ for i_region in range(len(event_folder_list)):
     # Load the peak amplitude results
     peak_amplitude_df = pd.read_csv(peak_df_file)
     peak_amplitude_df = peak_amplitude_df[(peak_amplitude_df.snrP >= snr_threshold) & (peak_amplitude_df.snrS >= snr_threshold)]
-    peak_amplitude_df = peak_amplitude_df[peak_amplitude_df.magnitude >=2]
+    peak_amplitude_df = peak_amplitude_df[(peak_amplitude_df.magnitude >= magnitude_threshold[0]) & (peak_amplitude_df.magnitude <= magnitude_threshold[1])]
+    peak_amplitude_df['Array'] = region_label[i_region]
+
     peak_amplitude_df_all = pd.concat((peak_amplitude_df_all, peak_amplitude_df), axis=0, ignore_index=True)
 
     #  load the information about the DAS channel
@@ -248,21 +279,68 @@ plt.savefig(combined_results_output_dir + '/time_variation_selected_earthquakes_
 
 
 #%% plot data statistics
-peak_amplitude_df_temp = peak_amplitude_df_all#.iloc[::5, :]
+add_possible_clipping = True
+peak_amplitude_df_temp = peak_amplitude_df_all.iloc[::1, :]
 peak_amplitude_df_temp['log10(distance)'] = np.log10(peak_amplitude_df_temp.distance_in_km.astype('float'))
 peak_amplitude_df_temp['log10(peak_P)'] = np.log10(peak_amplitude_df_temp.peak_P.astype('float'))
 peak_amplitude_df_temp['log10(peak_S)'] = np.log10(peak_amplitude_df_temp.peak_S.astype('float'))
 peak_amplitude_df_temp['P/S'] = peak_amplitude_df_temp.peak_P/peak_amplitude_df_temp.peak_S
+
+
 fig = plt.figure(figsize=(14,8))
-g = sns.pairplot(peak_amplitude_df_temp[['magnitude','log10(distance)', 'log10(peak_P)','log10(peak_S)']], 
-                 kind='hist', diag_kind="kde", corner=True, height=3)
+
+g = sns.PairGrid(peak_amplitude_df_temp[['magnitude','log10(distance)', 'log10(peak_P)','log10(peak_S)', 'Array']], 
+                 diag_sharey=False, corner=True, hue='Array', palette='Set2', height=4, aspect=0.8)
+
+
+g.map_diag(sns.kdeplot, hue=None, color=".1", linewidth=2) #hue='Array', palette='Set2', 
+g.map_diag(sns.kdeplot, linewidth=2, alpha=1) #hue='Array', palette='Set2', 
+
+g.map_lower(sns.histplot, pmax=0.5, hue=None, color=".1", cbar=True, cbar_kws={'location': 'top', 'fraction':0.02, 'pad':0})
+g.map_lower(sns.histplot, pmax=0.5, alpha=0.3)
+
+plt.subplots_adjust(hspace=0.2, wspace=0.25)
+
+g.add_legend()
+g._legend.set_bbox_to_anchor((0.3, 0.9))
+
+
+# This part is a little tricky for now.
+if add_possible_clipping:
+    M_clipping = np.arange(2, 9)
+    # P clipping
+    D_clipping_RC_P = M_clipping*5/14 - (2-0.615)/1.4
+    D_clipping_LV_N_P = M_clipping*5/14 - (2-0.391)/1.4
+    D_clipping_LV_S_P = M_clipping*5/14 - (2-0.277)/1.4
+
+    # # S clipping
+    # D_clipping_RC_S = M_clipping*0.57/1.21 - (2-0.615)/1.21
+    # D_clipping_LV_N_S = M_clipping*0.57/1.21 - (2-0.391)/1.21
+    # D_clipping_LV_S_S = M_clipping*0.57/1.21 - (2-0.277)/1.21
+
+    g.axes[1,0].plot(M_clipping, D_clipping_RC_P, '-', color='#7DC0A6', linewidth=2.5)
+    g.axes[1,0].plot(M_clipping, D_clipping_LV_N_P, '-', color='#ED926B', linewidth=2.5)
+    g.axes[1,0].plot(M_clipping, D_clipping_LV_S_P, '-', color='#91A0C7', linewidth=2.5)
+    # g.axes[1,0].plot(M_clipping, D_clipping_RC_S, '--', color='#7DC0A6', linewidth=2.5)
+    # g.axes[1,0].plot(M_clipping, D_clipping_LV_N_S, '--', color='#ED926B', linewidth=2.5)
+    # g.axes[1,0].plot(M_clipping, D_clipping_LV_S_S, '--', color='#91A0C7', linewidth=2.5)
+
+
+g.axes[0,0].set_title('magnitude')
+g.axes[0,0].tick_params(labelbottom=True)
+g.axes[1,1].set_title('log10(distance)')
+g.axes[1,1].tick_params(labelbottom=True)
+g.axes[2,2].set_title('log10(peak_P)')
+g.axes[2,2].tick_params(labelbottom=True)
+g.axes[3,3].set_title('log10(peak_S)')
+g.axes[3,3].tick_params(labelbottom=True)
 
 g.axes[1,0].set_yticks(np.arange(0,10))
 g.axes[1,0].set_ylim((0, 2.3))
 
 g.axes[2,0].set_yticks(np.arange(-3,5))
-g.axes[2,0].set_ylim((-2,2))
-g.axes[2,1].set_ylim((-2,2))
+g.axes[2,0].set_ylim((-2,2.5))
+g.axes[2,1].set_ylim((-2,2.5))
 
 g.axes[3,0].set_yticks(np.arange(-3,5))
 g.axes[3,0].set_ylim((-2,2.5))
@@ -278,16 +356,20 @@ g.axes[2,1].set_xticks(np.arange(0,3,1))
 g.axes[2,1].set_xlim((0, 2.3))
 g.axes[3,1].set_xlim((0, 2.3))
 
-
 # Adding annotation
 letter_list = [str(chr(k+97)) for k in range(0, 20)]
 k=0
 for gca in g.axes.flatten():
     if gca is not None:
-        gca.annotate(f'({letter_list[k]})', xy=(0.05, 0.95), xycoords=gca.transAxes)
+        gca.annotate(f'({letter_list[k]})', xy=(-0.2, 1.0), xycoords=gca.transAxes)
         k += 1
-        
-plt.savefig(combined_results_output_dir + '/data_statistics.png')
+
+plt.tight_layout()
+
+if add_possible_clipping:       
+    plt.savefig(combined_results_output_dir + '/data_correlation_clipping.png', bbox_inches='tight')
+else:
+    plt.savefig(combined_results_output_dir + '/data_correlation.png', bbox_inches='tight')
 
 
 #%%
