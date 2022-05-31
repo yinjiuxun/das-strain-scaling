@@ -224,11 +224,12 @@ def extract_peak_amplitude(event_folder, peak_amplitude_dir, ii_region, data_pat
             event_now = event_now.rename({"eventID": "event_id"})
 
         event_data, event_info = load_event_data(data_path, event_now.event_id)
-
+        
         if event_data.shape[1] > das_info.shape[0]:
             event_data = event_data[:, das_info.index]
-
-        das_time = np.arange(0, event_info['nt']) * event_info['dt']
+            
+        nt = event_data.shape[0]
+        das_time = np.arange(0, nt) * event_info['dt_s']
 
         # TODO: update with new travel time format!
         if ii_region == 0:
@@ -261,11 +262,12 @@ def extract_peak_amplitude(event_folder, peak_amplitude_dir, ii_region, data_pat
         # Calculate the SNR based on the P arrival time
         event_arrival_P_temp = pick_P[np.newaxis, :]
         event_arrival_S_temp = pick_S[np.newaxis, :]
-        twin_noise = [event_arrival_P_temp-1-snr_window, event_arrival_P_temp-1]
+        twin_noise_P = [event_arrival_P_temp-1-snr_window, event_arrival_P_temp-1]
+        twin_noise_S = [event_arrival_S_temp-1-snr_window, event_arrival_S_temp-1]
         twin_signal_P = [event_arrival_P_temp, event_arrival_P_temp + snr_window]
         twin_signal_S = [event_arrival_S_temp, event_arrival_S_temp + snr_window]
-        snrP = calculate_SNR(das_time, event_data, twin_noise, twin_signal_P)
-        snrS = calculate_SNR(das_time, event_data, twin_noise, twin_signal_S)
+        snrP = calculate_SNR(das_time, event_data, twin_noise_P, twin_signal_P)
+        snrS = calculate_SNR(das_time, event_data, twin_noise_S, twin_signal_S)
 
 
         # Extract the maximum given the P and S arrival time
@@ -304,7 +306,7 @@ def extract_peak_amplitude(event_folder, peak_amplitude_dir, ii_region, data_pat
         all_combined1 = np.array([event_id_list, magnitude_list, channel_id_list, distance_list, snrP, snrS]).T
 
         all_combined = np.concatenate([all_combined1, 
-                                    max_P_amplitude_list, max_S_amplitude_list, max_P_time_list, max_S_time_list], axis=1)
+                                    max_P_amplitude_list, max_P_time_list, max_S_amplitude_list, max_S_time_list], axis=1)
 
         # Convert to DataFrame
         peak_amplitude_df = pd.DataFrame(data=all_combined, 
@@ -324,7 +326,7 @@ def extract_peak_amplitude(event_folder, peak_amplitude_dir, ii_region, data_pat
 
         #%%
         # Show data
-        fig, ax = plt.subplots(figsize=(12,6))
+        fig, ax = plt.subplots(figsize=(10,5))
         # Main
         gca = ax
         show_event_data(event_data, das_time, gca, pclip=95)
