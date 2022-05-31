@@ -55,6 +55,11 @@ event_folder = '/kuafu/EventData/Mammoth_south'
 results_output_dir = '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/South'
 gmt_region = [-120, -117.5, 36.5, 39]
 
+# Japan submarine
+event_folder = '/kuafu/yinjx/Japan_DAS'
+results_output_dir = '/kuafu/yinjx/Japan/peak_ampliutde_scaling_results_strain_rate'
+gmt_region = [141, 143, 38, 40]
+
 snr_threshold = 10
 magnitude_threshold = [2, 10]
 #%% Common part of code
@@ -439,6 +444,116 @@ fig.savefig(combined_results_output_dir + '/map_of_earthquakes_GMT.png')
 
 
 
+
+
+
+
+
+
+
+
+
+#%% Temporal use for Japan data
+
+# Japan submarine
+event_folder = '/kuafu/yinjx/Japan_DAS'
+results_output_dir = '/kuafu/yinjx/Japan/peak_ampliutde_scaling_results_strain_rate'
+gmt_region = [141, 143, 38.5, 40]
+
+snr_threshold = 10
+magnitude_threshold = [2, 10]
+DAS_info_files = event_folder + '/das_info.csv'
+# catalog_file =  event_folder + '/catalog.csv'
+
+# das_pick_file_name = '/peak_amplitude.csv'
+# peak_df_file = results_output_dir + '/' + das_pick_file_name
+# # Load the peak amplitude results
+# peak_amplitude_df = pd.read_csv(peak_df_file)
+# peak_amplitude_df = peak_amplitude_df[(peak_amplitude_df.snrP >= snr_threshold) & (peak_amplitude_df.snrS >= snr_threshold)]
+# peak_amplitude_df = peak_amplitude_df[(peak_amplitude_df.magnitude >= magnitude_threshold[0]) & (peak_amplitude_df.magnitude <= magnitude_threshold[1])]
+
+#  load the information about the Ridgecrest DAS channel
+DAS_info = pd.read_csv(DAS_info_files)
+DAS_channel_num = DAS_info.shape[0]
+DAS_index = DAS_info['index'].astype('int')
+DAS_lon = DAS_info.longitude
+DAS_lat = DAS_info.latitude
+
+# catalog_Ridgecrest = pd.read_csv(catalog_file)
+# # Find events in the pick file
+# event_id_selected_Ridgecrest = np.unique(peak_amplitude_df['event_id'])
+# catalog_select = catalog_Ridgecrest[catalog_Ridgecrest.event_id.isin(event_id_selected_Ridgecrest)]
+# num_events_Ridgecrest = catalog_select.shape[0]
+# event_lon = catalog_select.longitude
+# event_lat = catalog_select.latitude
+# event_id = catalog_select.event_id
+
+# # Add the event label for plotting
+# peak_amplitude_df = add_event_label(peak_amplitude_df)
+
+#%%
+# Plot both arrays
+projection = "M12c"
+grid = pygmt.datasets.load_earth_relief(resolution="03s", region=gmt_region)
+
+# calculate the reflection of a light source projecting from west to east
+# (azimuth of 270 degrees) and at a latitude of 30 degrees from the horizon
+dgrid = pygmt.grdgradient(grid=grid, radiance=[270, 30])
+
+fig = pygmt.Figure()
+# define figure configuration
+pygmt.config(FORMAT_GEO_MAP="ddd.x", MAP_FRAME_TYPE="plain", FONT_ANNOT_PRIMARY=15)
+
+# --------------- plotting the original Data Elevation Model -----------
+
+fig.basemap(region=gmt_region, 
+projection=projection, 
+frame=['WSrt+t""', "xa0.5", "ya0.5"]
+)
+pygmt.makecpt(cmap="geo", series=[-2000, 2000])
+fig.grdimage(
+    grid=grid,
+    projection=projection,
+    cmap=True,
+    shading='+a45+nt1',
+    transparency=20
+)
+
+# fig.plot(x=catalog_select_all.longitude, y=catalog_select_all.latitude, style="c0.1c", color="black")
+
+fig.plot(x=DAS_info.longitude[::10], y=DAS_info.latitude[::10], style="c0.1c", color="blue")
+
+# fig.text(text="Mammoth", x=-119.5, y=38)
+# fig.text(text="Ridgecrest", x=-117.5, y=35.4)
+
+# Create an inset map, setting the position to bottom right, the width to
+# 3 cm, the height to 3.6 cm, and the x- and y-offsets to
+# 0.1 cm, respectively. Draws a rectangular box around the inset with a fill
+# color of "white" and a pen of "1p".
+with fig.inset(position="jBL+w4.3c/5.0c+o0.1c", box="+gwhite+p1p"):
+    # Plot the Japan main land in the inset using coast. "U54S/?" means UTM
+    # projection with map width automatically determined from the inset width.
+    # Highlight the Japan area in "lightbrown"
+    # and draw its outline with a pen of "0.2p".
+    fig.coast(
+        region=[129, 146, 30, 46],
+        projection="U54S/?",
+        #land='gray',#
+        dcw="JP+ggray+p0.2p",
+        #water='lightblue',
+        area_thresh=10000,
+        resolution='f',
+        #borders=["1/0.5p,black", "2/0.25p,black"]
+    )
+    # Plot a rectangle ("r") in the inset map to show the area of the main
+    # figure. "+s" means that the first two columns are the longitude and
+    # latitude of the bottom left corner of the rectangle, and the last two
+    # columns the longitude and latitude of the uppper right corner.
+    rectangle = [[gmt_region[0], gmt_region[2], gmt_region[1], gmt_region[3]]]
+    fig.plot(data=rectangle, style="r+s", pen="2p,red")
+
+fig.show()
+fig.savefig(results_output_dir + '/map_of_earthquakes_GMT.png')
 
 
 
