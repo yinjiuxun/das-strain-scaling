@@ -322,3 +322,45 @@ plt.savefig(regression_results_dir + '/compare_site_terms_north.png', bbox_inche
 plt.figure(fig2.number)
 plt.savefig(regression_results_dir + '/compare_site_terms_south.png', bbox_inches='tight')
 # %%
+# #Test parameters from strain meter (Not right)
+# fig, ax = plt.subplots(2, 1, figsize=(10, 12), sharex=True, sharey=True)
+# # combined_channel_number_list = [10, 20, 50, 100, -1] # -1 means the constant model
+# combined_channel_number_list = [100]
+# # DataFrame to store parameters for all models
+# P_parameters_comparison = pd.DataFrame(columns=['combined_channels', 'magnitude', 'distance', 'magnitude_err', 'distance_err'], 
+# index = np.arange(len(combined_channel_number_list)))
+# S_parameters_comparison = pd.DataFrame(columns=['combined_channels', 'magnitude', 'distance', 'magnitude_err', 'distance_err'],
+# index = np.arange(len(combined_channel_number_list)))
+
+# for i_model, combined_channel_number in enumerate(combined_channel_number_list):
+
+#     regP = sm.load(regression_results_dir + f"/P_regression_combined_site_terms_{combined_channel_number}chan.pickle")
+#     regS = sm.load(regression_results_dir + f"/S_regression_combined_site_terms_{combined_channel_number}chan.pickle")
+#     # apply parameters from strain meter
+#     regP.params['magnitude'] = 0.92
+#     regP.params['np.log10(distance_in_km)'] = -1.45
+
+#     regS.params['magnitude'] = 0.92
+#     regS.params['np.log10(distance_in_km)'] = -1.45
+
+#     peak_amplitude_df = combined_channels(DAS_index, peak_amplitude_df, combined_channel_number)
+#     combined_channel_id = np.sort(peak_amplitude_df.combined_channel_id.unique())
+#     peak_amplitude_df = add_event_label(peak_amplitude_df)
+
+#     y_P_predict = regP.predict(peak_amplitude_df)
+#     y_S_predict = regS.predict(peak_amplitude_df)
+
+#     temp_peaks = np.array([np.array(peak_amplitude_df.peak_P),
+#               np.array(peak_amplitude_df.peak_S), 
+#               np.array(10**y_P_predict), 
+#               np.array(10**y_S_predict)]).T
+#     peak_comparison_df = pd.DataFrame(data=temp_peaks,
+#                                   columns=['peak_P', 'peak_S', 'peak_P_predict', 'peak_S_predict'])
+    
+#     g = plot_prediction_vs_measure_seaborn(peak_comparison_df, [0.01, 1000], phase='P')
+#     g.savefig(regression_results_dir + f'/P_validate_predicted_combined_site_terms_{combined_channel_number}chan_strainmeter_seaborn.png')
+
+#     g = plot_prediction_vs_measure_seaborn(peak_comparison_df, [0.01, 1000], phase='S')
+#     g.savefig(regression_results_dir + f'/S_validate_predicted_combined_site_terms_{combined_channel_number}chan_strainmeter_seaborn.png')
+#     # plot_compare_prediction_vs_true_values(peak_amplitude_df, y_P_predict, y_S_predict, (-2.0, 2), 
+#     # regression_results_dir + f'/validate_predicted__combined_site_terms_{combined_channel_number}chan.png')
