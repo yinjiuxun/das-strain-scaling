@@ -350,7 +350,7 @@ def extract_peak_amplitude(event_folder, peak_amplitude_dir, ii_region, data_pat
         pass
  
 
-for ii_region in [0]:#, 1, 2]:
+for ii_region in [1, 2]:#, 1, 2]:
     event_folder, peak_amplitude_dir = event_folder_list[ii_region], peak_amplitude_dir_list[ii_region]
 
     print('='*10 + peak_amplitude_dir + '='*10)
@@ -387,10 +387,16 @@ event_folder_list = ['/kuafu/EventData/Ridgecrest', '/kuafu/EventData/Mammoth_no
 peak_amplitude_dir_list = ['/kuafu/yinjx/Ridgecrest/Ridgecrest_scaling/peak_amplitude_events_nan', 
                            '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/North/peak_amplitude_events_nan', 
                            '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/South/peak_amplitude_events_nan']
-for ii_region in [0]:#, 1, 2]:
+for ii_region in [0, 1, 2]:#, 1, 2]:
     peak_amplitude_dir = peak_amplitude_dir_list[ii_region]
 
     print('='*10 + peak_amplitude_dir + '='*10)
     temp = glob.glob(peak_amplitude_dir + '/*.csv')
     temp_df = pd.concat(map(pd.read_csv, temp), ignore_index=True)
+
+    # calibrate SNR
+    ii = ~temp_df.snrP.isna()
+    temp_df.snrS[ii] = temp_df.snrP[ii] + temp_df.snrS[ii]
+
     temp_df.to_csv(peak_amplitude_dir + '/peak_amplitude_nan.csv', index=False)
+# %%

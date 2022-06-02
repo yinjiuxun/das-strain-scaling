@@ -210,9 +210,9 @@ Ridgecrest_conversion_factor = 1550.12 / (0.78 * 4 * np.pi * 1.46 * 8)
 # %%
 # Setup the paths
 event_folder_list = ['/kuafu/EventData/Ridgecrest', '/kuafu/EventData/Mammoth_north', '/kuafu/EventData/Mammoth_south']
-peak_amplitude_dir_list = ['/kuafu/yinjx/Ridgecrest/Ridgecrest_scaling/peak_amplitude_events', 
-                           '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/North/peak_amplitude_events', 
-                           '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/South/peak_amplitude_events']
+peak_amplitude_dir_list = ['/kuafu/yinjx/Ridgecrest/Ridgecrest_scaling/peak_amplitude_events_nan', 
+                           '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/North/peak_amplitude_events_nan', 
+                           '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/South/peak_amplitude_events_nan']
 
 def extract_peak_amplitude(event_folder, peak_amplitude_dir, ii_region, data_path, pick_path, catalog, das_info, P_window_list, S_window_list, snr_window, i_eq):
     matplotlib.rcParams.update(params) # Set up the plotting parameters
@@ -227,7 +227,7 @@ def extract_peak_amplitude(event_folder, peak_amplitude_dir, ii_region, data_pat
         
         if event_data.shape[1] > das_info.shape[0]:
             event_data = event_data[:, das_info.index]
-            
+
         nt = event_data.shape[0]
         das_time = np.arange(0, nt) * event_info['dt_s']
 
@@ -255,6 +255,8 @@ def extract_peak_amplitude(event_folder, peak_amplitude_dir, ii_region, data_pat
         min_S_1d = tt_1d.S_arrival.min()   
 
         time_range = (min_P_1d-15, min_P_1d+15, min_S_1d-15, min_S_1d+15)#(25, 40, 25, 60)
+
+
         pick_P, channel_P, pick_S, channel_S = load_phase_pick(pick_path, event_now.event_id, das_time, das_info.index, time_range, include_nan=True)
         # except:
         #     continue
@@ -316,8 +318,8 @@ def extract_peak_amplitude(event_folder, peak_amplitude_dir, ii_region, data_pat
                                         'peak_S', 'peak_S_4s', 'peak_S_6s', 'peak_S_8s', 'peak_S_10s', 
                                         'peak_S_time', 'peak_S_time_4s', 'peak_S_time_6s', 'peak_S_time_8s', 'peak_S_time_10s'])
 
-        # Remove NaNs
-        peak_amplitude_df = peak_amplitude_df.dropna()
+        # # Remove NaNs
+        # peak_amplitude_df = peak_amplitude_df.dropna()
         # Adjust the format
         peak_amplitude_df.event_id = peak_amplitude_df.event_id.astype('int')
         # Store to csv
@@ -342,9 +344,11 @@ def extract_peak_amplitude(event_folder, peak_amplitude_dir, ii_region, data_pat
         gca.set_title(f'ID {event_now.event_id}, M {event_now.magnitude}')
         plt.savefig(peak_amplitude_dir + f'/figures/{event_now.event_id}.png', bbox_inches='tight')
         plt.close('all')
+
     except:
         print('nothing')
         pass
+ 
 
 for ii_region in [0, 1, 2]:
     event_folder, peak_amplitude_dir = event_folder_list[ii_region], peak_amplitude_dir_list[ii_region]
@@ -368,8 +372,8 @@ for ii_region in [0, 1, 2]:
     n_eq = catalog.shape[0]
 
     # Non-parallel version for testing purpose
-    # for i_eq in range(n_eq):
-    # i_eq = 20
+    # # for i_eq in range(n_eq):
+    # i_eq = 15
     # extract_peak_amplitude(event_folder, peak_amplitude_dir, ii_region, data_path, pick_path, catalog, das_info, P_window_list, S_window_list, snr_window, i_eq)
 
     # Parallel extracting peak amplitude
@@ -389,4 +393,10 @@ for ii_region in [0, 1, 2]:
     print('='*10 + peak_amplitude_dir + '='*10)
     temp = glob.glob(peak_amplitude_dir + '/*.csv')
     temp_df = pd.concat(map(pd.read_csv, temp), ignore_index=True)
+
+    # calibrate SNR
+    ii = ~temp_df.snrP.isna()
+    temp_df.snrS[ii] = temp_df.snrP[ii] + temp_df.snrS[ii]
+
     temp_df.to_csv(peak_amplitude_dir + '/peak_amplitude.csv', index=False)
+# %%
