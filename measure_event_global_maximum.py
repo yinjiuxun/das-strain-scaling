@@ -110,6 +110,10 @@ for ii_region in [0, 1, 2]:
     gca.semilogy(np.linspace(0, 1000, len(channel_max)), channel_max, label=region_label[ii_region])
 
 ax[0].legend()
+ax[0].set_xlabel('log10(E) (micro strain/s)')
+ax[0].set_ylabel('Counts')
+
 ax[1].legend()
 
+plt.savefig('/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RM/maximum_amplitude_distribution.png', bbox_inches='tight')
 # %%
