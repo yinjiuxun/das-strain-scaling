@@ -12,6 +12,23 @@ from plotting_functions import *
 from utility_functions import *
 
 #%% Functions used here
+
+def split_P_S_dataframe(peak_amplitude_df):
+    # use P and S separately to do the regression
+    peak_amplitude_df_P = peak_amplitude_df[['peak_P', 'magnitude', 'distance_in_km', 'region_site']]
+    peak_amplitude_df_S = peak_amplitude_df[['peak_S', 'magnitude', 'distance_in_km', 'region_site']]
+
+    # Remove some extreme data outliers before fitting
+    peak_amplitude_df_P = peak_amplitude_df_P.dropna()
+    peak_amplitude_df_P = peak_amplitude_df_P[peak_amplitude_df_P.peak_P>0]
+    peak_amplitude_df_P = peak_amplitude_df_P.drop(peak_amplitude_df_P[(peak_amplitude_df_P.peak_P > 1e3)].index)
+
+    peak_amplitude_df_S = peak_amplitude_df_S.dropna()
+    peak_amplitude_df_S = peak_amplitude_df_S[peak_amplitude_df_S.peak_S>0]
+    peak_amplitude_df_S = peak_amplitude_df_S.drop(peak_amplitude_df_S[(peak_amplitude_df_S.peak_S > 1e3)].index)
+
+    return peak_amplitude_df_P, peak_amplitude_df_S
+
 def model_parameters_df(reg, combined_channel_number, digits=3):
     magnitude = round(reg.params[-2],digits)
     distance = round(reg.params[-1],digits)
@@ -32,11 +49,12 @@ def write_regression_summary(regression_results_dir, file_name, reg):
 def fit_regression_magnitude_range(peak_amplitude_df, M_threshold, regression_results_dir, nearby_channel_number):
     
     peak_amplitude_df = peak_amplitude_df[(peak_amplitude_df.magnitude >= M_threshold[0]) & (peak_amplitude_df.magnitude <= M_threshold[1])]
-    # Remove some extreme data outliers before fitting
-    peak_amplitude_df = peak_amplitude_df.drop(peak_amplitude_df[(peak_amplitude_df.peak_S > 1e7) | (peak_amplitude_df.peak_P > 1e7)].index)
+    
+    # use P and S separately to do the regression
+    peak_amplitude_df_P, peak_amplitude_df_S = split_P_S_dataframe(peak_amplitude_df)
 
-    regP = smf.ols(formula='np.log10(peak_P) ~ magnitude + np.log10(distance_in_km) + C(region_site) - 1', data=peak_amplitude_df).fit()
-    regS = smf.ols(formula='np.log10(peak_S) ~ magnitude + np.log10(distance_in_km) + C(region_site) - 1', data=peak_amplitude_df).fit()
+    regP = smf.ols(formula='np.log10(peak_P) ~ magnitude + np.log10(distance_in_km) + C(region_site) - 1', data=peak_amplitude_df_P).fit()
+    regS = smf.ols(formula='np.log10(peak_S) ~ magnitude + np.log10(distance_in_km) + C(region_site) - 1', data=peak_amplitude_df_S).fit()
 
     print(regP.params[-2:])
     print(regS.params[-2:])
@@ -55,13 +73,14 @@ def fit_regression_with_weight_magnitude_range(peak_amplitude_df, M_threshold, r
     """ Linear regression with weight, the weight is 10**magnitude """
 
     peak_amplitude_df = peak_amplitude_df[(peak_amplitude_df.magnitude >= M_threshold[0]) & (peak_amplitude_df.magnitude <= M_threshold[1])]
-    # Remove some extreme data outliers before fitting
-    peak_amplitude_df = peak_amplitude_df.drop(peak_amplitude_df[(peak_amplitude_df.peak_S > 1e3) | (peak_amplitude_df.peak_P > 1e3)].index)
+    
+    # use P and S separately to do the regression
+    peak_amplitude_df_P, peak_amplitude_df_S = split_P_S_dataframe(peak_amplitude_df)
 
     regP = smf.wls(formula='np.log10(peak_P) ~ magnitude + np.log10(distance_in_km) + C(region_site) - 1', 
-                data=peak_amplitude_df, weights = (10**peak_amplitude_df.magnitude)).fit()
+                data=peak_amplitude_df_P, weights = (10**peak_amplitude_df_P.magnitude)).fit()
     regS = smf.wls(formula='np.log10(peak_S) ~ magnitude + np.log10(distance_in_km) + C(region_site) - 1', 
-                data=peak_amplitude_df, weights = (10**peak_amplitude_df.magnitude)).fit()
+                data=peak_amplitude_df_S, weights = (10**peak_amplitude_df_S.magnitude)).fit()
 
     print(regP.params[-2:])
     print(regS.params[-2:])
@@ -80,9 +99,11 @@ def fit_regression_with_weight_magnitude_range(peak_amplitude_df, M_threshold, r
 def fit_regression_with_attenuation_magnitude_range(peak_amplitude_df, M_threshold, regression_results_dir, nearby_channel_number):
     '''Regression including the distance attenuation that is specific to the DAS array'''
     peak_amplitude_df = peak_amplitude_df[(peak_amplitude_df.magnitude >= M_threshold[0]) & (peak_amplitude_df.magnitude <= M_threshold[1])]
-    
-    regP = smf.ols(formula='np.log10(peak_P) ~ magnitude + np.log10(distance_in_km) + C(region):distance_in_km + C(region_site) - 1', data=peak_amplitude_df).fit()
-    regS = smf.ols(formula='np.log10(peak_P) ~ magnitude + np.log10(distance_in_km) + C(region):distance_in_km + C(region_site) - 1', data=peak_amplitude_df).fit()
+    # use P and S separately to do the regression
+    peak_amplitude_df_P, peak_amplitude_df_S = split_P_S_dataframe(peak_amplitude_df)
+
+    regP = smf.ols(formula='np.log10(peak_P) ~ magnitude + np.log10(distance_in_km) + C(region):distance_in_km + C(region_site) - 1', data=peak_amplitude_df_P).fit()
+    regS = smf.ols(formula='np.log10(peak_P) ~ magnitude + np.log10(distance_in_km) + C(region):distance_in_km + C(region_site) - 1', data=peak_amplitude_df_S).fit()
 
     print(regP.params[-6:])
     print(regS.params[-6:])
@@ -106,7 +127,7 @@ snr_threshold = 10
 magnitude_threshold = [2, 10]
 #%% ==============================  Ridgecrest data ========================================
 #ridgecrest_peaks = '/home/yinjx/kuafu/Ridgecrest/Ridgecrest_scaling/peak_ampliutde_scaling_results_strain_rate/peak_amplitude_M3+.csv'
-ridgecrest_peaks = '/home/yinjx/kuafu/Ridgecrest/Ridgecrest_scaling/peak_amplitude_scaling_results_strain_rate/peak_amplitude.csv'
+ridgecrest_peaks = '/kuafu/yinjx/Ridgecrest/Ridgecrest_scaling/peak_amplitude_events/peak_amplitude.csv'
 peak_amplitude_df_ridgecrest, DAS_index_ridgecrest = load_and_add_region(ridgecrest_peaks, region_label='ridgecrest', 
                                                                          snr_threshold=snr_threshold, magnitude_threshold=magnitude_threshold)
 peak_data_list.append(peak_amplitude_df_ridgecrest)
@@ -120,14 +141,14 @@ das_index_list.append(DAS_index_ridgecrest)
 # das_index_list.append(DAS_index_olancha)
 
 #%% ==============================  Mammoth south data ========================================
-mammoth_S_peaks = '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/South/peak_amplitude.csv'
+mammoth_S_peaks = '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/South/peak_amplitude_events/peak_amplitude.csv'
 peak_amplitude_df_mammoth_S, DAS_index_mammoth_S = load_and_add_region(mammoth_S_peaks, region_label='mammothS', 
                                                                        snr_threshold=snr_threshold, magnitude_threshold=magnitude_threshold)
 peak_data_list.append(peak_amplitude_df_mammoth_S)
 das_index_list.append(DAS_index_mammoth_S)
 
 #%% ==============================  Mammoth north data ========================================
-mammoth_N_peaks = '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/North/peak_amplitude.csv'
+mammoth_N_peaks = '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/North/peak_amplitude_events/peak_amplitude.csv'
 peak_amplitude_df_mammoth_N, DAS_index_mammoth_N = load_and_add_region(mammoth_N_peaks, region_label='mammothN', 
                                                                        snr_threshold=snr_threshold, magnitude_threshold=magnitude_threshold)
 peak_data_list.append(peak_amplitude_df_mammoth_N)
