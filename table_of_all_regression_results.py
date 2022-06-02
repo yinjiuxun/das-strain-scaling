@@ -55,7 +55,7 @@ for ii_region, results_output_dir in enumerate(results_output_dir_list):
     for nearby_channel_number in nearby_channel_numbers:
     #nearby_channel_number = nearby_channel_numbers[0]
     # for regression_dir in regression_dir_list:
-        regression_dir = regression_dir_list[1]
+        regression_dir = regression_dir_list[0]
 
         regP = sm.load(results_output_dir + '/' + regression_dir + f"/P_regression_combined_site_terms_{nearby_channel_number}chan.pickle")
         regS = sm.load(results_output_dir + '/' + regression_dir + f"/S_regression_combined_site_terms_{nearby_channel_number}chan.pickle")
@@ -79,10 +79,10 @@ for ii_column in range(2, 10):
 
 # 
 all_results_pd.iloc[:, 2:] = all_results_pd.iloc[:, 2:].astype('float')
-all_results_pd.to_csv('/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RM/all_coefficients_weighted.csv', 
+all_results_pd.to_csv('/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RM/all_coefficients_unweighted.csv', 
                     index=False, float_format='%.4f')
 # %%
-all_results_pd_unweighted = pd.read_csv('/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RM/all_coefficients.csv')
+all_results_pd_unweighted = pd.read_csv('/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RM/all_coefficients_unweighted.csv')
 all_results_pd_weighted = pd.read_csv('/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RM/all_coefficients_weighted.csv')
 all_results_pd_unweighted['weight'] = 'unweighted'
 all_results_pd_weighted['weight'] = 'weighted'
@@ -118,19 +118,34 @@ def plot_coefficients_seaborn(x_key, y_key, all_results_pd, ax, xlim=None, ylim=
 
     return g
 
-plot_coefficients_seaborn(x_key='region', y_key='mag coef. (P)', all_results_pd = all_results_pd, ax=ax[0, 0], ylim=[0.3, 0.75])
 
-plot_coefficients_seaborn(x_key='region', y_key='mag coef. (S)', all_results_pd = all_results_pd, ax=ax[0, 1], ylim=[0.3, 0.75])
+
+plot_coefficients_seaborn(x_key='region', y_key='mag coef. (P)', all_results_pd = all_results_pd, ax=ax[0, 0], ylim=[0.3, 1])
+
+plot_coefficients_seaborn(x_key='region', y_key='mag coef. (S)', all_results_pd = all_results_pd, ax=ax[0, 1], ylim=[0.3, 1])
 
 plot_coefficients_seaborn(x_key='region', y_key='dist coef. (P)', all_results_pd = all_results_pd, ax=ax[1, 0], ylim=[-1.6, -0.7])
 
 plot_coefficients_seaborn(x_key='region', y_key='dist coef. (S)', all_results_pd = all_results_pd, ax=ax[1, 1], ylim=[-1.6, -0.7])
 
+# Adding the Barbour et al. (2021) results
+# TODO: label the line with the values
+barbour_2021_coefficents = [0.92, -1.45]
+ax[0, 0].hlines(y=barbour_2021_coefficents[0], xmin=0, xmax=3, linestyle='--', color='k', linewidth=2)
+ax[0, 1].hlines(y=barbour_2021_coefficents[0], xmin=0, xmax=3, linestyle='--', color='k', linewidth=2)
+ax[1, 0].hlines(y=barbour_2021_coefficents[1], xmin=0, xmax=3, linestyle='--', color='k', linewidth=2)
+ax[1, 1].hlines(y=barbour_2021_coefficents[1], xmin=0, xmax=3, linestyle='--', color='k', linewidth=2, label='Barbour et al. (2021)')
 
 ax[0, 0].get_legend().remove()
 ax[0, 1].get_legend().remove()
 ax[1, 0].get_legend().remove()
-ax[1, 1].legend(loc='center left', bbox_to_anchor=(1, 0.5), title='site-term')
+
+my_label = ['all (OLS)', '10 (OLS)', '20 (OLS)', '50 (OLS)', '100 (OLS)', 
+'all (WLS)', '10 (WLS)', '20 (WLS)', '50 (WLS)', '100 (WLS)', 'Barbour et al. (2021)']
+L = ax[1, 1].legend(loc='center left', bbox_to_anchor=(-1.4, 2.5), ncol=6, title='regression coefficients')
+for i_L in range(len(L.get_texts())):
+    L.get_texts()[i_L].set_text(my_label[i_L])
+
 
 letter_list = [str(chr(k+97)) for k in range(0, 20)]
 k=0
