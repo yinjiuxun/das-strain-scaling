@@ -11,6 +11,7 @@ import pandas as pd
 from plotting_functions import *
 from utility_functions import *
 
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 # ==============================  Ridgecrest data ========================================
 #%% Specify the file names
 # results_output_dir = '/home/yinjx/kuafu/Ridgecrest/Ridgecrest_scaling/peak_ampliutde_scaling_results_strain_rate'
@@ -155,6 +156,110 @@ ax[1].set_ylabel('Site terms S')
 plt.figure(fig.number)
 plt.savefig(regression_results_dir + '/compare_site_terms.png', bbox_inches='tight')
 
+# %% Compare the regression parameters and site terms
+# compare with Yang 2022 for Ridgecrest 
+data = np.load('/kuafu/yinjx/Ridgecrest/Ridgecrest_scaling/site_amplification_Yang2022.npz')
+offset = -(data['offset'] - data['offset'][0])
+# compare with Tomography results from Ettore
+filename = "/kuafu/ebiondi/research/projects/LongValley/models/Profiles/DD_tomoCVM.npz"
+with np.load(filename, allow_pickle=True) as fid:
+    VpN = fid["VpN"]
+    VpS = fid["VpS"]
+    VsN = fid["VsN"]
+    VsS = fid["VsS"]
+
+    dzProf = fid["dz"][0]
+    ozProf = fid["oz"][0]
+nChN = VpN.shape[0]
+nChS = VpS.shape[0]
+nzProf = VpN.shape[1]
+
+depth_z = ozProf+np.arange(nzProf)*dzProf
+
+z_range = 1
+
+VpN_2km = np.nanmean(VpN[:, depth_z<=z_range], axis=1)
+VpS_2km = np.nanmean(VpS[:, depth_z<=z_range], axis=1)
+VsN_2km = np.nanmean(VsN[:, depth_z<=z_range], axis=1)
+VsS_2km = np.nanmean(VsS[:, depth_z<=z_range], axis=1)
+
+VpN_2km = (VpN_2km - np.mean(VpN_2km))*5+1.5
+VpS_2km = (VpS_2km - np.mean(VpS_2km))*5+1.5
+VsN_2km = (VsN_2km - np.mean(VsN_2km))*5+1.5
+VsS_2km = (VsS_2km - np.mean(VsS_2km))*5+1.5
+
+# fig, ax = plt.subplots(figsize=(20,16))
+# im = ax.imshow(VpN.T, cmap=plt.get_cmap("jet_r"),
+#                extent=[0, nCh, ozProf+(nzProf-1)*dzProf, ozProf], vmin=np.nanmin(VpN),
+#                vmax=np.nanmax(VpN), aspect=100.0)
+# ax.set_xlabel("Channel number")
+# ax.set_ylabel("z [km]")
+# # ax.set_xlim(min_x,max_x)
+# ax.grid()
+# axins = inset_axes(ax, width = "5%", height = "100%", loc = 'lower left',
+#                    bbox_to_anchor = (1.02, 0.0, 1, 1), bbox_transform = ax.transAxes,
+#                    borderpad = 0)
+# cbar = fig.colorbar(im, cax=axins, orientation='vertical')
+# cbar.set_label('Vp [km/s]')
+
+#%%
+fig, ax = plt.subplots(2, 1, figsize=(10, 12), sharex=True, sharey=True)
+combined_channel_number_list = [10, 20, 50, 100, -1] # -1 means the constant model
+# DataFrame to store parameters for all models
+P_parameters_comparison = pd.DataFrame(columns=['combined_channels', 'magnitude', 'distance', 'magnitude_err', 'distance_err'], 
+index = np.arange(len(combined_channel_number_list)))
+S_parameters_comparison = pd.DataFrame(columns=['combined_channels', 'magnitude', 'distance', 'magnitude_err', 'distance_err'],
+index = np.arange(len(combined_channel_number_list)))
+
+for i_model, combined_channel_number in enumerate(combined_channel_number_list):
+
+    regP = sm.load(regression_results_dir + f"/P_regression_combined_site_terms_{combined_channel_number}chan.pickle")
+    regS = sm.load(regression_results_dir + f"/S_regression_combined_site_terms_{combined_channel_number}chan.pickle")
+
+    peak_amplitude_df = combined_channels(DAS_index, peak_amplitude_df, combined_channel_number)
+    combined_channel_id = np.sort(peak_amplitude_df.combined_channel_id.unique())
+    
+# Compare all the site terms
+    site_term_P = regP.params[:-2]
+    site_term_S = regS.params[:-2]
+
+    if combined_channel_number == 1:
+        ax[0].plot(combined_channel_id*channel_space, 10**site_term_P, label=f'Individual site terms, Cond.# {regP.condition_number:.2f}')
+        ax[1].plot(combined_channel_id*channel_space, 10**site_term_S, label=f'Individual site terms, Cond.# {regS.condition_number:.2f}')
+    elif combined_channel_number == -1:
+        ax[0].hlines(10**site_term_P, xmin=DAS_index.min()*channel_space, xmax=DAS_index.max()*channel_space, color='gray', label=f'Same site terms')#, Cond.# {regP.condition_number:.2f}')
+        ax[1].hlines(10**site_term_S, xmin=DAS_index.min()*channel_space, xmax=DAS_index.max()*channel_space, color='gray', label=f'Same site terms')  #Cond.# {regS.condition_number:.2f}')
+    else:
+        ax[0].plot(combined_channel_id * combined_channel_number * channel_space, 10**np.array(site_term_P), '-', label=f'{combined_channel_number} channels')#, Cond.# {regP.condition_number:.2f}')
+        ax[1].plot(combined_channel_id * combined_channel_number * channel_space, 10**site_term_S, '-', label=f'{combined_channel_number} channels')#, Cond.# {regS.condition_number:.2f}')
+
+if region_label == 'ridgecrest':
+    ax[1].plot((np.arange(len(offset))+123)*channel_space, 10**data['log10S'], '-k', linewidth=3, label='S-wave site amplification\n from Yang et al., (2022)')
+    # ax[1].fill_between((np.arange(len(offset))+123)*channel_space, 10**(data['log10S']-data['log10Serr']), 10**(data['log10S']+ data['log10Serr']),
+    #                    color='r', alpha=0.2)
+    ax[1].plot((np.arange(len(offset))+123)*channel_space, data['vs30']/1000*10-1.5, '-r', linewidth=3, label='Vs30 from Yang et al., (2022)')
+                
+elif (region_label == 'mammothS'):
+    ax[0].plot(np.arange(nChS) * channel_space, VpS_2km, '-k', linewidth=3, label=f'P-wave velocity\n ({z_range}km) from Ettore')
+    ax[1].plot(np.arange(nChS) * channel_space, VsS_2km, '-k', linewidth=3, label=f'S-wave velocity\n ({z_range}km) from Ettore')
+
+elif (region_label == 'mammothN'):
+    ax[0].plot(np.arange(nChN) * channel_space, VpN_2km, '-k', linewidth=3, label=f'P-wave velocity\n ({z_range}km) from Ettore')
+    ax[1].plot(np.arange(nChN) * channel_space, VsN_2km, '-k', linewidth=3, label=f'S-wave velocity\n ({z_range}km) from Ettore')
+
+
+ax[0].legend(fontsize=12)
+ax[1].legend(fontsize=12, loc=1)
+ax[0].xaxis.set_tick_params(which='both',labelbottom=True)
+ax[0].set_xlabel('Distance along cable (km)')
+ax[1].set_xlabel('Distance along cable (km)')
+ax[0].set_ylabel('Site terms P')
+ax[1].set_ylabel('Site terms S')
+plt.figure(fig.number)
+plt.savefig(regression_results_dir + '/compare_site_terms.png', bbox_inches='tight')
+
+
+
 # %%
 # ==============================  Looking into the multiple array case ========================================
 # Specify the file names
@@ -164,8 +269,11 @@ results_output_dir = '/kuafu/yinjx/multi_array_combined_scaling/combined_strain_
 regression_results_dir = results_output_dir + '/regression_results_smf_weighted'
 
 # %% Compare the regression parameters and site terms
-fig, ax = plt.subplots(2, 1, figsize=(10, 18), sharex=True, sharey=True) # north
-fig2, ax2 = plt.subplots(2, 1, figsize=(10, 18), sharex=True, sharey=True) # south
+fig, ax = plt.subplots(3, 2, figsize=(20, 22))#, sharex=True, sharey=True)
+ax = ax.flatten()
+
+title_plot = ['Ridgecrest P', 'Ridgecrest S', 'Long Valley North P', 'Long Valley North S', 'Long Valley South P', 'Long Valley South S']
+
 combined_channel_number_list = [10, 20, 50, 100, -1] # -1 means the constant model
 for i_model, combined_channel_number in enumerate(combined_channel_number_list):
     peak_amplitude_df = pd.read_csv(results_output_dir + f'/peak_amplitude_region_site_{combined_channel_number}.csv')
@@ -179,51 +287,57 @@ for i_model, combined_channel_number in enumerate(combined_channel_number_list):
 
     
 # extract the site terms for different arrays
+    combined_channel_ridgecrest, site_term_P_ridgecrest = process_region_param_keys(regP, 'ridgecrest')
+    combined_channel_ridgecrest, site_term_S_ridgecrest = process_region_param_keys(regS, 'ridgecrest')
+
     combined_channel_north, site_term_P_north = process_region_param_keys(regP, 'mammothN')
     combined_channel_north, site_term_S_north = process_region_param_keys(regS, 'mammothN')
 
     combined_channel_south, site_term_P_south = process_region_param_keys(regP, 'mammothS')
     combined_channel_south, site_term_S_south = process_region_param_keys(regS, 'mammothS')
-   
-    if combined_channel_number == -1:
-        ax[0].hlines(site_term_P_north, xmin=0, xmax=5000, color='k', label=f'Same site terms')#, Cond.# {regP.condition_number:.2f}')
-        ax[1].hlines(site_term_S_north, xmin=0, xmax=5000, color='k', label=f'Same site terms')#, Cond.# {regS.condition_number:.2f}')
-                
-        ax2[0].hlines(site_term_P_south, xmin=0, xmax=5000, color='k', label=f'Same site terms')#, Cond.# {regP.condition_number:.2f}')
-        ax2[1].hlines(site_term_S_south, xmin=0, xmax=5000, color='k', label=f'Same site terms')#, Cond.# {regS.condition_number:.2f}')
-    else:
-        ax[0].plot(combined_channel_north * combined_channel_number, site_term_P_north, '-', label=f'{combined_channel_number} channels')#, Cond.# {regP.condition_number:.2f}')
-        ax[1].plot(combined_channel_north * combined_channel_number, site_term_S_north, '-', label=f'{combined_channel_number} channels')#, Cond.# {regS.condition_number:.2f}')
 
-        ax2[0].plot(combined_channel_south * combined_channel_number, site_term_P_south, '-', label=f'{combined_channel_number} channels')#, Cond.# {regP.condition_number:.2f}')
-        ax2[1].plot(combined_channel_south * combined_channel_number, site_term_S_south, '-', label=f'{combined_channel_number} channels')#, Cond.# {regS.condition_number:.2f}')
-    # reset the regression models
-    #del regP, regS
+    combined_channel_list_plot = [combined_channel_ridgecrest, combined_channel_ridgecrest, 
+                                  combined_channel_north, combined_channel_north,
+                                  combined_channel_south, combined_channel_south]
+    site_term_list_plot = [site_term_P_ridgecrest, site_term_S_ridgecrest,
+                           site_term_P_north, site_term_S_north,
+                           site_term_P_south, site_term_S_south]
+
+    for ii_region in range(0, 6):
+        gca = ax[ii_region]
+
+        if combined_channel_number == -1:
+            gca.hlines(site_term_list_plot[ii_region], xmin=0, xmax=len(combined_channel_list_plot[ii_region])*combined_channel_number, 
+            color='k', label=f'Same site terms')#, Cond.# {regP.condition_number:.2f}')
+
+        else:
+            gca.plot(combined_channel_list_plot[ii_region] * combined_channel_number, site_term_list_plot[ii_region],
+             '-', label=f'{combined_channel_number} channels')#, Cond.# {regP.condition_number:.2f}')
+
+        gca.set_xlabel('Channel number')
+        gca.set_ylabel('Site terms')
+        gca.set_title(title_plot[ii_region])
 
 ax[0].legend(fontsize=12)
-ax[1].legend(fontsize=12)
-ax[0].xaxis.set_tick_params(which='both',labelbottom=True)
-ax[0].set_xlabel('Channel number')
-ax[1].set_xlabel('Channel number')
-ax[0].set_ylabel('Site terms P')
-ax[1].set_ylabel('Site terms S')
-ax[0].set_title('Mammoth North array')
+gca.xaxis.set_tick_params(which='both',labelbottom=True)
 
-ax2[0].legend(fontsize=12)
-ax2[1].legend(fontsize=12)
-ax2[0].xaxis.set_tick_params(which='both',labelbottom=True)
-ax2[0].set_xlabel('Channel number')
-ax2[1].set_xlabel('Channel number') 
-ax2[0].set_ylabel('Site terms P')
-ax2[1].set_ylabel('Site terms S')
-ax2[0].set_title('Mammoth South array')
+
+# Adding annotation
+letter_list = [str(chr(k+97)) for k in range(0, 20)]
+k=0
+for gca in ax:
+    if gca is not None:
+        gca.annotate(f'({letter_list[k]})', xy=(-0.1, 1.0), xycoords=gca.transAxes)
+        k += 1
+
+
 #ax[1].invert_xaxis()
 
 plt.figure(fig.number)
-plt.savefig(regression_results_dir + '/compare_site_terms_north.png', bbox_inches='tight')
+plt.savefig(regression_results_dir + '/compare_site_terms_all.png', bbox_inches='tight')
 
-plt.figure(fig2.number)
-plt.savefig(regression_results_dir + '/compare_site_terms_south.png', bbox_inches='tight')
+# plt.figure(fig2.number)
+# plt.savefig(regression_results_dir + '/compare_site_terms_south.png', bbox_inches='tight')
 # %%
 # #Test parameters from strain meter (Not right)
 # fig, ax = plt.subplots(2, 1, figsize=(10, 12), sharex=True, sharey=True)
