@@ -169,7 +169,7 @@ das_info.to_csv('/kuafu/EventData/Sanriku_ERI/das_info.csv', index=False)
 data_folder = '/kuafu/EventData/Sanriku_ERI/data'
 fig_folder = data_folder + '/figures'
 
-i_event = 5580
+i_event = 1554
 
 eq_id = catalog.event_id[i_event]
 
@@ -234,7 +234,31 @@ gca.set_xlim(xmax=np.max(detect_channels))
 gca.set_xlabel('Channels')
 gca.set_ylabel('Time (s)')
 gca.set_title(f'ID: {eq_id}, {catalog.magnitude_type[i_event]} {catalog.magnitude[i_event]}, Pass QA: {QA}')
-plt.savefig(fig_folder + f'/{eq_id}.png', bbox_inches='tight')
-plt.close('all')
+# plt.savefig(fig_folder + f'/{eq_id}.png', bbox_inches='tight')
+# plt.close('all')
+
+# %%
+# Try bandpass filter the data
+from scipy.signal import butter, filtfilt
+dt_s = 1 / sampling_rate
+f_pass = 1
+aa, bb = butter(4, f_pass*2*dt_s, 'high')
+
+data_filter = filtfilt(aa, bb, event_data, axis=0)
+# %%
+pclip=90
+clipVal = np.percentile(np.absolute(event_data), pclip)
+
+fig, gca = plt.subplots(figsize=(8,4))
+gca.imshow(data_filter, 
+    extent=[0, event_data.shape[1], event_data.shape[0]/100, 0],
+    aspect='auto', vmin=-clipVal, vmax=clipVal, cmap=plt.get_cmap('seismic'))
+
+gca.plot(detect_channels, 20*np.ones(len(detect_channels)), 'g.', linewidth=4, markersize=5, alpha=0.6)
+
+gca.set_xlim(xmax=np.max(detect_channels))
+gca.set_xlabel('Channels')
+gca.set_ylabel('Time (s)')
+gca.set_title(f'ID: {eq_id}, {catalog.magnitude_type[i_event]} {catalog.magnitude[i_event]}, Pass QA: {QA}, highpass filtered {f_pass} Hz')
 
 # %%
