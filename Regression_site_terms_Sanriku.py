@@ -285,6 +285,7 @@ def plot_magnitude_seaborn(df_magnitude):
 
 # %% 
 # Use the site term to estimate magnitude
+M_threshold = [2, 10]
 peak_amplitude_df = peak_amplitude_df[(peak_amplitude_df.magnitude >= M_threshold[0]) & (peak_amplitude_df.magnitude <= M_threshold[1])]
 nearby_channel_number_list = [100, 50, 20, 10]
 
