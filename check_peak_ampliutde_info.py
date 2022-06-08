@@ -58,11 +58,6 @@ results_output_dir = '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain
 das_pick_file_folder = '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/South/peak_amplitude_events'
 gmt_region = [-120, -117.5, 36.5, 39]
 
-# # Japan submarine
-# event_folder = '/kuafu/yinjx/Japan_DAS'
-# results_output_dir = '/kuafu/yinjx/Japan/peak_ampliutde_scaling_results_strain_rate'
-# gmt_region = [141, 143, 38, 40]
-
 snr_threshold = 10
 magnitude_threshold = [2, 10]
 #%% Common part of code
@@ -196,19 +191,24 @@ fig.savefig(results_output_dir + '/map_of_earthquakes_GMT.png')
 #%% 
 # Combine all regions (Ridgecrest + Mammoth N and S)
 # Specify the file names
-combined_results_output_dir = '/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RM'
+combined_results_output_dir = '/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RMS'
 gmt_region = [-120, -117, 35, 39]
 
-event_folder_list = ['/kuafu/EventData/Ridgecrest', '/kuafu/EventData/Mammoth_north', '/kuafu/EventData/Mammoth_south']
+event_folder_list = ['/kuafu/EventData/Ridgecrest', '/kuafu/EventData/Mammoth_north', 
+                     '/kuafu/EventData/Mammoth_south', '/kuafu/EventData/Sanriku_ERI']
+
 results_output_dir_list = ['/kuafu/yinjx/Ridgecrest/Ridgecrest_scaling/peak_amplitude_scaling_results_strain_rate',
                            '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/North',
-                           '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/South']
+                           '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/South',
+                           '/kuafu/yinjx/Sanriku/peak_ampliutde_scaling_results_strain_rate']
+
 das_pick_file_folder_list = ['/kuafu/yinjx/Ridgecrest/Ridgecrest_scaling/peak_amplitude_events',
                              '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/North/peak_amplitude_events',
-                             '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/South/peak_amplitude_events']
+                             '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/South/peak_amplitude_events',
+                             '/kuafu/yinjx/Sanriku/peak_ampliutde_scaling_results_strain_rate/peak_amplitude_events']
 
 
-region_label = ['RC', 'LV-N', 'LV-S']
+region_label = ['RC', 'LV-N', 'LV-S', 'Sanriku']
 
 snr_threshold = 10
 magnitude_threshold = [2, 10]
@@ -232,9 +232,12 @@ for i_region in range(len(event_folder_list)):
     peak_df_file = das_pick_file_folder_list[i_region] + '/' + das_pick_file_name
     # Load the peak amplitude results
     peak_amplitude_df = pd.read_csv(peak_df_file)
-    peak_amplitude_df = peak_amplitude_df[(peak_amplitude_df.snrP >= snr_threshold) & (peak_amplitude_df.snrS >= snr_threshold)]
+    peak_amplitude_df = peak_amplitude_df[(peak_amplitude_df.snrP >= snr_threshold) | (peak_amplitude_df.snrS >= snr_threshold)]
     peak_amplitude_df = peak_amplitude_df[(peak_amplitude_df.magnitude >= magnitude_threshold[0]) & (peak_amplitude_df.magnitude <= magnitude_threshold[1])]
     peak_amplitude_df['Array'] = region_label[i_region]
+
+    # if i_region == 3: # TODO: due to unknown reason, the Sanriku data need to multiply this...
+    #     peak_amplitude_df.peak_S = peak_amplitude_df.peak_S * 1e2
 
     peak_amplitude_df_all = pd.concat((peak_amplitude_df_all, peak_amplitude_df), axis=0, ignore_index=True)
 
@@ -332,10 +335,10 @@ if add_possible_clipping:
     g.axes[1,0].plot(M_clipping, D_clipping_RC_P, '-', color='#7DC0A6', linewidth=2.5)
     g.axes[1,0].plot(M_clipping, D_clipping_LV_N_P, '-', color='#ED926B', linewidth=2.5)
     g.axes[1,0].plot(M_clipping, D_clipping_LV_S_P, '-', color='#91A0C7', linewidth=2.5)
-    # g.axes[1,0].plot(M_clipping, D_clipping_RC_S, '--', color='#7DC0A6', linewidth=2.5)
-    # g.axes[1,0].plot(M_clipping, D_clipping_LV_N_S, '--', color='#ED926B', linewidth=2.5)
-    # g.axes[1,0].plot(M_clipping, D_clipping_LV_S_S, '--', color='#91A0C7', linewidth=2.5)
 
+# show the Sanriku data
+g.axes[3,0].plot(peak_amplitude_df.magnitude, np.log10(peak_amplitude_df.peak_S), '.', markersize=1, color='#DA8EC0', alpha=0.5)
+g.axes[3,1].plot(np.log10(peak_amplitude_df.distance_in_km), np.log10(peak_amplitude_df.peak_S), '.', markersize=1, color='#DA8EC0', alpha=0.5)
 
 g.axes[0,0].set_title('magnitude')
 g.axes[0,0].tick_params(labelbottom=True)
@@ -364,8 +367,8 @@ g.axes[3,3].set_xlim((-2,2.5))
 g.axes[2,0].set_xticks(np.arange(0,10))
 g.axes[2,0].set_xlim(1.5, 6)
 g.axes[2,1].set_xticks(np.arange(0,3,1))
-g.axes[2,1].set_xlim((0, 2.3))
-g.axes[3,1].set_xlim((0, 2.3))
+g.axes[2,1].set_xlim((0, 3))
+g.axes[3,1].set_xlim((0, 3)) # 2.3
 
 # Adding annotation
 letter_list = [str(chr(k+97)) for k in range(0, 20)]
@@ -462,21 +465,24 @@ fig.savefig(combined_results_output_dir + '/map_of_earthquakes_GMT.png')
 #%% Temporal use for Japan data
 
 # Japan submarine
-event_folder = '/kuafu/yinjx/Japan_DAS'
-results_output_dir = '/kuafu/yinjx/Japan/peak_ampliutde_scaling_results_strain_rate'
-gmt_region = [141, 143, 38.5, 40]
+event_folder = '/kuafu/EventData/Sanriku_ERI'
+results_output_dir = '/kuafu/yinjx/Sanriku/peak_ampliutde_scaling_results_strain_rate'
+das_pick_file_folder = '/kuafu/yinjx/Sanriku/peak_ampliutde_scaling_results_strain_rate/peak_amplitude_events'
+gmt_region = [140, 145, 35, 42]
 
 snr_threshold = 10
 magnitude_threshold = [2, 10]
-DAS_info_files = event_folder + '/das_info.csv'
-# catalog_file =  event_folder + '/catalog.csv'
 
-# das_pick_file_name = '/peak_amplitude.csv'
-# peak_df_file = results_output_dir + '/' + das_pick_file_name
-# # Load the peak amplitude results
-# peak_amplitude_df = pd.read_csv(peak_df_file)
-# peak_amplitude_df = peak_amplitude_df[(peak_amplitude_df.snrP >= snr_threshold) & (peak_amplitude_df.snrS >= snr_threshold)]
-# peak_amplitude_df = peak_amplitude_df[(peak_amplitude_df.magnitude >= magnitude_threshold[0]) & (peak_amplitude_df.magnitude <= magnitude_threshold[1])]
+#%% Common part of code
+DAS_info_files = event_folder + '/das_info.csv'
+catalog_file =  event_folder + '/catalog.csv'
+
+das_pick_file_name = '/peak_amplitude.csv'
+peak_df_file = das_pick_file_folder + '/' + das_pick_file_name
+# Load the peak amplitude results
+peak_amplitude_df = pd.read_csv(peak_df_file)
+peak_amplitude_df = peak_amplitude_df[(peak_amplitude_df.snrP >= snr_threshold) | (peak_amplitude_df.snrS >= snr_threshold)]
+peak_amplitude_df = peak_amplitude_df[(peak_amplitude_df.magnitude >= magnitude_threshold[0]) & (peak_amplitude_df.magnitude <= magnitude_threshold[1])]
 
 #  load the information about the Ridgecrest DAS channel
 DAS_info = pd.read_csv(DAS_info_files)
@@ -485,17 +491,76 @@ DAS_index = DAS_info['index'].astype('int')
 DAS_lon = DAS_info.longitude
 DAS_lat = DAS_info.latitude
 
-# catalog_Ridgecrest = pd.read_csv(catalog_file)
-# # Find events in the pick file
-# event_id_selected_Ridgecrest = np.unique(peak_amplitude_df['event_id'])
-# catalog_select = catalog_Ridgecrest[catalog_Ridgecrest.event_id.isin(event_id_selected_Ridgecrest)]
-# num_events_Ridgecrest = catalog_select.shape[0]
-# event_lon = catalog_select.longitude
-# event_lat = catalog_select.latitude
-# event_id = catalog_select.event_id
+catalog = pd.read_csv(catalog_file)
+# Find events in the pick file
+event_id_selected = np.unique(peak_amplitude_df['event_id'])
+catalog_select = catalog[catalog.event_id.isin(event_id_selected)]
+num_events = catalog_select.shape[0]
+event_lon = catalog_select.longitude
+event_lat = catalog_select.latitude
+event_id = catalog_select.event_id
 
-# # Add the event label for plotting
-# peak_amplitude_df = add_event_label(peak_amplitude_df)
+# Add the event label for plotting
+peak_amplitude_df = add_event_label(peak_amplitude_df)
+
+#%%
+# plot time variation of events
+time_list = [obspy.UTCDateTime(parser.parse(time)) for time in catalog_select.event_time]
+time_span = np.array([time-time_list[0] for time in time_list])
+time_span_days = time_span/3600/24
+
+fig, ax = plt.subplots(figsize=(10, 8))
+ax.plot(time_span_days, catalog_select.magnitude, 'o')
+ax.set_xlabel(f'Days from the {time_list[0].isoformat()[:10]}')
+ax.set_ylabel('magnitude')
+plt.savefig(results_output_dir + '/time_variation_selected_earthquakes.png', bbox_inches='tight')
+
+# plot map
+fig, ax = plt.subplots(figsize=(7, 6))
+cmp = ax.scatter(DAS_lon, DAS_lat, s=10, c='r')
+ax.scatter(event_lon, event_lat, s=10**(catalog_select.magnitude/5), c='k')
+#fig.colorbar(cmp)
+plt.savefig(results_output_dir + '/map_of_earthquakes_not_grouped.png', bbox_inches='tight')
+
+# plot data statistics
+peak_amplitude_df_temp = peak_amplitude_df#.iloc[::5, :]
+peak_amplitude_df_temp['log10(distance)'] = np.log10(peak_amplitude_df_temp.distance_in_km)
+peak_amplitude_df_temp['log10(peak_P)'] = np.log10(peak_amplitude_df_temp.peak_P) + 2
+peak_amplitude_df_temp['log10(peak_S)'] = np.log10(peak_amplitude_df_temp.peak_S) + 2
+peak_amplitude_df_temp['P/S'] = peak_amplitude_df_temp.peak_P/peak_amplitude_df_temp.peak_S
+plt.figure(figsize=(14,8))
+g = sns.pairplot(peak_amplitude_df_temp[['magnitude','log10(distance)', 'log10(peak_P)','log10(peak_S)']], kind='hist', diag_kind="kde", corner=True)
+g.axes[1,0].set_yticks(np.arange(0,10))
+g.axes[1,0].set_ylim((1, 3))
+
+g.axes[2,0].set_yticks(np.arange(-3,5))
+g.axes[2,0].set_ylim((-2,2))
+g.axes[2,1].set_ylim((-2,2))
+
+g.axes[3,0].set_yticks(np.arange(-3,5))
+g.axes[3,0].set_ylim((-2,2.5))
+g.axes[3,1].set_ylim((-2,2.5))
+g.axes[3,2].set_ylim((-2,2.5))
+g.axes[3,2].set_xticks(np.arange(-3,5))
+g.axes[3,2].set_xlim((-2,2.5))
+g.axes[3,3].set_xlim((-2,2.5))
+
+g.axes[2,0].set_xticks(np.arange(0,10))
+g.axes[2,0].set_xlim(1.5, 6)
+g.axes[2,1].set_xticks(np.arange(0,3,1))
+g.axes[2,1].set_xlim((0, 2.3))
+g.axes[3,1].set_xlim((1, 3))
+
+
+# Adding annotation
+letter_list = [str(chr(k+97)) for k in range(0, 20)]
+k=0
+for gca in g.axes.flatten():
+    if gca is not None:
+        gca.annotate(f'({letter_list[k]})', xy=(0.05, 0.95), xycoords=gca.transAxes)
+        k += 1
+        
+plt.savefig(results_output_dir + '/data_statistics.png')
 
 #%%
 # Plot both arrays
@@ -514,9 +579,9 @@ pygmt.config(FORMAT_GEO_MAP="ddd.x", MAP_FRAME_TYPE="plain", FONT_ANNOT_PRIMARY=
 
 fig.basemap(region=gmt_region, 
 projection=projection, 
-frame=['WSrt+t""', "xa0.5", "ya0.5"]
+frame=['WSrt+t""', "xa2.0", "ya2.0"]
 )
-pygmt.makecpt(cmap="geo", series=[-2000, 2000])
+pygmt.makecpt(cmap="geo", series=[-8000, 8000])
 fig.grdimage(
     grid=grid,
     projection=projection,
@@ -525,8 +590,7 @@ fig.grdimage(
     transparency=20
 )
 
-# fig.plot(x=catalog_select_all.longitude, y=catalog_select_all.latitude, style="c0.1c", color="black")
-
+fig.plot(x=catalog_select.longitude.astype('float'), y=catalog_select.latitude.astype('float'), style="c0.2c", color="black")
 fig.plot(x=DAS_info.longitude[::10], y=DAS_info.latitude[::10], style="c0.1c", color="blue")
 
 # fig.text(text="Mammoth", x=-119.5, y=38)
@@ -563,15 +627,4 @@ fig.savefig(results_output_dir + '/map_of_earthquakes_GMT.png')
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
+# %%
