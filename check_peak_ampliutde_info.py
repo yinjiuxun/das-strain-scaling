@@ -324,8 +324,8 @@ if add_possible_clipping:
     M_clipping = np.arange(2, 9)
     # P clipping
     D_clipping_RC_P = M_clipping*5/14 - (2-0.615)/1.4
-    D_clipping_LV_N_P = M_clipping*5/14 - (2-0.391)/1.4
-    D_clipping_LV_S_P = M_clipping*5/14 - (2-0.277)/1.4
+    D_clipping_LV_N_P = M_clipping*5/14 - (1.5-0.391)/1.4
+    D_clipping_LV_S_P = M_clipping*5/14 - (1.5-0.277)/1.4
 
     # # S clipping
     # D_clipping_RC_S = M_clipping*0.57/1.21 - (2-0.615)/1.21
@@ -337,6 +337,7 @@ if add_possible_clipping:
     g.axes[1,0].plot(M_clipping, D_clipping_LV_S_P, '-', color='#91A0C7', linewidth=2.5)
 
 # show the Sanriku data
+g.axes[1,0].plot(peak_amplitude_df.magnitude, np.log10(peak_amplitude_df.distance_in_km), '.', markersize=1, color='#DA8EC0', alpha=0.5)
 g.axes[3,0].plot(peak_amplitude_df.magnitude, np.log10(peak_amplitude_df.peak_S), '.', markersize=1, color='#DA8EC0', alpha=0.5)
 g.axes[3,1].plot(np.log10(peak_amplitude_df.distance_in_km), np.log10(peak_amplitude_df.peak_S), '.', markersize=1, color='#DA8EC0', alpha=0.5)
 
@@ -350,7 +351,7 @@ g.axes[3,3].set_title('log10(peak_S)')
 g.axes[3,3].tick_params(labelbottom=True)
 
 g.axes[1,0].set_yticks(np.arange(0,10))
-g.axes[1,0].set_ylim((0, 2.3))
+g.axes[1,0].set_ylim((0, 3))
 
 g.axes[2,0].set_yticks(np.arange(-3,5))
 g.axes[2,0].set_ylim((-2,2.5))
@@ -591,6 +592,12 @@ fig.grdimage(
 )
 
 fig.plot(x=catalog_select.longitude.astype('float'), y=catalog_select.latitude.astype('float'), style="c0.2c", color="black")
+
+# show the werid 4130 event
+event_4130 = catalog_select[catalog_select.event_id == 4130]
+fig.plot(x=event_4130.longitude.astype('float'), y=event_4130.latitude.astype('float'), style="c0.2c", color="red")
+fig.text(text="4130", x=event_4130.longitude.astype('float')+0.15, y=event_4130.latitude.astype('float'),color="red")
+
 fig.plot(x=DAS_info.longitude[::10], y=DAS_info.latitude[::10], style="c0.1c", color="blue")
 
 # fig.text(text="Mammoth", x=-119.5, y=38)
