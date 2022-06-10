@@ -293,7 +293,7 @@ plt.savefig(combined_results_output_dir + '/time_variation_selected_earthquakes_
 
 
 #%% plot data statistics
-add_possible_clipping = True
+add_possible_clipping = False
 peak_amplitude_df_temp = peak_amplitude_df_all.iloc[::1, :]
 peak_amplitude_df_temp['log10(distance)'] = np.log10(peak_amplitude_df_temp.distance_in_km.astype('float'))
 peak_amplitude_df_temp['log10(peak_P)'] = np.log10(peak_amplitude_df_temp.peak_P.astype('float'))
@@ -326,15 +326,17 @@ if add_possible_clipping:
     D_clipping_RC_P = M_clipping*5/14 - (2-0.615)/1.4
     D_clipping_LV_N_P = M_clipping*5/14 - (1.5-0.391)/1.4
     D_clipping_LV_S_P = M_clipping*5/14 - (1.5-0.277)/1.4
-
-    # # S clipping
-    # D_clipping_RC_S = M_clipping*0.57/1.21 - (2-0.615)/1.21
-    # D_clipping_LV_N_S = M_clipping*0.57/1.21 - (2-0.391)/1.21
-    # D_clipping_LV_S_S = M_clipping*0.57/1.21 - (2-0.277)/1.21
+    
+    # S clipping
+    D_clipping_RC_S = M_clipping*0.57/1.21 - (2-0.615)/1.21
+    D_clipping_LV_N_S = M_clipping*0.57/1.21 - (1.5-0.391)/1.21
+    D_clipping_LV_S_S = M_clipping*0.57/1.21 - (1.5-0.277)/1.21
+    D_clipping_Sanriku_S = M_clipping*0.57/1.21 - (0.5 - (-0.6))/1.21
 
     g.axes[1,0].plot(M_clipping, D_clipping_RC_P, '-', color='#7DC0A6', linewidth=2.5)
     g.axes[1,0].plot(M_clipping, D_clipping_LV_N_P, '-', color='#ED926B', linewidth=2.5)
     g.axes[1,0].plot(M_clipping, D_clipping_LV_S_P, '-', color='#91A0C7', linewidth=2.5)
+    g.axes[1,0].plot(M_clipping, D_clipping_Sanriku_S, '--', color='#DA8EC0', linewidth=2.5)
 
 # show the Sanriku data
 g.axes[1,0].plot(peak_amplitude_df.magnitude, np.log10(peak_amplitude_df.distance_in_km), '.', markersize=1, color='#DA8EC0', alpha=0.5)

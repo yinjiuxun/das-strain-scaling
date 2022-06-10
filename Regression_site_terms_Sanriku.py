@@ -203,7 +203,9 @@ snr_threshold = 10
 M_threshold = [2, 10]
 peak_amplitude_df_fit, DAS_index = load_and_add_region(das_pick_file_folder + '/' + das_pick_file_name, 
                                                    region_label=region_label, snr_threshold=snr_threshold)
-peak_amplitude_df_fit = peak_amplitude_df_fit[(peak_amplitude_df_fit.magnitude >= M_threshold[0]) & (peak_amplitude_df_fit.magnitude <= M_threshold[1])]
+peak_amplitude_df_fit = peak_amplitude_df_fit[(peak_amplitude_df_fit.magnitude >= M_threshold[0]) & 
+                                              (peak_amplitude_df_fit.magnitude <= M_threshold[1]) &
+                                              (peak_amplitude_df_fit.QA == 'Yes')]
 
 # Preprocessing the peak amplitude data
 #peak_amplitude_df = peak_amplitude_df.dropna()
@@ -215,7 +217,7 @@ fit_data_info_str = f'================ {len(peak_amplitude_df_fit.event_id.uniqu
                     f'{peak_amplitude_df_fit.shape[0]} measurements \n\n'
 print(fit_data_info_str)
 
-#%% 
+#%% ==========================================================================================
 # Fit the site term only
 # Regression OLS
 if region_label == 'sanriku':
@@ -238,7 +240,7 @@ if region_label == 'sanriku':
         given_coefficients = given_coefficients_list[ii]
         regP, regS = fit_regression_magnitude_range(peak_amplitude_df_fit, M_threshold, regression_results_dir, nearby_channel_number, given_coefficients=given_coefficients)
 
-#%% 
+#%% ==========================================================================================
 # Regression with weight
 if region_label == 'sanriku':
     given_coefficients_list = [[np.nan, np.nan, 0.586, -1.203],
@@ -261,7 +263,7 @@ if region_label == 'sanriku':
         regP, regS = fit_regression_with_weight_magnitude_range(peak_amplitude_df_fit, M_threshold, regression_results_dir, nearby_channel_number, given_coefficients=given_coefficients)
 
 
-#%% 
+#%% ==========================================================================================
 # Fit the all coefficients
 # Regression OLS
 if region_label == 'sanriku':
@@ -278,7 +280,7 @@ if region_label == 'sanriku':
         peak_amplitude_df_fit = combined_channels(DAS_index, peak_amplitude_df_fit, nearby_channel_number)
         regP, regS = fit_regression_magnitude_range(peak_amplitude_df_fit, M_threshold, regression_results_dir, nearby_channel_number, given_coefficients=None)
 
-#%% 
+#%% ==========================================================================================
 # Regression with weight
 if region_label == 'sanriku':
     nearby_channel_number_list = [100, 50, 20, 10]
@@ -295,7 +297,7 @@ if region_label == 'sanriku':
         regP, regS = fit_regression_with_weight_magnitude_range(peak_amplitude_df_fit, M_threshold, regression_results_dir, nearby_channel_number, given_coefficients=None)
 
 
-#%%
+#%% ==========================================================================================
 # Regression without weight, drop the event 4130
 peak_amplitude_df_fit_drop = peak_amplitude_df_fit.drop(index = peak_amplitude_df_fit[peak_amplitude_df_fit.event_id == 4130].index)
 if region_label == 'sanriku':
@@ -329,7 +331,7 @@ if region_label == 'sanriku':
         regP, regS = fit_regression_with_weight_magnitude_range(peak_amplitude_df_fit_drop, M_threshold, regression_results_dir, nearby_channel_number, given_coefficients=None)
 
 
-# %% 
+# %% ==========================================================================================
 # Validate the strain rate 
 import seaborn as sns
 def plot_prediction_vs_measure_seaborn(peak_comparison_df, xy_range, phase):
@@ -355,7 +357,11 @@ def plot_prediction_vs_measure_seaborn(peak_comparison_df, xy_range, phase):
     g.ax_joint.set_ylabel('calculated peak')
     return g
 
-regression_results_dir = results_output_dir + '/regression_results_smf_all_coefficients'
+regression_results_dir = results_output_dir + '/regression_results_smf_all_coefficients_drop_4130'
+peak_amplitude_df_fit = peak_amplitude_df_fit.drop(index = peak_amplitude_df_fit[peak_amplitude_df_fit.event_id == 4130].index)
+# regression_results_dir = results_output_dir + '/regression_results_smf_weighted_all_coefficients'
+
+
 if_given_coefficents = False
 
 
@@ -393,10 +399,11 @@ for ii, combined_channel_number in enumerate(nearby_channel_number_list):
 
 
 
-#%% check those 'bad' ones
+#%% ==========================================================================================
+# check those 'special' ones
 print(peak_amplitude_df_fit[peak_amplitude_calculated >1].event_id.unique())
 
-id_to_check = 4130
+id_to_check = 3734
 ii = peak_amplitude_df_fit.event_id == id_to_check
 measured = peak_amplitude_df_fit[ii].peak_S
 calculated = peak_amplitude_calculated[ii]
@@ -408,7 +415,11 @@ gca.loglog([1e-2, 1e2], [1e-2, 1e2], '-k')
 gca.set_xlim(1e-2, 1e1)
 gca.set_ylim(1e-2, 1e1)
 
-#%% look into 4130
+#%% look into waveforms
+# 4130 is a special bad case that may not be S wave
+# 3734 (M4.7), 1580 (M5.4) are two large event in the prediction dataset
+id_to_check = 3734
+
 from scipy.signal import butter, filtfilt
 
 def apply_highpass_filter(event_data, f_pass, dt):
@@ -432,7 +443,7 @@ def show_event_data(event_data, das_time, gca, pclip=99.5):
 
 event_folder = '/kuafu/EventData/Sanriku_ERI/data'
 catalog = pd.read_csv('/kuafu/EventData/Sanriku_ERI/catalog.csv')
-event_data, event_info = load_event_data(event_folder, 4130)
+event_data, event_info = load_event_data(event_folder, id_to_check)
 das_time = np.arange(0, event_data.shape[0]) * event_info['dt_s']
 
 # Show data
@@ -441,16 +452,17 @@ event_data = apply_highpass_filter(event_data, 0.5, event_info['dt_s'])
 fig, ax = plt.subplots(2, 1, figsize=(10,10), sharey=True)
 gca = ax[1]
 gca = show_event_data(event_data, das_time, gca, pclip=85)
-gca.set_ylim(0,30)
+gca.set_ylim(10,40)
 
 gca = ax[0]
 gca.plot(event_data[:, ::1000] + np.cumsum(1*np.ones((event_data[:, ::1000].shape[1]))), das_time, linewidth=0.5)
 gca.set_xticklabels('')
-gca.set_ylim(0,30)
+gca.set_ylim(10,40)
 
-plt.savefig(results_output_dir + '/outlier_4130_waveforms.png', bbox_inches='tight')
+plt.savefig(results_output_dir + f'/event_{id_to_check}_waveforms.png', bbox_inches='tight')
 
-# %% Check site terms
+# %% ==========================================================================================
+# Check site terms
 # regression_results_dir = results_output_dir + '/regression_results_smf_weighted'
 regression_results_dir = results_output_dir + '/regression_results_smf'
 
@@ -487,7 +499,7 @@ gca.legend(loc=1, fontsize=14)
 plt.savefig(regression_results_dir + '/site_terms.png', bbox_inches='tight')
 
 
-# %% 
+# %% ==========================================================================================
 # Apply to more data to predict the magnitude
 import seaborn as sns
 def plot_magnitude_seaborn(df_magnitude):
@@ -514,7 +526,7 @@ def plot_magnitude_seaborn(df_magnitude):
 
     return g
 
-# %% 
+# %% ==========================================================================================
 # Use the site term to estimate magnitude
 # Load the peak amplitude results
 snr_threshold = 5
@@ -529,23 +541,25 @@ peak_amplitude_df_predict = add_event_label(peak_amplitude_df_predict)
 
 peak_amplitude_df_predict = peak_amplitude_df_predict.drop(index=peak_amplitude_df_fit.index)
       
-peak_amplitude_df_predict = peak_amplitude_df_predict[(peak_amplitude_df_predict.magnitude >= M_threshold[0]) & (peak_amplitude_df_predict.magnitude <= M_threshold[1])]
+peak_amplitude_df_predict = peak_amplitude_df_predict[(peak_amplitude_df_predict.magnitude >= M_threshold[0]) & 
+                                                      (peak_amplitude_df_predict.magnitude <= M_threshold[1]) & 
+                                                      (peak_amplitude_df_predict.QA == 'Yes')]
 predict_data_info_str = f'================ {len(peak_amplitude_df_predict.event_id.unique())} events for validation =============\n' + \
                         f'SNR >= {snr_threshold} \n' + \
                         f'Magnitude: {M_threshold} \n' + \
                         f'{peak_amplitude_df_predict.shape[0]} measurements \n\n'
 print(predict_data_info_str)
 
-#%%
-# do the magnitude estimation with the regressio results
-regression_results_dir = results_output_dir + '/regression_results_smf_weighted_all_coefficients'
+#%% ==========================================================================================
+# do the magnitude estimation with the regression results
+regression_results_dir = results_output_dir + '/regression_results_smf_weighted'
 # regression_results_dir = results_output_dir + '/regression_results_smf_weighted'
 
 given_coefficients_list = [[0.586, -1.203],
                            [0.59, -1.218],
                            [0.602, -1.25],
                            [0.613, -1.281]]
-given_coefficients_list = [None, None, None, None]
+# given_coefficients_list = [None, None, None, None]
 
 nearby_channel_number_list = [100, 50, 20, 10]
 for ii, nearby_channel_number in enumerate(nearby_channel_number_list):
@@ -573,7 +587,8 @@ for ii, nearby_channel_number in enumerate(nearby_channel_number_list):
     gca.savefig(regression_results_dir + f"/predicted_magnitude_S_{nearby_channel_number}_seaborn.png",bbox_inches='tight')
     plt.close('all')
 
-#%% write some data info
+#%% ==========================================================================================
+# write some data info
 with open(results_output_dir + '/data_info.txt', 'w') as f:
     f.write(fit_data_info_str)
     f.write(predict_data_info_str)
