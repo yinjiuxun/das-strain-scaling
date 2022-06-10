@@ -269,3 +269,17 @@ for ii_region in [0]:
     temp_df.to_csv(peak_amplitude_dir + '/peak_amplitude.csv', index=False)
 
 # %%
+# Attach the QA factor
+peak_amplitude_dir = '/kuafu/yinjx/Sanriku/peak_ampliutde_scaling_results_strain_rate/peak_amplitude_events'
+peak_amplitude_df = pd.read_csv(peak_amplitude_dir + '/peak_amplitude.csv')
+peak_amplitude_df['QA'] = np.nan
+
+event_id_list = peak_amplitude_df.event_id.unique()
+pick_path = '/kuafu/EventData/Sanriku_ERI/matched_filter_detections'
+for event_id in event_id_list:
+    temp_npz = np.load(pick_path + f'/{event_id}_MF_detect.npz', allow_pickle=True)
+    QA = temp_npz['QA']
+
+    peak_amplitude_df.loc[peak_amplitude_df.event_id == event_id, 'QA'] = QA
+
+peak_amplitude_df.to_csv(peak_amplitude_dir + '/peak_amplitude.csv', index=False)
