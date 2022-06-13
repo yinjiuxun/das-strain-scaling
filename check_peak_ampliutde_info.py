@@ -192,6 +192,7 @@ fig.savefig(results_output_dir + '/map_of_earthquakes_GMT.png')
 # Combine all regions (Ridgecrest + Mammoth N and S)
 # Specify the file names
 combined_results_output_dir = '/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RMS'
+# combined_sresults_output_dir = '/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RM'
 gmt_region = [-120, -117, 35, 39]
 
 event_folder_list = ['/kuafu/EventData/Ridgecrest', '/kuafu/EventData/Mammoth_north', 
@@ -212,6 +213,8 @@ region_label = ['RC', 'LV-N', 'LV-S', 'Sanriku']
 
 snr_threshold = 10
 magnitude_threshold = [2, 10]
+
+snr_threshold_Sanriku = 5
 #%% Combined all data
 peak_amplitude_df_all = pd.DataFrame(columns=['event_id', 'magnitude', 'channel_id', 'distance_in_km', 'snrP', 'snrS',
        'peak_P', 'peak_P_1s', 'peak_P_3s', 'peak_P_4s', 'peak_P_time',
@@ -232,8 +235,13 @@ for i_region in range(len(event_folder_list)):
     peak_df_file = das_pick_file_folder_list[i_region] + '/' + das_pick_file_name
     # Load the peak amplitude results
     peak_amplitude_df = pd.read_csv(peak_df_file)
-    peak_amplitude_df = peak_amplitude_df[(peak_amplitude_df.snrP >= snr_threshold) | (peak_amplitude_df.snrS >= snr_threshold)]
-    peak_amplitude_df = peak_amplitude_df[(peak_amplitude_df.magnitude >= magnitude_threshold[0]) & (peak_amplitude_df.magnitude <= magnitude_threshold[1])]
+    if region_label[i_region] != 'Sanriku':
+        peak_amplitude_df = peak_amplitude_df[(peak_amplitude_df.snrP >= snr_threshold) | (peak_amplitude_df.snrS >= snr_threshold)]
+        peak_amplitude_df = peak_amplitude_df[(peak_amplitude_df.magnitude >= magnitude_threshold[0]) & (peak_amplitude_df.magnitude <= magnitude_threshold[1])]
+    else:
+        peak_amplitude_df = peak_amplitude_df[peak_amplitude_df.QA == 'Yes']
+        peak_amplitude_df = peak_amplitude_df[(peak_amplitude_df.snrP >= snr_threshold_Sanriku) | (peak_amplitude_df.snrS >= snr_threshold_Sanriku)] 
+    
     peak_amplitude_df['Array'] = region_label[i_region]
 
     # if i_region == 3: # TODO: due to unknown reason, the Sanriku data need to multiply this...
@@ -321,27 +329,34 @@ g._legend.set_bbox_to_anchor((0.3, 0.9))
 
 # This part is a little tricky for now.
 if add_possible_clipping:
-    M_clipping = np.arange(2, 9)
+    M_clipping = np.arange(0, 9)
     # P clipping
-    D_clipping_RC_P = M_clipping*5/14 - (2-0.615)/1.4
-    D_clipping_LV_N_P = M_clipping*5/14 - (1.5-0.391)/1.4
-    D_clipping_LV_S_P = M_clipping*5/14 - (1.5-0.277)/1.4
+    D_clipping_RC_P = M_clipping*5/14 - (2.06-0.615)/1.4
+    D_clipping_LV_N_P = M_clipping*5/14 - (1.54-0.391)/1.4
+    D_clipping_LV_S_P = M_clipping*5/14 - (1.30-0.277)/1.4
     
     # S clipping
-    D_clipping_RC_S = M_clipping*0.57/1.21 - (2-0.615)/1.21
-    D_clipping_LV_N_S = M_clipping*0.57/1.21 - (1.5-0.391)/1.21
-    D_clipping_LV_S_S = M_clipping*0.57/1.21 - (1.5-0.277)/1.21
-    D_clipping_Sanriku_S = M_clipping*0.57/1.21 - (0.5 - (-0.6))/1.21
+    D_clipping_RC_S = M_clipping*0.57/1.21 - (2.06-0.615)/1.21
+    D_clipping_LV_N_S = M_clipping*0.57/1.21 - (1.54-0.391)/1.21
+    D_clipping_LV_S_S = M_clipping*0.57/1.21 - (1.30-0.277)/1.21
+    D_clipping_Sanriku_S = M_clipping*0.57/1.21 - (-0.18 - (-0.6))/1.21
 
+    # Plot P clipping lines
     g.axes[1,0].plot(M_clipping, D_clipping_RC_P, '-', color='#7DC0A6', linewidth=2.5)
     g.axes[1,0].plot(M_clipping, D_clipping_LV_N_P, '-', color='#ED926B', linewidth=2.5)
     g.axes[1,0].plot(M_clipping, D_clipping_LV_S_P, '-', color='#91A0C7', linewidth=2.5)
+
+    # Plot S clipping lines
+    g.axes[1,0].plot(M_clipping, D_clipping_RC_S, '--', color='#7DC0A6', linewidth=2.5)
+    g.axes[1,0].plot(M_clipping, D_clipping_LV_N_S, '--', color='#ED926B', linewidth=2.5)
+    g.axes[1,0].plot(M_clipping, D_clipping_LV_S_S, '--', color='#91A0C7', linewidth=2.5)
     g.axes[1,0].plot(M_clipping, D_clipping_Sanriku_S, '--', color='#DA8EC0', linewidth=2.5)
 
 # show the Sanriku data
-g.axes[1,0].plot(peak_amplitude_df.magnitude, np.log10(peak_amplitude_df.distance_in_km), '.', markersize=1, color='#DA8EC0', alpha=0.5)
-g.axes[3,0].plot(peak_amplitude_df.magnitude, np.log10(peak_amplitude_df.peak_S), '.', markersize=1, color='#DA8EC0', alpha=0.5)
-g.axes[3,1].plot(np.log10(peak_amplitude_df.distance_in_km), np.log10(peak_amplitude_df.peak_S), '.', markersize=1, color='#DA8EC0', alpha=0.5)
+peak_amplitude_df_Sanriku = peak_amplitude_df[peak_amplitude_df.Array == 'Sanriku']
+g.axes[1,0].plot(peak_amplitude_df_Sanriku.magnitude, np.log10(peak_amplitude_df_Sanriku.distance_in_km), '.', markersize=1, color='#DA8EC0', alpha=0.3)
+g.axes[3,0].plot(peak_amplitude_df_Sanriku.magnitude, np.log10(peak_amplitude_df_Sanriku.peak_S), '.', markersize=1, color='#DA8EC0', alpha=0.3)
+g.axes[3,1].plot(np.log10(peak_amplitude_df_Sanriku.distance_in_km), np.log10(peak_amplitude_df_Sanriku.peak_S), '.', markersize=1, color='#DA8EC0', alpha=0.3)
 
 g.axes[0,0].set_title('magnitude')
 g.axes[0,0].tick_params(labelbottom=True)
@@ -385,8 +400,49 @@ plt.tight_layout()
 
 if add_possible_clipping:       
     plt.savefig(combined_results_output_dir + '/data_correlation_clipping.png', bbox_inches='tight')
+    plt.savefig('/kuafu/yinjx/Sanriku/peak_ampliutde_scaling_results_strain_rate/data_correlation_clipping.png', bbox_inches='tight')
 else:
     plt.savefig(combined_results_output_dir + '/data_correlation.png', bbox_inches='tight')
+    plt.savefig('/kuafu/yinjx/Sanriku/peak_ampliutde_scaling_results_strain_rate/data_correlation.png', bbox_inches='tight')
+
+#%% Only show the clipping figure
+fig, ax = plt.subplots(figsize=(10, 10))
+g = sns.histplot(ax=ax, data=peak_amplitude_df_temp[['magnitude','log10(distance)', 'Array']], x='magnitude', y='log10(distance)',
+                 color=".1", pmax=0.5, cbar=True, bins=(200, 200), cbar_kws={'location': 'top', 'fraction':0.02, 'pad':0, 'label':'Counts'})
+
+# g = sns.histplot(ax=ax, data=peak_amplitude_df_temp[['magnitude','log10(distance)', 'Array']], x='magnitude', y='log10(distance)',
+#                  hue='Array',pmax=0.5, palette='Set2', bins=(200, 200), alpha=0.5)                 
+
+g.axes.plot(peak_amplitude_df_Sanriku.magnitude, np.log10(peak_amplitude_df_Sanriku.distance_in_km), '.', markersize=5, color='#DA8EC0', alpha=0.2)
+
+ii_4130 = peak_amplitude_df_Sanriku.event_id==4130
+g.axes.plot(peak_amplitude_df_Sanriku[ii_4130].magnitude, np.log10(peak_amplitude_df_Sanriku[ii_4130].distance_in_km), '.', 
+            markersize=5, color='red', alpha=0.5, label='EQ 4130')
+
+
+# Plot P clipping lines
+g.axes.plot(M_clipping, D_clipping_RC_P, '-', color='#7DC0A6', linewidth=2.5, label='RC P')
+g.axes.plot(M_clipping, D_clipping_LV_N_P, '-', color='#ED926B', linewidth=2.5, label='LV-N P')
+g.axes.plot(M_clipping, D_clipping_LV_S_P, '-', color='#91A0C7', linewidth=2.5, label='LV-S P')
+
+# Plot S clipping lines
+g.axes.plot(M_clipping, D_clipping_Sanriku_S, '--', color='#DA8EC0', linewidth=2.5, label='Sanriku S')
+g.axes.plot(M_clipping, D_clipping_RC_S, '--', color='#7DC0A6', linewidth=2.5, label='RC S')
+g.axes.plot(M_clipping, D_clipping_LV_N_S, '--', color='#ED926B', linewidth=2.5, label='LV-N S')
+g.axes.plot(M_clipping, D_clipping_LV_S_S, '--', color='#91A0C7', linewidth=2.5, label='LV-S S')
+
+
+ax.set_xlim(0.5, 8)
+ax.set_ylim(0, 3.5)
+ax.spines.right.set_visible(False)
+ax.spines.top.set_visible(False)
+ax.yaxis.set_ticks_position('left')
+ax.xaxis.set_ticks_position('bottom')
+ax.legend(ncol=2, bbox_to_anchor=(0.65, 0.27))
+
+plt.savefig(combined_results_output_dir + '/data_correlation_clipping_one.png', bbox_inches='tight')
+plt.savefig('/kuafu/yinjx/Sanriku/peak_ampliutde_scaling_results_strain_rate/data_correlation_clipping_one.png', bbox_inches='tight')
+
 
 
 #%%
