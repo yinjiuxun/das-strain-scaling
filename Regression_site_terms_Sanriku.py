@@ -353,8 +353,8 @@ def plot_prediction_vs_measure_seaborn(peak_comparison_df, xy_range, phase):
     g.plot_marginals(sns.histplot, element="step", color="#4D4D9C")
 
     g.ax_joint.plot(xy_range, xy_range, 'k-', linewidth = 2)
-    g.ax_joint.set_xlabel('measured peak')
-    g.ax_joint.set_ylabel('calculated peak')
+    g.ax_joint.set_xlabel('measured peak strain rate (micro strain/s)')
+    g.ax_joint.set_ylabel('calculated peak strain rate (micro strain/s)')
     return g
 
 regression_results_dir = results_output_dir + '/regression_results_smf_all_coefficients_drop_4130'
