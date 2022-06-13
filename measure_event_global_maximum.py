@@ -44,12 +44,13 @@ matplotlib.rcParams.update(params)
 
 # %%
 # Setup the paths
-event_folder_list = ['/kuafu/EventData/Ridgecrest', '/kuafu/EventData/Mammoth_north', '/kuafu/EventData/Mammoth_south']
+event_folder_list = ['/kuafu/EventData/Ridgecrest', '/kuafu/EventData/Mammoth_north', '/kuafu/EventData/Mammoth_south', '/kuafu/EventData/Sanriku_ERI']
 peak_amplitude_dir_list = ['/kuafu/yinjx/Ridgecrest/Ridgecrest_scaling/peak_amplitude_events', 
                            '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/North/peak_amplitude_events', 
-                           '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/South/peak_amplitude_events']
+                           '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/South/peak_amplitude_events',
+                           '/kuafu/yinjx/Sanriku/peak_ampliutde_scaling_results_strain_rate/peak_amplitude_events']
 
-for ii_region in [2]:# [0, 1, 2]:
+for ii_region in [3]:# [0, 1, 2]:
     event_folder, peak_amplitude_dir = event_folder_list[ii_region], peak_amplitude_dir_list[ii_region]
 
     print('='*10 + peak_amplitude_dir + '='*10)
@@ -71,49 +72,71 @@ for ii_region in [2]:# [0, 1, 2]:
             event_now = catalog.iloc[i_eq, :]
             event_data, event_info = load_event_data(data_path, event_now.event_id)
 
-            if event_data.shape[1] > das_info.shape[0]:
+            if event_data.shape[1] >= das_info.shape[0]:
                 event_data = event_data[:, das_info.index]
-
-            array_maximum[i_eq, :] = np.nanmax(event_data, axis=0)
+                array_maximum[i_eq, :] = np.nanmax(event_data, axis=0)
+            else: # Sanriku data is slightly different, data has less channels than the DAS info (need to ask)
+                array_maximum[i_eq, :event_data.shape[1]] = np.nanmax(event_data, axis=0)
         except:
             continue
     np.savez(peak_amplitude_dir + '/global_maximum.npz', array_maximum=array_maximum)
 
 # %%
 # Setup the paths
-event_folder_list = ['/kuafu/EventData/Ridgecrest', '/kuafu/EventData/Mammoth_north', '/kuafu/EventData/Mammoth_south']
+event_folder_list = ['/kuafu/EventData/Ridgecrest', '/kuafu/EventData/Mammoth_north', '/kuafu/EventData/Mammoth_south', '/kuafu/EventData/Sanriku_ERI']
 peak_amplitude_dir_list = ['/kuafu/yinjx/Ridgecrest/Ridgecrest_scaling/peak_amplitude_events', 
                            '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/North/peak_amplitude_events', 
-                           '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/South/peak_amplitude_events']
+                           '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/South/peak_amplitude_events',
+                           '/kuafu/yinjx/Sanriku/peak_ampliutde_scaling_results_strain_rate/peak_amplitude_events']
 
-region_label = ['Ridgecrest', 'Mammoth-N', 'Mammoth-S']
+region_label = ['Ridgecrest', 'LV-N', 'LV-S', 'Sanriku']
 fig, ax = plt.subplots(2, 1, figsize=(10, 12))
-for ii_region in [0, 1, 2]:
+
+maximum_info = []
+
+dx_list = [8, 10, 10, 10]
+
+for ii_region in [0, 1, 2, 3]:
 
     event_folder, peak_amplitude_dir = event_folder_list[ii_region], peak_amplitude_dir_list[ii_region]
 
     catalog = pd.read_csv(event_folder + '/catalog.csv')
-    ii_M2 = catalog.magnitude >=2
+    #ii_M2 = catalog.magnitude >=2
 
     temp = np.load(peak_amplitude_dir + '/global_maximum.npz')
     temp = temp['array_maximum']
-    temp = temp[ii_M2, :]
-    channel_max = np.nanmax(temp, axis=0)
+    #temp = temp[ii_M2, :]
+
+    channel_max = temp.copy()
+    channel_max[channel_max >120] = np.nan
+    channel_max = np.nanmax(channel_max, axis=0)
+
     global_max = temp[temp>0].flatten()
+
+    array_max = np.amax(global_max[global_max<120])
+
+    maximum_info.append(f'{region_label[ii_region]} :  log10({array_max}) = {np.log10(array_max)}\n')
+    print(f'=================== {region_label[ii_region]} :  log10({array_max}) = {np.log10(array_max)} ========================== \n')
 
     gca = ax[0]
     gca.hist(np.log10(global_max), range=(-4,8), bins=100, label=region_label[ii_region], alpha=0.5)
     gca.set_yscale('log')
-    gca.set_ylim(ymin=1)
+    gca.set_ylim(ymin=1, ymax= 1e7)
 
     gca = ax[1]
-    gca.semilogy(np.linspace(0, 1000, len(channel_max)), channel_max, label=region_label[ii_region])
+    # gca.semilogy(np.linspace(0, 1, len(channel_max)), channel_max, label=region_label[ii_region])
+    gca.semilogy(np.arange(len(channel_max)) * dx_list[ii_region]/1e3, channel_max, label=region_label[ii_region])
 
 ax[0].legend()
 ax[0].set_xlabel('log10(E) (micro strain/s)')
 ax[0].set_ylabel('Counts')
 
 ax[1].legend()
+ax[1].set_xlabel('Distance to interrogator (km)')
+ax[1].set_ylabel('Channel maximum')
 
-plt.savefig('/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RM/maximum_amplitude_distribution.png', bbox_inches='tight')
+with open('/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RMS/maximum_info.txt', 'w') as f:
+    f.write(''.join(maximum_info))
+
+plt.savefig('/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RMS/maximum_amplitude_distribution.png', bbox_inches='tight')
 # %%
