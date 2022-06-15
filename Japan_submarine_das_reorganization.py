@@ -212,7 +212,7 @@ def reorganize_event_waveform(catalog, data_folder, i_event):
         event_info['magnitude_type'] = catalog.magnitude_type[i_event]
         event_info['source'] = catalog.source[i_event]
         event_info['dt_s'] = 1/sampling_rate
-        event_info['dx_m'] = 10
+        event_info['dx_m'] = 5
         event_info['unit'] = 'microstrain/s'
         event_info['das_array'] = 'sanriku'
         event_info['pass_QA'] = QA
@@ -274,8 +274,8 @@ def reorganize_event_waveform(catalog, data_folder, i_event):
 # %%
 data_folder = '/kuafu/EventData/Sanriku_ERI/data'
 
-# i_event = 5580
-# reorganize_event_waveform(catalog, data_folder, i_event)
+i_event = 3187
+reorganize_event_waveform(catalog, data_folder, i_event)
 
 n_eq = catalog.shape[0]
 with tqdm_joblib(tqdm(desc="File desampling", total=n_eq)) as progress_bar:

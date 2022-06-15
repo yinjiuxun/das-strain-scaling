@@ -94,7 +94,7 @@ fig, ax = plt.subplots(2, 1, figsize=(10, 12))
 
 maximum_info = []
 
-dx_list = [8, 10, 10, 10]
+dx_list = [8, 10, 10, 5]
 
 for ii_region in [0, 1, 2, 3]:
 
