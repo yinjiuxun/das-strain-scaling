@@ -21,6 +21,7 @@ from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 results_output_dir = '/home/yinjx/kuafu/Ridgecrest/Ridgecrest_scaling/peak_amplitude_scaling_results_strain_rate'
 das_pick_file_folder = '/kuafu/yinjx/Ridgecrest/Ridgecrest_scaling/peak_amplitude_events'
 das_pick_file_name = '/peak_amplitude.csv'
+regression_results = '/regression_results_smf_weighted'
 region_label = 'ridgecrest'
 channel_space = 8/1e3
 # ==============================  Olancha data ========================================
@@ -34,6 +35,7 @@ region_label = 'olancha'
 results_output_dir = '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/South'
 das_pick_file_folder = '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/South/peak_amplitude_events'
 das_pick_file_name = '/peak_amplitude.csv'
+regression_results = '/regression_results_smf_weighted'
 region_label = 'mammothS'
 channel_space = 10/1e3
 
@@ -42,22 +44,34 @@ channel_space = 10/1e3
 results_output_dir = '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/North'
 das_pick_file_folder = '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/North/peak_amplitude_events'
 das_pick_file_name = '/peak_amplitude.csv'
+regression_results = '/regression_results_smf_weighted'
 region_label = 'mammothN'
 channel_space = 10/1e3
 
-#%% load the peak amplitude results
+# ==============================  Sanriku ========================================
+#%% Specify the file names
+results_output_dir = '/kuafu/yinjx/Sanriku/peak_ampliutde_scaling_results_strain_rate'
+das_pick_file_folder = '/kuafu/yinjx/Sanriku/peak_ampliutde_scaling_results_strain_rate/peak_amplitude_events'
+das_pick_file_name = '/peak_amplitude.csv'
+regression_results = '/regression_results_smf_weighted_all_coefficients_drop_4130'
+region_label = 'Sanriku'
+channel_space = 5/1e3
+#%% 
 # Load the peak amplitude results
 snr_threshold = 10
 magnitude_threshold = [2, 10]
 peak_amplitude_df = pd.read_csv(das_pick_file_folder + '/' + das_pick_file_name)
 
 # directory to store the fitted results
-regression_results_dir = results_output_dir + '/regression_results_smf_weighted'
+regression_results_dir = results_output_dir + regression_results
 if not os.path.exists(regression_results_dir):
     os.mkdir(regression_results_dir)
 
 peak_amplitude_df = peak_amplitude_df[(peak_amplitude_df.snrP >=snr_threshold) | (peak_amplitude_df.snrS >=snr_threshold)]
 peak_amplitude_df = peak_amplitude_df[(peak_amplitude_df.magnitude >=magnitude_threshold[0]) & (peak_amplitude_df.magnitude <=magnitude_threshold[1])]
+
+if 'QA' in peak_amplitude_df.columns:
+    peak_amplitude_df = peak_amplitude_df[peak_amplitude_df.QA == 'Yes']
 
 # peak_amplitude_df = peak_amplitude_df.dropna()
 DAS_index = peak_amplitude_df.channel_id.unique().astype('int')
@@ -111,7 +125,6 @@ def plot_prediction_vs_measure_seaborn(peak_comparison_df, xy_range, phase):
     return g
 
 # %% Compare the regression parameters and site terms
-fig, ax = plt.subplots(2, 1, figsize=(10, 12), sharex=True, sharey=True)
 combined_channel_number_list = [10, 20, 50, 100, -1] # -1 means the constant model
 # DataFrame to store parameters for all models
 P_parameters_comparison = pd.DataFrame(columns=['combined_channels', 'magnitude', 'distance', 'magnitude_err', 'distance_err'], 
@@ -120,27 +133,52 @@ S_parameters_comparison = pd.DataFrame(columns=['combined_channels', 'magnitude'
 index = np.arange(len(combined_channel_number_list)))
 
 for i_model, combined_channel_number in enumerate(combined_channel_number_list):
-
-    regP = sm.load(regression_results_dir + f"/P_regression_combined_site_terms_{combined_channel_number}chan.pickle")
-    regS = sm.load(regression_results_dir + f"/S_regression_combined_site_terms_{combined_channel_number}chan.pickle")
+    temp_df_P = pd.DataFrame(columns=['combined_channel_id', 'site_term_P'])
+    temp_df_S = pd.DataFrame(columns=['combined_channel_id', 'site_term_S'])
+    try:
+        regP = sm.load(regression_results_dir + f"/P_regression_combined_site_terms_{combined_channel_number}chan.pickle")
+        site_term_P = regP.params[:-2]
+        # temp_df_P = pd.DataFrame(columns=['combined_channel_id', 'site_term_P'])
+        temp_df_P['combined_channel_id'] = [int(temp.replace('C(combined_channel_id)[', '').replace(']', '')) for temp in site_term_P.index]
+        temp_df_P['site_term_P'] = np.array(site_term_P)
+    except:
+        print('P regression not found, assign Nan to the site term')
+        site_term_P = np.nan
+    try:
+        regS = sm.load(regression_results_dir + f"/S_regression_combined_site_terms_{combined_channel_number}chan.pickle")
+        site_term_S = regS.params[:-2]
+        # temp_df_S = pd.DataFrame(columns=['combined_channel_id', 'site_term_S'])
+        temp_df_S['combined_channel_id'] = [int(temp.replace('C(combined_channel_id)[', '').replace(']', '')) for temp in site_term_S.index]
+        temp_df_S['site_term_S'] = np.array(site_term_S)
+    except:
+        print('S regression not found, assign Nan to the site term')
+        site_term_S = np.nan
 
     peak_amplitude_df = combined_channels(DAS_index, peak_amplitude_df, combined_channel_number)
     combined_channel_id = np.sort(peak_amplitude_df.combined_channel_id.unique())
-    
-# Compare all the site terms
-    site_term_P = regP.params[:-2]
-    site_term_S = regS.params[:-2]
 
-    if combined_channel_number == 1:
-        ax[0].plot(combined_channel_id*channel_space, site_term_P, label=f'Individual site terms, Cond.# {regP.condition_number:.2f}')
-        ax[1].plot(combined_channel_id*channel_space, site_term_S, label=f'Individual site terms, Cond.# {regS.condition_number:.2f}')
-    elif combined_channel_number == -1:
-        ax[0].hlines(site_term_P, xmin=DAS_index.min()*channel_space, xmax=DAS_index.max()*channel_space, color='k', label=f'Same site terms')#, Cond.# {regP.condition_number:.2f}')
-        ax[1].hlines(site_term_S, xmin=DAS_index.min()*channel_space, xmax=DAS_index.max()*channel_space, color='k', label=f'Same site terms')  #Cond.# {regS.condition_number:.2f}')
-    else:
-        ax[0].plot(combined_channel_id * combined_channel_number * channel_space, np.array(site_term_P), '-', label=f'{combined_channel_number} channels')#, Cond.# {regP.condition_number:.2f}')
-        ax[1].plot(combined_channel_id * combined_channel_number * channel_space, site_term_S, '-', label=f'{combined_channel_number} channels')#, Cond.# {regS.condition_number:.2f}')
+    # combining the site terms into one csv file
+    temp_df1 = pd.DataFrame(columns=['combined_channel_id'])
+    temp_df1['combined_channel_id'] = combined_channel_id
+    temp_df1 = pd.merge(temp_df1, temp_df_P, on='combined_channel_id', how='outer')
+    temp_df1 = pd.merge(temp_df1, temp_df_S, on='combined_channel_id', how='outer')
 
+    temp_df2 = peak_amplitude_df.loc[:, ['combined_channel_id', 'channel_id']]
+    temp_df2 = temp_df2.drop_duplicates(subset=['channel_id']).sort_values(by='channel_id')
+    site_term_df = pd.merge(temp_df2, temp_df1, on='combined_channel_id')
+    # Store the site terms
+    site_term_df.to_csv(regression_results_dir + f'/site_terms_{combined_channel_number}chan.csv', index=False)
+
+# plot to compare the site terms
+fig, ax = plt.subplots(2, 1, figsize=(10, 12), sharex=True, sharey=True)
+for i_model, combined_channel_number in enumerate(combined_channel_number_list):
+    try:
+        site_term_df = pd.read_csv(regression_results_dir + f'/site_terms_{combined_channel_number}chan.csv')
+
+        ax[0].plot(site_term_df.channel_id*channel_space, site_term_df.site_term_P, '-', label=f'{combined_channel_number} channels')#, Cond.# {regP.condition_number:.2f}')
+        ax[1].plot(site_term_df.channel_id*channel_space, site_term_df.site_term_S, '-', label=f'{combined_channel_number} channels')#, Cond.# {regS.condition_number:.2f}')
+    except:
+        continue
     # reset the regression models
     #del regP, regS
 
@@ -149,8 +187,8 @@ ax[1].legend(fontsize=12)
 ax[0].xaxis.set_tick_params(which='both',labelbottom=True)
 ax[0].set_xlabel('Distance along cable (km)')
 ax[1].set_xlabel('Distance along cable (km)')
-ax[0].set_ylabel('Site terms P')
-ax[1].set_ylabel('Site terms S')
+ax[0].set_ylabel('Site terms P (in log10)')
+ax[1].set_ylabel('Site terms S (in log10)')
 #ax[1].invert_xaxis()
 
 plt.figure(fig.number)
