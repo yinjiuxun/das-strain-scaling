@@ -216,7 +216,8 @@ magnitude_threshold = [2, 10]
 
 snr_threshold_Sanriku = 5
 #%% Combined all data
-peak_amplitude_df_all = pd.DataFrame(columns=['event_id', 'magnitude', 'channel_id', 'distance_in_km', 'snrP', 'snrS',
+peak_amplitude_df_all = pd.DataFrame(columns=['event_id', 'magnitude', 'depth_km', 'channel_id', 'distance_in_km', 'calibrated_distance_in_km', 
+       'snrP', 'snrS',
        'peak_P', 'peak_P_1s', 'peak_P_3s', 'peak_P_4s', 'peak_P_time',
        'peak_P_time_1s', 'peak_P_time_3s', 'peak_P_time_4s', 'peak_S',
        'peak_S_4s', 'peak_S_6s', 'peak_S_8s', 'peak_S_10s', 'peak_S_time',
@@ -231,7 +232,8 @@ for i_region in range(len(event_folder_list)):
     DAS_info_files = event_folder + '/das_info.csv'
     catalog_file =  event_folder + '/catalog.csv'
 
-    das_pick_file_name = '/peak_amplitude.csv'
+    # das_pick_file_name = '/peak_amplitude.csv'
+    das_pick_file_name = '/calibrated_peak_amplitude.csv'
     peak_df_file = das_pick_file_folder_list[i_region] + '/' + das_pick_file_name
     # Load the peak amplitude results
     peak_amplitude_df = pd.read_csv(peak_df_file)
@@ -280,30 +282,50 @@ time_list = [obspy.UTCDateTime(parser.parse(time)) for time in catalog_select_al
 time_span = np.array([time-time_list[0] for time in time_list])
 time_span_days = time_span/3600/24
 
-fig, ax = plt.subplots(figsize=(10, 8))
-ax.plot(time_span_days, catalog_select_all.magnitude, 'o')
+fig, ax = plt.subplots(figsize=(10, 4))
+
+# Ridgecrest
+ii_RC = catalog_select_all['source'] == 'scsn'
+ax.plot(time_span_days[ii_RC], catalog_select_all[ii_RC].magnitude, 'o', markersize=3, color='#7DC0A6')
+
+# LV
+ii_LV = (catalog_select_all['source'] == 'NC') | (catalog_select_all['source'] == 'NCDD')
+ax.plot(time_span_days[ii_LV], catalog_select_all[ii_LV].magnitude, 'o', markersize=3, color='#ED926B')
+
+# Sanriku
+ii_sanriku = catalog_select_all['source'] == 'JMA'
+ax.plot(time_span_days[ii_sanriku], catalog_select_all[ii_sanriku].magnitude, 'o', color='#DA8EC0', markersize=3)
+ax.text(100, 6.5, 'Sanriku EQs. \n2019/11/20-2019/12/01', color='#DA8EC0', fontsize=14)
+
+ax.hlines(y=0.5, xmin=0, xmax=696, color='#7DC0A6', label='Ridgecrest', linewidth=2.5)
+ax.hlines(y=1.0, xmin=467, xmax=time_span_days.max(), color='#ED926B', label='Long Valley', linewidth=2.5)
+ax.legend(loc=1,fontsize=13)
 ax.set_xlabel(f'Days from the {time_list[0].isoformat()[:10]}')
 ax.set_ylabel('magnitude')
+ax.set_ylim(ymin=0.1, ymax=7.9)
+# ax.annotate(f'(a)', xy=(-0.05, 0.95), xycoords=ax.transAxes)
 # TODO: add two horizontal line indicating the deployment time of arrays
-plt.savefig(combined_results_output_dir + '/time_variation_selected_earthquakes.png', bbox_inches='tight')
+plt.savefig(combined_results_output_dir + '/time_variation_selected_earthquakes.pdf', bbox_inches='tight')
 
-# plot time variation of events in vertical
-fig, ax = plt.subplots(figsize=(6, 12))
-ax.plot(catalog_select_all.magnitude, time_span_days, 'o')
-ax.vlines(x=8, ymin=0, ymax=696, color='r', label='Ridgecrest', linewidth=5)
-ax.vlines(x=7.5, ymin=467, ymax=time_span_days[-1], color='green', label='Long Valley', linewidth=5)
+# # plot time variation of events in vertical
+# fig, ax = plt.subplots(figsize=(6, 12))
+# ax.plot(catalog_select_all.magnitude, time_span_days, 'o')
+# ax.vlines(x=8, ymin=0, ymax=696, color='r', label='Ridgecrest', linewidth=5)
+# ax.vlines(x=7.5, ymin=467, ymax=time_span_days[-1], color='green', label='Long Valley', linewidth=5)
 
-ax.set_ylabel(f'Days from the {time_list[0].isoformat()[:10]}')
-ax.set_xlabel('magnitude')
-ax.legend(loc=4)
-# TODO: add two horizontal line indicating the deployment time of arrays
-plt.savefig(combined_results_output_dir + '/time_variation_selected_earthquakes_vertical.png', bbox_inches='tight')
+# ax.set_ylabel(f'Days from the {time_list[0].isoformat()[:10]}')
+# ax.set_xlabel('magnitude')
+# ax.legend(loc=4)
+# # TODO: add two horizontal line indicating the deployment time of arrays
+# plt.savefig(combined_results_output_dir + '/time_variation_selected_earthquakes_vertical.png', bbox_inches='tight')
 
 
 #%% plot data statistics
 add_possible_clipping = False
+calibrated_distance = '_calibrated_distance'
 peak_amplitude_df_temp = peak_amplitude_df_all.iloc[::1, :]
-peak_amplitude_df_temp['log10(distance)'] = np.log10(peak_amplitude_df_temp.distance_in_km.astype('float'))
+peak_amplitude_df_temp['log10(distance)'] = np.log10(peak_amplitude_df_temp.calibrated_distance_in_km.astype('float'))
+# peak_amplitude_df_temp['log10(distance)'] = np.log10(peak_amplitude_df_temp.distance_in_km.astype('float'))
 peak_amplitude_df_temp['log10(peak_P)'] = np.log10(peak_amplitude_df_temp.peak_P.astype('float'))
 peak_amplitude_df_temp['log10(peak_S)'] = np.log10(peak_amplitude_df_temp.peak_S.astype('float'))
 peak_amplitude_df_temp['P/S'] = peak_amplitude_df_temp.peak_P/peak_amplitude_df_temp.peak_S
@@ -399,11 +421,11 @@ for gca in g.axes.flatten():
 plt.tight_layout()
 
 if add_possible_clipping:       
-    plt.savefig(combined_results_output_dir + '/data_correlation_clipping.png', bbox_inches='tight')
-    plt.savefig('/kuafu/yinjx/Sanriku/peak_ampliutde_scaling_results_strain_rate/data_correlation_clipping.png', bbox_inches='tight')
+    plt.savefig(combined_results_output_dir + f'/data_correlation_clipping{calibrated_distance}.png', bbox_inches='tight')
+    plt.savefig(f'/kuafu/yinjx/Sanriku/peak_ampliutde_scaling_results_strain_rate/data_correlation_clipping{calibrated_distance}.png', bbox_inches='tight')
 else:
-    plt.savefig(combined_results_output_dir + '/data_correlation.png', bbox_inches='tight')
-    plt.savefig('/kuafu/yinjx/Sanriku/peak_ampliutde_scaling_results_strain_rate/data_correlation.png', bbox_inches='tight')
+    plt.savefig(combined_results_output_dir + f'/data_correlation{calibrated_distance}.png', bbox_inches='tight')
+    plt.savefig(f'/kuafu/yinjx/Sanriku/peak_ampliutde_scaling_results_strain_rate/data_correlation{calibrated_distance}.png', bbox_inches='tight')
 
 #%% Only show the clipping figure
 fig, ax = plt.subplots(figsize=(10, 10))
@@ -530,19 +552,11 @@ das_pick_file_folder = '/kuafu/yinjx/Sanriku/peak_ampliutde_scaling_results_stra
 gmt_region = [140, 145, 35, 42]
 
 snr_threshold = 10
-magnitude_threshold = [2, 10]
+magnitude_threshold = [0, 10]
 
 #%% Common part of code
 DAS_info_files = event_folder + '/das_info.csv'
 catalog_file =  event_folder + '/catalog.csv'
-
-das_pick_file_name = '/peak_amplitude.csv'
-peak_df_file = das_pick_file_folder + '/' + das_pick_file_name
-# Load the peak amplitude results
-peak_amplitude_df = pd.read_csv(peak_df_file)
-peak_amplitude_df = peak_amplitude_df[(peak_amplitude_df.snrP >= snr_threshold) | (peak_amplitude_df.snrS >= snr_threshold)]
-peak_amplitude_df = peak_amplitude_df[(peak_amplitude_df.magnitude >= magnitude_threshold[0]) & (peak_amplitude_df.magnitude <= magnitude_threshold[1])]
-
 #  load the information about the Ridgecrest DAS channel
 DAS_info = pd.read_csv(DAS_info_files)
 DAS_channel_num = DAS_info.shape[0]
@@ -550,37 +564,104 @@ DAS_index = DAS_info['index'].astype('int')
 DAS_lon = DAS_info.longitude
 DAS_lat = DAS_info.latitude
 
+das_pick_file_name = '/peak_amplitude.csv'
+peak_df_file = das_pick_file_folder + '/' + das_pick_file_name
+# Load the peak amplitude results (Fitting events)
+peak_amplitude_df = pd.read_csv(peak_df_file)
+peak_amplitude_df = peak_amplitude_df[(peak_amplitude_df.snrP >= snr_threshold) | (peak_amplitude_df.snrS >= snr_threshold)]
+peak_amplitude_df = peak_amplitude_df[(peak_amplitude_df.magnitude >= magnitude_threshold[0]) & (peak_amplitude_df.magnitude <= magnitude_threshold[1])]
+peak_amplitude_df = peak_amplitude_df[peak_amplitude_df.QA == 'Yes']
+
+# Load the peak amplitude results (Validation events)
+snr_threshold_test = 5
+peak_amplitude_df_test = pd.read_csv(peak_df_file)
+peak_amplitude_df_test = peak_amplitude_df_test[(peak_amplitude_df_test.snrP >= snr_threshold_test) | (peak_amplitude_df_test.snrS >= snr_threshold_test)]
+peak_amplitude_df_test = peak_amplitude_df_test[(peak_amplitude_df_test.magnitude >= magnitude_threshold[0]) & (peak_amplitude_df_test.magnitude <= magnitude_threshold[1])]
+peak_amplitude_df_test = peak_amplitude_df_test[peak_amplitude_df_test.QA == 'Yes']
+peak_amplitude_df_test = peak_amplitude_df_test.drop(index=peak_amplitude_df.index)
+
+
 catalog = pd.read_csv(catalog_file)
 # Find events in the pick file
 event_id_selected = np.unique(peak_amplitude_df['event_id'])
 catalog_select = catalog[catalog.event_id.isin(event_id_selected)]
-num_events = catalog_select.shape[0]
-event_lon = catalog_select.longitude
-event_lat = catalog_select.latitude
-event_id = catalog_select.event_id
-
-# Add the event label for plotting
-peak_amplitude_df = add_event_label(peak_amplitude_df)
+catalog_test_events = catalog[catalog.event_id.isin(np.unique(peak_amplitude_df_test['event_id']))]
 
 #%%
-# plot time variation of events
-time_list = [obspy.UTCDateTime(parser.parse(time)) for time in catalog_select.event_time]
-time_span = np.array([time-time_list[0] for time in time_list])
-time_span_days = time_span/3600/24
+# Plot both arrays
+projection = "M12c"
+grid = pygmt.datasets.load_earth_relief(resolution="03s", region=gmt_region)
 
-fig, ax = plt.subplots(figsize=(10, 8))
-ax.plot(time_span_days, catalog_select.magnitude, 'o')
-ax.set_xlabel(f'Days from the {time_list[0].isoformat()[:10]}')
-ax.set_ylabel('magnitude')
-plt.savefig(results_output_dir + '/time_variation_selected_earthquakes.png', bbox_inches='tight')
+# calculate the reflection of a light source projecting from west to east
+# (azimuth of 270 degrees) and at a latitude of 30 degrees from the horizon
+dgrid = pygmt.grdgradient(grid=grid, radiance=[270, 30])
 
-# plot map
-fig, ax = plt.subplots(figsize=(7, 6))
-cmp = ax.scatter(DAS_lon, DAS_lat, s=10, c='r')
-ax.scatter(event_lon, event_lat, s=10**(catalog_select.magnitude/5), c='k')
-#fig.colorbar(cmp)
-plt.savefig(results_output_dir + '/map_of_earthquakes_not_grouped.png', bbox_inches='tight')
+fig = pygmt.Figure()
+# define figure configuration
+pygmt.config(FORMAT_GEO_MAP="ddd.x", MAP_FRAME_TYPE="plain", FONT_ANNOT_PRIMARY=15)
 
+# --------------- plotting the original Data Elevation Model -----------
+
+fig.basemap(region=gmt_region, 
+projection=projection, 
+frame=['WSrt+t""', "xa2.0", "ya2.0"]
+)
+pygmt.makecpt(cmap="geo", series=[-8000, 8000])
+fig.grdimage(
+    grid=grid,
+    projection=projection,
+    cmap=True,
+    shading='+a45+nt1',
+    transparency=30
+)
+
+fig.plot(x=catalog_test_events.longitude.astype('float'), y=catalog_test_events.latitude.astype('float'), style="c0.15c", color='0.5/0.5/0.5')
+fig.plot(x=catalog_select.longitude.astype('float'), y=catalog_select.latitude.astype('float'), style="c0.2c", color="black")
+
+# show the werid 4130 event
+event_4130 = catalog_select[catalog_select.event_id == 4130]
+fig.plot(x=event_4130.longitude.astype('float'), y=event_4130.latitude.astype('float'), style="c0.22c", color="red")
+# fig.text(text="4130", x=event_4130.longitude.astype('float')+0.15, y=event_4130.latitude.astype('float'),color="red")
+
+fig.plot(x=DAS_info.longitude[::10], y=DAS_info.latitude[::10], style="c0.1c", color="blue")
+
+# fig.text(text="Mammoth", x=-119.5, y=38)
+# fig.text(text="Ridgecrest", x=-117.5, y=35.4)
+
+# Create an inset map, setting the position to bottom right, the width to
+# 3 cm, the height to 3.6 cm, and the x- and y-offsets to
+# 0.1 cm, respectively. Draws a rectangular box around the inset with a fill
+# color of "white" and a pen of "1p".
+with fig.inset(position="jBL+w4.3c/5.0c+o0.1c", box="+gwhite+p1p"):
+    # Plot the Japan main land in the inset using coast. "U54S/?" means UTM
+    # projection with map width automatically determined from the inset width.
+    # Highlight the Japan area in "lightbrown"
+    # and draw its outline with a pen of "0.2p".
+    fig.coast(
+        region=[129, 146, 30, 46],
+        projection="U54S/?",
+        #land='gray',#
+        dcw="JP+ggray+p0.2p",
+        #water='lightblue',
+        area_thresh=10000,
+        resolution='f',
+        #borders=["1/0.5p,black", "2/0.25p,black"]
+    )
+    # Plot a rectangle ("r") in the inset map to show the area of the main
+    # figure. "+s" means that the first two columns are the longitude and
+    # latitude of the bottom left corner of the rectangle, and the last two
+    # columns the longitude and latitude of the uppper right corner.
+    rectangle = [[gmt_region[0], gmt_region[2], gmt_region[1], gmt_region[3]]]
+    fig.plot(data=rectangle, style="r+s", pen="2p,red")
+
+fig.show()
+fig.savefig(results_output_dir + '/map_of_earthquakes_GMT.png')
+
+
+
+#%%
+# Add the event label for plotting
+peak_amplitude_df = add_event_label(peak_amplitude_df)
 # plot data statistics
 peak_amplitude_df_temp = peak_amplitude_df#.iloc[::5, :]
 peak_amplitude_df_temp['log10(distance)'] = np.log10(peak_amplitude_df_temp.distance_in_km)
@@ -620,76 +701,3 @@ for gca in g.axes.flatten():
         k += 1
         
 plt.savefig(results_output_dir + '/data_statistics.png')
-
-#%%
-# Plot both arrays
-projection = "M12c"
-grid = pygmt.datasets.load_earth_relief(resolution="03s", region=gmt_region)
-
-# calculate the reflection of a light source projecting from west to east
-# (azimuth of 270 degrees) and at a latitude of 30 degrees from the horizon
-dgrid = pygmt.grdgradient(grid=grid, radiance=[270, 30])
-
-fig = pygmt.Figure()
-# define figure configuration
-pygmt.config(FORMAT_GEO_MAP="ddd.x", MAP_FRAME_TYPE="plain", FONT_ANNOT_PRIMARY=15)
-
-# --------------- plotting the original Data Elevation Model -----------
-
-fig.basemap(region=gmt_region, 
-projection=projection, 
-frame=['WSrt+t""', "xa2.0", "ya2.0"]
-)
-pygmt.makecpt(cmap="geo", series=[-8000, 8000])
-fig.grdimage(
-    grid=grid,
-    projection=projection,
-    cmap=True,
-    shading='+a45+nt1',
-    transparency=20
-)
-
-fig.plot(x=catalog_select.longitude.astype('float'), y=catalog_select.latitude.astype('float'), style="c0.2c", color="black")
-
-# show the werid 4130 event
-event_4130 = catalog_select[catalog_select.event_id == 4130]
-fig.plot(x=event_4130.longitude.astype('float'), y=event_4130.latitude.astype('float'), style="c0.2c", color="red")
-fig.text(text="4130", x=event_4130.longitude.astype('float')+0.15, y=event_4130.latitude.astype('float'),color="red")
-
-fig.plot(x=DAS_info.longitude[::10], y=DAS_info.latitude[::10], style="c0.1c", color="blue")
-
-# fig.text(text="Mammoth", x=-119.5, y=38)
-# fig.text(text="Ridgecrest", x=-117.5, y=35.4)
-
-# Create an inset map, setting the position to bottom right, the width to
-# 3 cm, the height to 3.6 cm, and the x- and y-offsets to
-# 0.1 cm, respectively. Draws a rectangular box around the inset with a fill
-# color of "white" and a pen of "1p".
-with fig.inset(position="jBL+w4.3c/5.0c+o0.1c", box="+gwhite+p1p"):
-    # Plot the Japan main land in the inset using coast. "U54S/?" means UTM
-    # projection with map width automatically determined from the inset width.
-    # Highlight the Japan area in "lightbrown"
-    # and draw its outline with a pen of "0.2p".
-    fig.coast(
-        region=[129, 146, 30, 46],
-        projection="U54S/?",
-        #land='gray',#
-        dcw="JP+ggray+p0.2p",
-        #water='lightblue',
-        area_thresh=10000,
-        resolution='f',
-        #borders=["1/0.5p,black", "2/0.25p,black"]
-    )
-    # Plot a rectangle ("r") in the inset map to show the area of the main
-    # figure. "+s" means that the first two columns are the longitude and
-    # latitude of the bottom left corner of the rectangle, and the last two
-    # columns the longitude and latitude of the uppper right corner.
-    rectangle = [[gmt_region[0], gmt_region[2], gmt_region[1], gmt_region[3]]]
-    fig.plot(data=rectangle, style="r+s", pen="2p,red")
-
-fig.show()
-fig.savefig(results_output_dir + '/map_of_earthquakes_GMT.png')
-
-
-
-# %%
