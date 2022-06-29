@@ -1,4 +1,5 @@
 #%% import modules
+from cmath import e
 import os
 import pandas as pd
 #from sep_util import read_file
@@ -26,10 +27,11 @@ params = {
 results_output_dir_list = ['/home/yinjx/kuafu/Ridgecrest/Ridgecrest_scaling/peak_amplitude_scaling_results_strain_rate',
                       '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/North',
                       '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/South',
+                      '/kuafu/yinjx/Sanriku/peak_ampliutde_scaling_results_strain_rate',
                       '/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RM']
-region_list = ['Ridgecrest', 'Long-Valley N', 'Long-Valley S', 'combined']
+region_list = ['Ridgecrest', 'Long-Valley N', 'Long-Valley S', 'Sanriku', 'combined']
 regression_dir_list = ['regression_results_smf', 'regression_results_smf_weighted'] # 'regression_results_smf_M4'
-
+output_label = ['unweighted', 'weighted']
 nearby_channel_numbers = [-1, 10, 20, 50, 100]
 
 
@@ -55,17 +57,30 @@ for ii_region, results_output_dir in enumerate(results_output_dir_list):
     for nearby_channel_number in nearby_channel_numbers:
     #nearby_channel_number = nearby_channel_numbers[0]
     # for regression_dir in regression_dir_list:
-        regression_dir = regression_dir_list[0]
+        ii_weight = 0 # 0 for unweight, 1 for weighted
+        regression_dir = regression_dir_list[ii_weight]
 
-        regP = sm.load(results_output_dir + '/' + regression_dir + f"/P_regression_combined_site_terms_{nearby_channel_number}chan.pickle")
-        regS = sm.load(results_output_dir + '/' + regression_dir + f"/S_regression_combined_site_terms_{nearby_channel_number}chan.pickle")
+        if region_list[ii_region] != 'Sanriku':
+            regP = sm.load(results_output_dir + '/' + regression_dir + f"/P_regression_combined_site_terms_{nearby_channel_number}chan.pickle")
+            regS = sm.load(results_output_dir + '/' + regression_dir + f"/S_regression_combined_site_terms_{nearby_channel_number}chan.pickle")
+        elif nearby_channel_number == -1:
+            i_row += 1
+            continue
+        else:
+            regS = sm.load(results_output_dir + '/' + regression_dir + f"/S_regression_combined_site_terms_{nearby_channel_number}chan.pickle")
         
         all_results_pd.at[i_row, 'region'] = region_list[ii_region]
         all_results_pd.at[i_row, 'site-term smoothing'] = nearby_channel_number
-        all_results_pd.at[i_row, 'mag coef. (P)'] = regP.params['magnitude']
-        all_results_pd.at[i_row, 'dist coef. (P)'] = regP.params['np.log10(distance_in_km)']
-        all_results_pd.at[i_row, 'mag coef. uncertainty (P)'] = uncertainty_from_covariance(regP.cov_params(), 'magnitude')
-        all_results_pd.at[i_row, 'dist coef. uncertainty (P)'] = uncertainty_from_covariance(regP.cov_params(), 'np.log10(distance_in_km)')
+        if region_list[ii_region] == 'Sanriku':
+            all_results_pd.at[i_row, 'mag coef. (P)'] = np.nan
+            all_results_pd.at[i_row, 'dist coef. (P)'] = np.nan
+            all_results_pd.at[i_row, 'mag coef. uncertainty (P)'] = np.nan
+            all_results_pd.at[i_row, 'dist coef. uncertainty (P)'] = np.nan
+        else:
+            all_results_pd.at[i_row, 'mag coef. (P)'] = regP.params['magnitude']
+            all_results_pd.at[i_row, 'dist coef. (P)'] = regP.params['np.log10(distance_in_km)']
+            all_results_pd.at[i_row, 'mag coef. uncertainty (P)'] = uncertainty_from_covariance(regP.cov_params(), 'magnitude')
+            all_results_pd.at[i_row, 'dist coef. uncertainty (P)'] = uncertainty_from_covariance(regP.cov_params(), 'np.log10(distance_in_km)')
 
         all_results_pd.at[i_row, 'mag coef. (S)'] = regS.params['magnitude']
         all_results_pd.at[i_row, 'dist coef. (S)'] = regS.params['np.log10(distance_in_km)']
@@ -79,11 +94,11 @@ for ii_column in range(2, 10):
 
 # 
 all_results_pd.iloc[:, 2:] = all_results_pd.iloc[:, 2:].astype('float')
-all_results_pd.to_csv('/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RM/all_coefficients_unweighted.csv', 
+all_results_pd.to_csv(f'/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RMS/all_coefficients_{output_label[ii_weight]}.csv', 
                     index=False, float_format='%.4f')
 # %%
-all_results_pd_unweighted = pd.read_csv('/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RM/all_coefficients_unweighted.csv')
-all_results_pd_weighted = pd.read_csv('/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RM/all_coefficients_weighted.csv')
+all_results_pd_unweighted = pd.read_csv('/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RMS/all_coefficients_unweighted.csv')
+all_results_pd_weighted = pd.read_csv('/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RMS/all_coefficients_weighted.csv')
 all_results_pd_unweighted['weight'] = 'unweighted'
 all_results_pd_weighted['weight'] = 'weighted'
 
@@ -99,15 +114,24 @@ sns.set_theme(style="ticks", rc=custom_params, font_scale=1.2)
 fig, ax = plt.subplots(2, 2, figsize=(12, 9))
 def plot_coefficients_seaborn(x_key, y_key, all_results_pd, ax, xlim=None, ylim=None):
     g = sns.pointplot(x=x_key, y=y_key, hue='site-term smoothing',
-                capsize=.2, palette="Blues", markers="o", linestyles='', scale=1.5,
+                capsize=.2, palette="Blues", markers="o", linestyles='', scale=1.5, linewidth=2, edgecolor='k',
                 kind=x_key, data=all_results_pd[all_results_pd.weight=='unweighted'], ax=ax, legend = False)
 
-
     g = sns.pointplot(x="region", y=y_key, hue='site-term smoothing',
-                capsize=.2, palette="Reds", markers="d", linestyles='', scale=1.5,
+                capsize=.2, palette="Reds", markers="d", linestyles='', scale=1.5, 
                 kind="point", data=all_results_pd[all_results_pd.weight=='weighted'], ax=ax, legend = False)
     
-    ax.set_xticklabels(['RC', 'LV-N', 'LV-S', 'combined'])
+    # g = sns.scatterplot(data=all_results_pd[all_results_pd.weight=='unweighted'],
+    #                     x=x_key, y=y_key, s=100, hue='site-term smoothing',
+    #                     palette="Blues", markers="o",linewidth=1, edgecolor='k',
+    #                     ax=ax, legend = True)
+
+    # g = sns.scatterplot(data=all_results_pd[all_results_pd.weight=='weighted'], 
+    #                     x="region", y=y_key, s=100, hue='site-term smoothing',
+    #                     palette="Reds", markers="d",linewidth=1, edgecolor='k',
+    #                     ax=ax, legend = True)
+    
+    ax.set_xticklabels(['RC', 'LV-N', 'LV-S', 'Sanriku', 'combined'])
     ax.set_yticks(np.arange(-10, 10, 0.2))
     if xlim is not None:
         ax.set_xlim(xlim)
@@ -131,10 +155,10 @@ plot_coefficients_seaborn(x_key='region', y_key='dist coef. (S)', all_results_pd
 # Adding the Barbour et al. (2021) results
 # TODO: label the line with the values
 barbour_2021_coefficents = [0.92, -1.45]
-ax[0, 0].hlines(y=barbour_2021_coefficents[0], xmin=0, xmax=3, linestyle='--', color='k', linewidth=2)
-ax[0, 1].hlines(y=barbour_2021_coefficents[0], xmin=0, xmax=3, linestyle='--', color='k', linewidth=2)
-ax[1, 0].hlines(y=barbour_2021_coefficents[1], xmin=0, xmax=3, linestyle='--', color='k', linewidth=2)
-ax[1, 1].hlines(y=barbour_2021_coefficents[1], xmin=0, xmax=3, linestyle='--', color='k', linewidth=2, label='Barbour et al. (2021)')
+ax[0, 0].hlines(y=barbour_2021_coefficents[0], xmin=0, xmax=4, linestyle='--', color='k', linewidth=2)
+ax[0, 1].hlines(y=barbour_2021_coefficents[0], xmin=0, xmax=4, linestyle='--', color='k', linewidth=2)
+ax[1, 0].hlines(y=barbour_2021_coefficents[1], xmin=0, xmax=4, linestyle='--', color='k', linewidth=2)
+ax[1, 1].hlines(y=barbour_2021_coefficents[1], xmin=0, xmax=4, linestyle='--', color='k', linewidth=2, label='Barbour et al. (2021)')
 
 ax[0, 0].get_legend().remove()
 ax[0, 1].get_legend().remove()
@@ -158,5 +182,5 @@ for gca in ax.flatten():
 # TODO: add error bars
 # TODO: edit the legend box
 
-plt.savefig('/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RM/coefficients_comparison.png', bbox_inches='tight', dpi=200)
+plt.savefig('/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RMS/coefficients_comparison.png', bbox_inches='tight', dpi=200)
 # %%
