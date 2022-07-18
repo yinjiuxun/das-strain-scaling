@@ -17,11 +17,11 @@ from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 # results_output_dir = '/home/yinjx/kuafu/Ridgecrest/Ridgecrest_scaling/peak_ampliutde_scaling_results_strain_rate'
 # das_pick_file_name = '/peak_amplitude_M3+.csv'
 # region_label = 'ridgecrest'
-
+min_channel = 100
 results_output_dir = '/kuafu/yinjx/Ridgecrest/Ridgecrest_scaling/peak_amplitude_scaling_results_strain_rate'
 das_pick_file_folder = '/kuafu/yinjx/Ridgecrest/Ridgecrest_scaling/peak_amplitude_events'
-das_pick_file_name = '/peak_amplitude.csv'
-regression_results = '/regression_results_smf_weighted'
+das_pick_file_name = '/calibrated_peak_amplitude.csv'
+regression_results = f'/regression_results_smf_weighted_{min_channel}_channel_at_least'
 region_label = 'ridgecrest'
 channel_space = 8/1e3
 # ==============================  Olancha data ========================================
@@ -32,28 +32,31 @@ region_label = 'olancha'
 
 # ==============================  Mammoth data - South========================================
 #%% Specify the file names
+min_channel = 100
 results_output_dir = '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/South'
 das_pick_file_folder = '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/South/peak_amplitude_events'
-das_pick_file_name = '/peak_amplitude.csv'
-regression_results = '/regression_results_smf_weighted'
+das_pick_file_name = '/calibrated_peak_amplitude.csv'
+regression_results = f'/regression_results_smf_weighted_{min_channel}_channel_at_least'
 region_label = 'mammothS'
 channel_space = 10/1e3
 
 # ==============================  Mammoth data - North========================================
 #%% Specify the file names
+min_channel = 100
 results_output_dir = '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/North'
 das_pick_file_folder = '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/North/peak_amplitude_events'
-das_pick_file_name = '/peak_amplitude.csv'
-regression_results = '/regression_results_smf_weighted'
+das_pick_file_name = '/calibrated_peak_amplitude.csv'
+regression_results = f'/regression_results_smf_weighted_{min_channel}_channel_at_least'
 region_label = 'mammothN'
 channel_space = 10/1e3
 
 # ==============================  Sanriku ========================================
 #%% Specify the file names
+min_channel = 100
 results_output_dir = '/kuafu/yinjx/Sanriku/peak_ampliutde_scaling_results_strain_rate'
 das_pick_file_folder = '/kuafu/yinjx/Sanriku/peak_ampliutde_scaling_results_strain_rate/peak_amplitude_events'
-das_pick_file_name = '/peak_amplitude.csv'
-regression_results = '/regression_results_smf_weighted_all_coefficients_drop_4130'
+das_pick_file_name = '/calibrated_peak_amplitude.csv'
+regression_results = f'/regression_results_smf_weighted_all_coefficients_drop_4130_{min_channel}_channel_at_least'
 region_label = 'Sanriku'
 channel_space = 5/1e3
 #%% 
