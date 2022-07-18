@@ -10,58 +10,17 @@ import statsmodels.api as sm
 from plotting_functions import *
 from utility_functions import *
 
-# ==============================  Ridgecrest data ========================================
-#%% Specify the file names
-# results_output_dir = '/home/yinjx/kuafu/Ridgecrest/Ridgecrest_scaling/peak_ampliutde_scaling_results_strain_rate'
-# das_pick_file_name = '/peak_amplitude_M3+.csv'
-# region_label = 'ridgecrest'
-
-results_output_dir = '/home/yinjx/kuafu/Ridgecrest/Ridgecrest_scaling/peak_amplitude_scaling_results_strain_rate'
-das_pick_file_folder = '/kuafu/yinjx/Ridgecrest/Ridgecrest_scaling/peak_amplitude_events'
-das_pick_file_name = '/peak_amplitude.csv'
-region_label = 'ridgecrest'
-
-# ==============================  Olancha data ========================================
-#%% Specify the file names
-results_output_dir = '/kuafu/yinjx/Olancha_Plexus_100km/Olancha_scaling'
-das_pick_file_name = '/peak_amplitude_M3+.csv'
-region_label = 'olancha'
-
-# ==============================  Mammoth data - South========================================
-#%% Specify the file names
-results_output_dir = '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/South'
-das_pick_file_folder = '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/South/peak_amplitude_events'
-das_pick_file_name = '/peak_amplitude.csv'
-region_label = 'mammothS'
-
-# ==============================  Mammoth data - North========================================
-#%% Specify the file names
-results_output_dir = '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/North'
-das_pick_file_folder = '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/North/peak_amplitude_events'
-das_pick_file_name = '/peak_amplitude.csv'
-region_label = 'mammothN'
-
-#%% load the peak amplitude results
-# Load the peak amplitude results
-snr_threshold = 10
-magnitude_threshold = [2, 10]
-peak_amplitude_df = pd.read_csv(das_pick_file_folder + '/' + das_pick_file_name)
-
-# directory to store the fitted results
-regression_results_dir = results_output_dir + '/regression_results_smf'
-if not os.path.exists(regression_results_dir):
-    os.mkdir(regression_results_dir)
-
-peak_amplitude_df = peak_amplitude_df[(peak_amplitude_df.snrP >=snr_threshold) | (peak_amplitude_df.snrS >=snr_threshold)]
-peak_amplitude_df = peak_amplitude_df[(peak_amplitude_df.magnitude >=magnitude_threshold[0]) & (peak_amplitude_df.magnitude <=magnitude_threshold[1])]
-
-peak_amplitude_df = peak_amplitude_df[peak_amplitude_df.peak_P>0]
-peak_amplitude_df = peak_amplitude_df[peak_amplitude_df.peak_S>0]
-
-#peak_amplitude_df = peak_amplitude_df.dropna()
-DAS_index = peak_amplitude_df.channel_id.unique().astype('int')
-
 #%% Functions used here
+def filter_by_channel_number(peak_amplitude_df, min_channel):
+    """To remove the measurements from few channels (< min_channel)"""
+    event_channel_count = peak_amplitude_df.groupby(['event_id'])['event_id'].count()
+    channel_count = event_channel_count.values
+    event_id = event_channel_count.index
+    event_id = event_id[channel_count >= min_channel]
+
+    return peak_amplitude_df[peak_amplitude_df['event_id'].isin(event_id)]
+
+
 def combined_channels(DAS_index, peak_amplitude_df, nearby_channel_number):
     if nearby_channel_number == -1:
         peak_amplitude_df['combined_channel_id'] = 0
@@ -101,13 +60,71 @@ def plot_prediction_vs_measure_seaborn(peak_comparison_df, xy_range, phase):
     cax = g.figure.add_axes([.65, .2, .02, .2])
 
 # Add the joint and marginal histogram plots 03012d
-    g.plot_joint(sns.histplot, discrete=(False, False), cmap="light:#4D4D9C", pmax=.2, cbar=True, cbar_ax=cax, cbar_kws={'label': 'counts'})
-    g.plot_marginals(sns.histplot, element="step", color="#4D4D9C")
+    bins=40
+    g.plot_joint(sns.histplot, discrete=(False, False), bins=(40,40), cmap="light:#4D4D9C", pmax=.4, cbar=True, cbar_ax=cax, cbar_kws={'label': 'counts'})
+    g.plot_marginals(sns.histplot, element="step", bins=bins, color="#4D4D9C")
 
     g.ax_joint.plot(xy_range, xy_range, 'k-', linewidth = 2)
-    g.ax_joint.set_xlabel('measured peak')
-    g.ax_joint.set_ylabel('calculated peak')
+    g.ax_joint.set_xlabel('measured peak strain rate\n (micro strain/s)')
+    g.ax_joint.set_ylabel('calculated peak strain rate\n (micro strain/s)')
     return g
+# ==============================  Ridgecrest data ========================================
+#%% Specify the file names
+# results_output_dir = '/home/yinjx/kuafu/Ridgecrest/Ridgecrest_scaling/peak_ampliutde_scaling_results_strain_rate'
+# das_pick_file_name = '/peak_amplitude_M3+.csv'
+# region_label = 'ridgecrest'
+
+results_output_dir = '/home/yinjx/kuafu/Ridgecrest/Ridgecrest_scaling/peak_amplitude_scaling_results_strain_rate'
+das_pick_file_folder = '/kuafu/yinjx/Ridgecrest/Ridgecrest_scaling/peak_amplitude_events'
+das_pick_file_name = '/calibrated_peak_amplitude.csv'
+region_label = 'ridgecrest'
+
+# ==============================  Olancha data ========================================
+#%% Specify the file names
+results_output_dir = '/kuafu/yinjx/Olancha_Plexus_100km/Olancha_scaling'
+das_pick_file_name = '/peak_amplitude_M3+.csv'
+region_label = 'olancha'
+
+# ==============================  Mammoth data - South========================================
+#%% Specify the file names
+results_output_dir = '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/South'
+das_pick_file_folder = '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/South/peak_amplitude_events'
+das_pick_file_name = '/calibrated_peak_amplitude.csv'
+region_label = 'mammothS'
+
+# ==============================  Mammoth data - North========================================
+#%% Specify the file names
+results_output_dir = '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/North'
+das_pick_file_folder = '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/North/peak_amplitude_events'
+das_pick_file_name = '/calibrated_peak_amplitude.csv'
+region_label = 'mammothN'
+
+# %% load the peak amplitude results
+# Load the peak amplitude results
+min_channel = 100 # do regression only on events recorded by at least 100 channels
+snr_threshold = 10
+magnitude_threshold = [2, 10]
+apply_calibrated_distance = True # if true, use the depth-calibrated distance to do regression
+
+peak_amplitude_df = pd.read_csv(das_pick_file_folder + '/' + das_pick_file_name)
+
+if apply_calibrated_distance: 
+    peak_amplitude_df['distance_in_km'] = peak_amplitude_df['calibrated_distance_in_km']
+
+# directory to store the fitted results
+regression_results_dir = results_output_dir + f'/regression_results_smf_weighted_{min_channel}_channel_at_least'
+if not os.path.exists(regression_results_dir):
+    os.mkdir(regression_results_dir)
+
+peak_amplitude_df = peak_amplitude_df[(peak_amplitude_df.snrP >=snr_threshold) | (peak_amplitude_df.snrS >=snr_threshold)]
+peak_amplitude_df = peak_amplitude_df[(peak_amplitude_df.magnitude >=magnitude_threshold[0]) & (peak_amplitude_df.magnitude <=magnitude_threshold[1])]
+
+peak_amplitude_df = peak_amplitude_df[peak_amplitude_df.peak_P>0]
+peak_amplitude_df = peak_amplitude_df[peak_amplitude_df.peak_S>0]
+
+#peak_amplitude_df = peak_amplitude_df.dropna()
+DAS_index = peak_amplitude_df.channel_id.unique().astype('int')
+
 
 # %% Compare the regression parameters and site terms
 fig, ax = plt.subplots(2, 1, figsize=(10, 12), sharex=True, sharey=True)
@@ -142,6 +159,8 @@ for i_model, combined_channel_number in enumerate(combined_channel_number_list):
 
     g = plot_prediction_vs_measure_seaborn(peak_comparison_df, [0.01, 100], phase='S')
     g.savefig(regression_results_dir + f'/S_validate_predicted_combined_site_terms_{combined_channel_number}chan_seaborn.png')
+    
+    plt.close('all')
     # plot_compare_prediction_vs_true_values(peak_amplitude_df, y_P_predict, y_S_predict, (-2.0, 2), 
     # regression_results_dir + f'/validate_predicted__combined_site_terms_{combined_channel_number}chan.png')
     
@@ -150,10 +169,13 @@ for i_model, combined_channel_number in enumerate(combined_channel_number_list):
 # Specify the file names
 results_output_dir = '/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RM'
 
+min_channel = 100
 snr_threshold = 10
 magnitude_threshold = [2, 10]
+apply_calibrated_distance = True # if true, use the depth-calibrated distance to do regression
+
 # directory to store the fitted results
-regression_results_dir = results_output_dir + '/regression_results_smf'
+regression_results_dir = results_output_dir + f'/regression_results_smf_weighted_{min_channel}_channel_at_least'
 
 # %% Compare the regression parameters and site terms
 fig, ax = plt.subplots(2, 1, figsize=(10, 18), sharex=True, sharey=True) # north
@@ -161,6 +183,8 @@ fig2, ax2 = plt.subplots(2, 1, figsize=(10, 18), sharex=True, sharey=True) # sou
 combined_channel_number_list = [10, 20, 50, 100, -1] # -1 means the constant model
 for i_model, combined_channel_number in enumerate(combined_channel_number_list):
     peak_amplitude_df = pd.read_csv(results_output_dir + f'/peak_amplitude_region_site_{combined_channel_number}.csv')
+    if apply_calibrated_distance: 
+        peak_amplitude_df['distance_in_km'] = peak_amplitude_df['calibrated_distance_in_km']
 
     peak_amplitude_df = peak_amplitude_df[(peak_amplitude_df.snrP >=snr_threshold) | (peak_amplitude_df.snrS >=snr_threshold)]
     peak_amplitude_df = peak_amplitude_df[(peak_amplitude_df.magnitude >=magnitude_threshold[0]) & (peak_amplitude_df.magnitude <=magnitude_threshold[1])]
@@ -191,4 +215,5 @@ for i_model, combined_channel_number in enumerate(combined_channel_number_list):
     g = plot_prediction_vs_measure_seaborn(peak_comparison_df, [0.01, 100], phase='S')
     g.savefig(regression_results_dir + f'/S_validate_predicted_combined_site_terms_{combined_channel_number}chan_seaborn.png')
 
+    plt.close('all')
 # %%
