@@ -95,9 +95,10 @@ def get_mean_magnitude(peak_amplitude_df, M_predict):
 # Then try to use the regression relation from small events to predict the larger ones
 #%% load the results from combined regional site terms t
 results_output_dir = '/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RM/'#'/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RO'
-regression_dir = 'regression_results_smf_weighted'
+regression_dir = 'regression_results_smf_weighted_100_channel_at_least'
 site_term_column = 'region_site'
 fitting_type = 'with_site'
+tt_dir = '/kuafu/EventData/Mammoth_north/model_proc_tt/CVM3D'
 
 event_folder = '/kuafu/EventData/Mammoth_north'
 region_label = 'mammothN'
@@ -121,7 +122,7 @@ if not os.path.exists(fig_output_dir):
 
 #%% ========================== Real time estimation ================================
 # load event information 
-nearby_channel_number = 10
+nearby_channel_number = 100
 peak_amplitude_df = pd.read_csv(results_output_dir + f'/peak_amplitude_region_site_{nearby_channel_number}.csv')
 event_peak_df = peak_amplitude_df[peak_amplitude_df.magnitude > 5.5]
 event_id_list = event_peak_df.event_id.unique().astype('int')
@@ -148,8 +149,9 @@ eq_time = eq_info.event_time # eq time
 #%%
 strain_rate, info = load_event_data(das_path, test_event_id)
 strain_rate = strain_rate[:, DAS_index]
-das_dt = info['dt']
-das_time0 = np.arange(info['nt']) * das_dt
+das_dt = info['dt_s']
+nt = strain_rate.shape[0]
+das_time0 = np.arange(nt) * das_dt
 
 # get distance from earthquake to each channel
 distance_to_source = locations2degrees(DAS_lat, DAS_lon, eq_lat, eq_lon) * 113 # in km
@@ -161,17 +163,30 @@ for i, ii_win in enumerate(range(0, strain_rate.shape[0], time_step)):
     data_peak_mat[i, :] = np.max(abs(strain_rate[ii_win:(ii_win+time_step), :]), axis=0)    
 das_time = das_time0[::time_step]
 
+# theoretical travel time 
+cvm_tt = pd.read_csv(tt_dir + f'/{test_event_id}.csv')
+cvm_tt_tp = np.array(cvm_tt.tp)
+cvm_tt_tp = cvm_tt_tp[np.newaxis, :]
 
-ml_picks = pd.read_csv(ml_pick_dir + f'/{test_event_id}.csv')
+P_arrival_approx = 0
+S_arrival_approx = np.mean(cvm_tt.ts) - np.mean(cvm_tt.tp)
 
-# extract the picked information
-ml_picks_p = ml_picks[ml_picks['phase_type'] == 'P']
-ml_picks_s = ml_picks[ml_picks['phase_type'] == 'S']
-P_arrival_index = np.median(ml_picks_p.phase_index).astype('int')
-S_arrival_index = np.median(ml_picks_s.phase_index).astype('int')
+das_time_channels = das_time[:, np.newaxis] - cvm_tt_tp - 30
 
-P_arrival_approx = das_time0[P_arrival_index]
-S_arrival_approx = das_time0[S_arrival_index]
+data_peak_mat_aligned = np.zeros(data_peak_mat.shape)
+for i in range(data_peak_mat.shape[1]):
+    data_peak_mat_aligned[:, i] = np.interp(das_time-28, das_time_channels[:, i], data_peak_mat[:, i], right=np.nan, left=np.nan)
+
+# ml_picks = pd.read_csv(ml_pick_dir + f'/{test_event_id}.csv')
+
+# # extract the picked information
+# ml_picks_p = ml_picks[ml_picks['phase_type'] == 'P']
+# ml_picks_s = ml_picks[ml_picks['phase_type'] == 'S']
+# P_arrival_index = np.median(ml_picks_p.phase_index).astype('int')
+# S_arrival_index = np.median(ml_picks_s.phase_index).astype('int')
+
+# P_arrival_approx = das_time0[P_arrival_index]
+# S_arrival_approx = das_time0[S_arrival_index]
 
 # get the site terms
 if nearby_channel_number == -1: # when nearby_channel_number == -1, combined all channels!
@@ -202,50 +217,50 @@ for ii, site_term_key in enumerate(site_term_keys):
 site_terms_P = site_terms_P[np.newaxis, :]
 site_terms_S = site_terms_S[np.newaxis, :]
 
-mag_estimate_P = (np.log10(data_peak_mat+1e-12) - site_terms_P - np.log10(distance_to_source)*regP.params['np.log10(distance_in_km)'])/regP.params['magnitude']
+mag_estimate_P = (np.log10(data_peak_mat_aligned+1e-12) - site_terms_P - np.log10(distance_to_source)*regP.params['np.log10(distance_in_km)'])/regP.params['magnitude']
 median_mag_P = np.nanmedian(mag_estimate_P, axis=1)
 mean_mag_P = np.nanmean(mag_estimate_P, axis=1)
 
-mag_estimate_S = (np.log10(data_peak_mat+1e-12) - site_terms_S - np.log10(distance_to_source)*regS.params['np.log10(distance_in_km)'])/regS.params['magnitude']
+mag_estimate_S = (np.log10(data_peak_mat_aligned+1e-12) - site_terms_S - np.log10(distance_to_source)*regS.params['np.log10(distance_in_km)'])/regS.params['magnitude']
 median_mag_S = np.nanmedian(mag_estimate_S, axis=1)
 mean_mag_S = np.nanmean(mag_estimate_S, axis=1)
 #%%
 fig, ax = plt.subplots(2,1, figsize=(10, 14))
 
 gca = ax[0]
-gca.plot(das_time, mag_estimate_P, '-k', linewidth=0.1, alpha=0.1)
-gca.plot(das_time, median_mag_P, '--r', linewidth=2, alpha=0.5, zorder=3, label='median')
-gca.plot(das_time, mean_mag_P, '-r', linewidth=2, alpha=0.5, zorder=3, label='mean')
+gca.plot(das_time-30, mag_estimate_P, '-k', linewidth=0.1, alpha=0.1)
+gca.plot(das_time-30, median_mag_P, '--r', linewidth=2, alpha=0.5, zorder=3, label='median')
+gca.plot(das_time-30, mean_mag_P, '-r', linewidth=2, alpha=0.5, zorder=3, label='mean')
 gca.vlines(x=[P_arrival_approx, S_arrival_approx], ymax=10, ymin=0, label='mean P and S arrivals')
 gca.hlines(y=[eq_mag], xmin=-10, xmax=120, color='green', label='catalog M')
 gca.set_yticks(np.arange(0, 9))
 gca.set_ylim(0, eq_mag.values*1.4)
-gca.set_xlim(-10, das_time[-1])
+gca.set_xlim(-5, 20)
 #gca.set_xlim(30, 60)
 gca.set_xlabel('Time (s)')
 gca.set_ylabel('Estimated Magnitude')
 gca.set_title(f'id: {test_event_id}, magnitude: {eq_mag.values[0]}, P wave')
-gca.legend()
+gca.legend(loc=1)
 
 gca=ax[1]
-gca.plot(das_time, mag_estimate_S, '-k', linewidth=0.1, alpha=0.1)
-gca.plot(das_time, median_mag_S, '--r', linewidth=2, alpha=0.5, zorder=3, label='median')
-gca.plot(das_time, mean_mag_S, '-r', linewidth=2, alpha=0.5, zorder=3, label='mean')
+gca.plot(das_time-30, mag_estimate_S, '-k', linewidth=0.1, alpha=0.1)
+gca.plot(das_time-30, median_mag_S, '--r', linewidth=2, alpha=0.5, zorder=3, label='median')
+gca.plot(das_time-30, mean_mag_S, '-r', linewidth=2, alpha=0.5, zorder=3, label='mean')
 gca.vlines(x=[P_arrival_approx, S_arrival_approx], ymax=10, ymin=0, label='mean P and S arrivals')
 gca.hlines(y=[eq_mag], xmin=-10, xmax=120, color='green', label='catalog M')
 gca.set_yticks(np.arange(0, 9))
 gca.set_ylim(0, eq_mag.values*1.4)
-gca.set_xlim(-10, das_time[-1])
+gca.set_xlim(-5, 20)
 #gca.set_xlim(30, 60)
 gca.set_xlabel('Time (s)')
 gca.set_ylabel('Estimated Magnitude')
 gca.set_title(f'id: {test_event_id}, magnitude: {eq_mag.values[0]}, S wave')
-gca.legend()
+gca.legend(loc=1)
 
-plt.savefig(fig_output_dir + f'/{test_event_id}_estimated_mag.png')
-plt.close('all')
+# plt.savefig(fig_output_dir + f'/{test_event_id}_estimated_mag.png')
+# plt.close('all')
 
-print(f'{test_event_id} done!')
+# print(f'{test_event_id} done!')
     # except:
     #     continue
 
