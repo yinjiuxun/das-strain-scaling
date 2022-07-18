@@ -11,12 +11,22 @@ from plotting_functions import *
 # import the utility functions
 from utility_functions import *
 
-#%% Functions used here
+#%% 
+# Define Functions used here
+
+def filter_by_channel_number(peak_amplitude_df, min_channel):
+    """To remove the measurements from few channels (< min_channel)"""
+    event_channel_count = peak_amplitude_df.groupby(['event_id'])['event_id'].count()
+    channel_count = event_channel_count.values
+    event_id = event_channel_count.index
+    event_id = event_id[channel_count >= min_channel]
+
+    return peak_amplitude_df[peak_amplitude_df['event_id'].isin(event_id)]
 
 def split_P_S_dataframe(peak_amplitude_df):
     # use P and S separately to do the regression
-    peak_amplitude_df_P = peak_amplitude_df[['peak_P', 'magnitude', 'distance_in_km', 'region_site']]
-    peak_amplitude_df_S = peak_amplitude_df[['peak_S', 'magnitude', 'distance_in_km', 'region_site']]
+    peak_amplitude_df_P = peak_amplitude_df[['event_id', 'peak_P', 'magnitude', 'distance_in_km', 'region_site']]
+    peak_amplitude_df_S = peak_amplitude_df[['event_id', 'peak_S', 'magnitude', 'distance_in_km', 'region_site']]
 
     # Remove some extreme data outliers before fitting
     peak_amplitude_df_P = peak_amplitude_df_P.dropna()
@@ -46,12 +56,16 @@ def write_regression_summary(regression_results_dir, file_name, reg):
     with open(regression_text + '/' + file_name + '.txt', "w") as text_file:
         text_file.write(reg.summary().as_text())
 
-def fit_regression_magnitude_range(peak_amplitude_df, M_threshold, regression_results_dir, nearby_channel_number):
+def fit_regression_magnitude_range(peak_amplitude_df, M_threshold, regression_results_dir, nearby_channel_number, min_channel=None):
     
     peak_amplitude_df = peak_amplitude_df[(peak_amplitude_df.magnitude >= M_threshold[0]) & (peak_amplitude_df.magnitude <= M_threshold[1])]
     
     # use P and S separately to do the regression
     peak_amplitude_df_P, peak_amplitude_df_S = split_P_S_dataframe(peak_amplitude_df)
+    
+    if min_channel:
+        peak_amplitude_df_P = filter_by_channel_number(peak_amplitude_df_P, min_channel)
+        peak_amplitude_df_S = filter_by_channel_number(peak_amplitude_df_S, min_channel)
 
     regP = smf.ols(formula='np.log10(peak_P) ~ magnitude + np.log10(distance_in_km) + C(region_site) - 1', data=peak_amplitude_df_P).fit()
     regS = smf.ols(formula='np.log10(peak_S) ~ magnitude + np.log10(distance_in_km) + C(region_site) - 1', data=peak_amplitude_df_S).fit()
@@ -69,13 +83,17 @@ def fit_regression_magnitude_range(peak_amplitude_df, M_threshold, regression_re
     regS.save(regression_results_dir + '/' + file_name_S + '.pickle', remove_data=True)
     return regP,regS
 
-def fit_regression_with_weight_magnitude_range(peak_amplitude_df, M_threshold, regression_results_dir, nearby_channel_number):
+def fit_regression_with_weight_magnitude_range(peak_amplitude_df, M_threshold, regression_results_dir, nearby_channel_number, min_channel=None):
     """ Linear regression with weight, the weight is 10**magnitude """
 
     peak_amplitude_df = peak_amplitude_df[(peak_amplitude_df.magnitude >= M_threshold[0]) & (peak_amplitude_df.magnitude <= M_threshold[1])]
     
     # use P and S separately to do the regression
     peak_amplitude_df_P, peak_amplitude_df_S = split_P_S_dataframe(peak_amplitude_df)
+
+    if min_channel:
+        peak_amplitude_df_P = filter_by_channel_number(peak_amplitude_df_P, min_channel)
+        peak_amplitude_df_S = filter_by_channel_number(peak_amplitude_df_S, min_channel)
 
     regP = smf.wls(formula='np.log10(peak_P) ~ magnitude + np.log10(distance_in_km) + C(region_site) - 1', 
                 data=peak_amplitude_df_P, weights = (10**peak_amplitude_df_P.magnitude)).fit()
@@ -124,10 +142,14 @@ def fit_regression_with_attenuation_magnitude_range(peak_amplitude_df, M_thresho
 peak_data_list = []
 das_index_list = []
 snr_threshold = 10
+min_channel = 100 # do regression only on events recorded by at least 100 channels
 magnitude_threshold = [2, 10]
+combined_channel_number_list = [10, 20, 50, 100, -1] # -1 means the constant model
+apply_calibrated_distance = True # if true, use the depth-calibrated distance to do regression
+
 #%% ==============================  Ridgecrest data ========================================
 #ridgecrest_peaks = '/home/yinjx/kuafu/Ridgecrest/Ridgecrest_scaling/peak_ampliutde_scaling_results_strain_rate/peak_amplitude_M3+.csv'
-ridgecrest_peaks = '/kuafu/yinjx/Ridgecrest/Ridgecrest_scaling/peak_amplitude_events/peak_amplitude.csv'
+ridgecrest_peaks = '/kuafu/yinjx/Ridgecrest/Ridgecrest_scaling/peak_amplitude_events/calibrated_peak_amplitude.csv'
 peak_amplitude_df_ridgecrest, DAS_index_ridgecrest = load_and_add_region(ridgecrest_peaks, region_label='ridgecrest', 
                                                                          snr_threshold=snr_threshold, magnitude_threshold=magnitude_threshold)
 peak_data_list.append(peak_amplitude_df_ridgecrest)
@@ -141,14 +163,14 @@ das_index_list.append(DAS_index_ridgecrest)
 # das_index_list.append(DAS_index_olancha)
 
 #%% ==============================  Mammoth south data ========================================
-mammoth_S_peaks = '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/South/peak_amplitude_events/peak_amplitude.csv'
+mammoth_S_peaks = '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/South/peak_amplitude_events/calibrated_peak_amplitude.csv'
 peak_amplitude_df_mammoth_S, DAS_index_mammoth_S = load_and_add_region(mammoth_S_peaks, region_label='mammothS', 
                                                                        snr_threshold=snr_threshold, magnitude_threshold=magnitude_threshold)
 peak_data_list.append(peak_amplitude_df_mammoth_S)
 das_index_list.append(DAS_index_mammoth_S)
 
 #%% ==============================  Mammoth north data ========================================
-mammoth_N_peaks = '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/North/peak_amplitude_events/peak_amplitude.csv'
+mammoth_N_peaks = '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/North/peak_amplitude_events/calibrated_peak_amplitude.csv'
 peak_amplitude_df_mammoth_N, DAS_index_mammoth_N = load_and_add_region(mammoth_N_peaks, region_label='mammothN', 
                                                                        snr_threshold=snr_threshold, magnitude_threshold=magnitude_threshold)
 peak_data_list.append(peak_amplitude_df_mammoth_N)
@@ -161,7 +183,6 @@ if not os.path.exists(results_output_dir):
     os.mkdir(results_output_dir)
 
 #%% Preprocess the data file: combining different channels etc.
-combined_channel_number_list = [10, 20, 50, 100, -1] # -1 means the constant model
 for nearby_channel_number in combined_channel_number_list:
     for ii, peak_data in enumerate(peak_data_list): # combine nearby channels for all the prepared data
         peak_data = combined_channels(das_index_list[ii], peak_data, nearby_channel_number)
@@ -170,6 +191,9 @@ for nearby_channel_number in combined_channel_number_list:
     peak_amplitude_df = pd.concat(peak_data_list, axis=0)
     peak_amplitude_df = add_event_label(peak_amplitude_df)
 
+    if apply_calibrated_distance: 
+        peak_amplitude_df['distance_in_km'] = peak_amplitude_df['calibrated_distance_in_km']
+    
     # %% Aggregate the columns of region and combined_channel_id to form the regional site terms
     peak_amplitude_df['combined_channel_id']= peak_amplitude_df['combined_channel_id'].astype('str')
     peak_amplitude_df['region_site'] = peak_amplitude_df[['region', 'combined_channel_id']].agg('-'.join, axis=1)
@@ -180,7 +204,7 @@ for nearby_channel_number in combined_channel_number_list:
 #%% 
 # Linear regression on the data point including the site term, here assume that every X nearby channels share the same site terms
 # directory to store the fitted results
-regression_results_dir = results_output_dir + '/regression_results_smf'
+regression_results_dir = results_output_dir + f'/regression_results_smf_{min_channel}_channel_at_least'
 if not os.path.exists(regression_results_dir):
     os.mkdir(regression_results_dir)
 
@@ -192,7 +216,7 @@ for nearby_channel_number in combined_channel_number_list:
     peak_amplitude_df = pd.read_csv(results_output_dir + f'/peak_amplitude_region_site_{nearby_channel_number}.csv')
     # Specify magnitude range to do regression
     M_threshold = [0, 9]
-    regP, regS = fit_regression_magnitude_range(peak_amplitude_df, M_threshold, regression_results_dir, nearby_channel_number)
+    regP, regS = fit_regression_magnitude_range(peak_amplitude_df, M_threshold, regression_results_dir, nearby_channel_number, min_channel=min_channel)
 
     mag_slopeP.append(regP.params[-2])
     dist_slopeP.append(regP.params[-1])
@@ -207,7 +231,7 @@ S_regression_parameter_df.to_csv(regression_parameter_txt + '_S.txt', index=Fals
 #%% 
 # Weighted Linear regression on the data point including the site term, here assume that every X nearby channels share the same site terms
 # directory to store the fitted results
-regression_results_dir = results_output_dir + '/regression_results_smf_weighted'
+regression_results_dir = results_output_dir + f'/regression_results_smf_weighted_{min_channel}_channel_at_least'
 if not os.path.exists(regression_results_dir):
     os.mkdir(regression_results_dir)
 
@@ -219,7 +243,7 @@ for nearby_channel_number in combined_channel_number_list:
     peak_amplitude_df = pd.read_csv(results_output_dir + f'/peak_amplitude_region_site_{nearby_channel_number}.csv')
     # Specify magnitude range to do regression
     M_threshold = [0, 9]
-    regP, regS = fit_regression_with_weight_magnitude_range(peak_amplitude_df, M_threshold, regression_results_dir, nearby_channel_number)
+    regP, regS = fit_regression_with_weight_magnitude_range(peak_amplitude_df, M_threshold, regression_results_dir, nearby_channel_number, min_channel=min_channel)
 
     mag_slopeP.append(regP.params[-2])
     dist_slopeP.append(regP.params[-1])
@@ -231,30 +255,9 @@ S_regression_parameter_df = pd.DataFrame({'site_channels':combined_channel_numbe
 P_regression_parameter_df.to_csv(regression_parameter_txt + '_P.txt', index=False, sep='\t', float_format='%.3f')
 S_regression_parameter_df.to_csv(regression_parameter_txt + '_S.txt', index=False, sep='\t', float_format='%.3f')
 
-#%%
-regression_parameter_txt = regression_results_dir + '/regression_slopes'
-mag_slopeP, dist_slopeP, mag_slopeS, dist_slopeS = [], [], [], []
-
-for nearby_channel_number in combined_channel_number_list:
-    M_threshold = [0, 10]
-    regP = sm.load(regression_results_dir + f"/P_regression_combined_site_terms_{nearby_channel_number}chan.pickle")
-    regS = sm.load(regression_results_dir + f"/S_regression_combined_site_terms_{nearby_channel_number}chan.pickle")
-
-    
-    mag_slopeP.append(regP.params[-2])
-    dist_slopeP.append(regP.params[-1])
-    mag_slopeS.append(regS.params[-2])
-    dist_slopeS.append(regS.params[-1])
-    
-    # reset the regression models
-    #del regP, regS
-
-P_regression_parameter_df = pd.DataFrame({'site_channels':combined_channel_number_list, 'magnitude-P':mag_slopeP, 'log(distance)-P':dist_slopeP})  
-S_regression_parameter_df = pd.DataFrame({'site_channels':combined_channel_number_list, 'magnitude-S':mag_slopeS, 'log(distance)-S':dist_slopeS})  
-P_regression_parameter_df.to_csv(regression_parameter_txt + '_P.txt', index=False, sep='\t', float_format='%.3f')
-S_regression_parameter_df.to_csv(regression_parameter_txt + '_S.txt', index=False, sep='\t', float_format='%.3f')
 
 # %%
+pass
 # ======================= Below are the part to use the small events to do the regression ===========================
 # Now only use the smaller earthquakes to do the regression
 # directory to store the fitted results
