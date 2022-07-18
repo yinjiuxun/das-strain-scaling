@@ -320,10 +320,31 @@ plt.savefig(combined_results_output_dir + '/time_variation_selected_earthquakes.
 # plt.savefig(combined_results_output_dir + '/time_variation_selected_earthquakes_vertical.png', bbox_inches='tight')
 
 
+
+#%% Calculate the possible clipping lines
+a_M_P = 0.4724
+b_D_P = -1.4700
+K_RC_P, K_LV_S_P, K_LV_N_P = 0.9639, 0.5562, 0.6237 
+M_clipping = np.arange(0, 9)
+# P clipping
+D_clipping_RC_P = -M_clipping*a_M_P/b_D_P + (2.06-K_RC_P)/b_D_P
+D_clipping_LV_N_P = -M_clipping*a_M_P/b_D_P + (1.54-K_LV_N_P)/b_D_P
+D_clipping_LV_S_P = -M_clipping*a_M_P/b_D_P + (1.30-K_LV_S_P)/b_D_P
+
+# S clipping
+a_M_S = 0.5405
+b_D_S = -1.1561
+K_RC_S, K_LV_S_S, K_LV_N_S, K_Sanriku_S = 0.6010, 0.2249, 0.3733, -0.3658 
+
+D_clipping_RC_S = -M_clipping*a_M_S/b_D_S + (2.06-K_RC_S)/b_D_S
+D_clipping_LV_N_S = -M_clipping*a_M_S/b_D_S + (1.54-K_LV_N_S)/b_D_S
+D_clipping_LV_S_S = -M_clipping*a_M_S/b_D_S + (1.30-K_LV_S_S)/b_D_S
+D_clipping_Sanriku_S = -M_clipping*a_M_S/b_D_S + (-0.18 - K_Sanriku_S)/b_D_S
+
 #%% plot data statistics
 add_possible_clipping = False
-calibrated_distance = '_calibrated_distance'
 peak_amplitude_df_temp = peak_amplitude_df_all.iloc[::1, :]
+calibrated_distance = ''#'_calibrated_distance'
 peak_amplitude_df_temp['log10(distance)'] = np.log10(peak_amplitude_df_temp.calibrated_distance_in_km.astype('float'))
 # peak_amplitude_df_temp['log10(distance)'] = np.log10(peak_amplitude_df_temp.distance_in_km.astype('float'))
 peak_amplitude_df_temp['log10(peak_P)'] = np.log10(peak_amplitude_df_temp.peak_P.astype('float'))
@@ -340,8 +361,8 @@ g = sns.PairGrid(peak_amplitude_df_temp[['magnitude','log10(distance)', 'log10(p
 g.map_diag(sns.kdeplot, hue=None, color=".1", linewidth=2) #hue='Array', palette='Set2', 
 g.map_diag(sns.kdeplot, linewidth=2, alpha=1) #hue='Array', palette='Set2', 
 
-g.map_lower(sns.histplot, pmax=0.5, hue=None, color=".1", cbar=True, cbar_kws={'location': 'top', 'fraction':0.02, 'pad':0})
-g.map_lower(sns.histplot, pmax=0.5, alpha=0.3)
+g.map_lower(sns.histplot, pmax=0.5, hue=None, color=".1", cbar=True, cbar_kws={'location': 'top', 'fraction':0.02, 'pad':0}, bins=80)
+g.map_lower(sns.histplot, pmax=0.5, alpha=0.3, bins=80)
 
 plt.subplots_adjust(hspace=0.2, wspace=0.25)
 
@@ -351,18 +372,6 @@ g._legend.set_bbox_to_anchor((0.3, 0.9))
 
 # This part is a little tricky for now.
 if add_possible_clipping:
-    M_clipping = np.arange(0, 9)
-    # P clipping
-    D_clipping_RC_P = M_clipping*5/14 - (2.06-0.615)/1.4
-    D_clipping_LV_N_P = M_clipping*5/14 - (1.54-0.391)/1.4
-    D_clipping_LV_S_P = M_clipping*5/14 - (1.30-0.277)/1.4
-    
-    # S clipping
-    D_clipping_RC_S = M_clipping*0.57/1.21 - (2.06-0.615)/1.21
-    D_clipping_LV_N_S = M_clipping*0.57/1.21 - (1.54-0.391)/1.21
-    D_clipping_LV_S_S = M_clipping*0.57/1.21 - (1.30-0.277)/1.21
-    D_clipping_Sanriku_S = M_clipping*0.57/1.21 - (-0.18 - (-0.6))/1.21
-
     # Plot P clipping lines
     g.axes[1,0].plot(M_clipping, D_clipping_RC_P, '-', color='#7DC0A6', linewidth=2.5)
     g.axes[1,0].plot(M_clipping, D_clipping_LV_N_P, '-', color='#ED926B', linewidth=2.5)
@@ -427,10 +436,129 @@ else:
     plt.savefig(combined_results_output_dir + f'/data_correlation{calibrated_distance}.png', bbox_inches='tight')
     plt.savefig(f'/kuafu/yinjx/Sanriku/peak_ampliutde_scaling_results_strain_rate/data_correlation{calibrated_distance}.png', bbox_inches='tight')
 
+#%% 
+# New organization (3 by 3)
+bins = (100, 100)
+add_possible_clipping = False
+peak_amplitude_df_temp = peak_amplitude_df_all.iloc[::1, :]
+calibrated_distance = ''#'_calibrated_distance'
+peak_amplitude_df_temp['log10(distance)'] = np.log10(peak_amplitude_df_temp.calibrated_distance_in_km.astype('float'))
+# peak_amplitude_df_temp['log10(distance)'] = np.log10(peak_amplitude_df_temp.distance_in_km.astype('float'))
+peak_amplitude_df_temp['log10(peak_P)'] = np.log10(peak_amplitude_df_temp.peak_P.astype('float'))
+peak_amplitude_df_temp['log10(peak_S)'] = np.log10(peak_amplitude_df_temp.peak_S.astype('float'))
+peak_amplitude_df_temp['P/S'] = peak_amplitude_df_temp.peak_P/peak_amplitude_df_temp.peak_S
+
+peak_amplitude_df_Sanriku = peak_amplitude_df_temp[peak_amplitude_df_temp.Array == 'Sanriku']
+peak_amplitude_df_others = peak_amplitude_df_temp[peak_amplitude_df_temp.Array != 'Sanriku']
+
+
+plt.close('all')
+fig, ax = plt.subplots(3, 3, figsize=(14, 14))
+gca = ax[0, 0]
+g = sns.kdeplot(ax=gca, data=peak_amplitude_df_temp[['magnitude', 'Array']], x='magnitude', color='k')
+g = sns.kdeplot(ax=gca, data=peak_amplitude_df_temp[['magnitude', 'Array']], x='magnitude', hue='Array', palette='Set2', legend=False)
+gca.set_xlim(1, 6)
+
+gca = ax[0, 1]
+g = sns.kdeplot(ax=gca, data=peak_amplitude_df_temp[['log10(distance)', 'Array']], x='log10(distance)', color='k')
+g = sns.kdeplot(ax=gca, data=peak_amplitude_df_temp[['log10(distance)', 'Array']], x='log10(distance)', hue='Array', palette='Set2', legend=False)
+gca.set_xlim(0, 3)
+
+gca = ax[1, 0]
+g = sns.histplot(ax=gca, data=peak_amplitude_df_temp[['magnitude','log10(peak_P)', 'Array']], x='magnitude', y='log10(peak_P)',
+                 color=".1", pmax=0.5, cbar=True, bins=bins, legend=False, cbar_kws={'location': 'top', 'fraction':0.02, 'pad':0, 'label':'Counts'})
+g = sns.histplot(ax=gca, data=peak_amplitude_df_temp[['magnitude','log10(peak_P)', 'Array']], x='magnitude', y='log10(peak_P)',
+                 hue='Array', palette='Set2', alpha=0.3, pmax=0.5, cbar=False, bins=bins, legend=True)
+gca.set_ylim(-2.5, 2.5)
+g.get_legend().set_bbox_to_anchor((3.5, 2.5))
+
+
+gca = ax[1, 1]
+g = sns.histplot(ax=gca, data=peak_amplitude_df_temp[['log10(distance)','log10(peak_P)', 'Array']], x='log10(distance)', y='log10(peak_P)',
+                 color=".1", pmax=0.5, cbar=True, bins=bins, legend=False, cbar_kws={'location': 'top', 'fraction':0.02, 'pad':0, 'label':'Counts'})
+g = sns.histplot(ax=gca, data=peak_amplitude_df_temp[['log10(distance)','log10(peak_P)', 'Array']], x='log10(distance)', y='log10(peak_P)',
+                 hue='Array', palette='Set2', alpha=0.3, pmax=0.5, cbar=False, bins=bins, legend=False)
+
+gca = ax[2, 0]
+g = sns.histplot(ax=gca, data=peak_amplitude_df_others[['magnitude','log10(peak_S)', 'Array']], x='magnitude', y='log10(peak_S)',
+                 color=".1", pmax=0.5, cbar=True, bins=bins, legend=False, cbar_kws={'location': 'top', 'fraction':0.02, 'pad':0, 'label':'Counts'})
+g = sns.histplot(ax=gca, data=peak_amplitude_df_others[['magnitude','log10(peak_S)', 'Array']], x='magnitude', y='log10(peak_S)',
+                 hue='Array', palette='Set2', alpha=0.3, pmax=0.5, cbar=False, bins=bins, legend=False)
+gca.plot(peak_amplitude_df_Sanriku.magnitude.astype('float'), np.log10(peak_amplitude_df_Sanriku.peak_S.astype('float')), '.', markersize=1, color='#DA8EC0', alpha=0.4)
+gca.set_ylim(-2.5, 2.5)
+
+
+gca = ax[2, 1]
+g = sns.histplot(ax=gca, data=peak_amplitude_df_others[['log10(distance)','log10(peak_S)', 'Array']], x='log10(distance)', y='log10(peak_S)',
+                 color=".1", pmax=0.5, cbar=True, bins=bins, legend=False, cbar_kws={'location': 'top', 'fraction':0.02, 'pad':0, 'label':'Counts'})
+g = sns.histplot(ax=gca, data=peak_amplitude_df_others[['log10(distance)','log10(peak_S)', 'Array']], x='log10(distance)', y='log10(peak_S)',
+                 hue='Array', palette='Set2', alpha=0.3, pmax=0.5, cbar=False, bins=bins, legend=False)
+gca.plot(np.log10(peak_amplitude_df_Sanriku.distance_in_km.astype('float')), np.log10(peak_amplitude_df_Sanriku.peak_S.astype('float')), '.', markersize=1, color='#DA8EC0', alpha=0.4)
+
+fig.delaxes(ax[0, 2])
+
+gca = ax[1, 2]
+g = sns.kdeplot(ax=gca, data=peak_amplitude_df_temp[['log10(peak_P)', 'Array']], x='log10(peak_P)', color='k')
+g = sns.kdeplot(ax=gca, data=peak_amplitude_df_temp[['log10(peak_P)', 'Array']], x='log10(peak_P)', hue='Array', palette='Set2', legend=False)
+gca.set_xlim(-2.5, 2.5)
+
+gca = ax[2, 2]
+g = sns.kdeplot(ax=gca, data=peak_amplitude_df_temp[['log10(peak_S)', 'Array']], x='log10(peak_S)', color='k')
+g = sns.kdeplot(ax=gca, data=peak_amplitude_df_temp[['log10(peak_S)', 'Array']], x='log10(peak_S)', hue='Array', palette='Set2', legend=False)
+
+# share x axis
+ax[1, 0].sharex(ax[0, 0])
+ax[2, 0].sharex(ax[0, 0])
+ax[1, 1].sharex(ax[0, 1])
+ax[2, 1].sharex(ax[0, 1])
+ax[2, 2].sharex(ax[1, 2])
+
+# share y axis
+ax[1, 1].sharey(ax[1, 0])
+ax[2, 1].sharey(ax[2, 0])
+ax[2, 2].sharey(ax[1, 2])
+
+# some final handling
+letter_list = [str(chr(k+97)) for k in range(0, 20)]
+k=0
+for i_ax, gca in enumerate(ax.flatten()):
+    gca.spines.right.set_visible(False)
+    gca.spines.top.set_visible(False)
+    # add annotation
+    if i_ax != 2:
+        gca.annotate(f'({letter_list[k]})', xy=(-0.3, 1.1), xycoords=gca.transAxes)
+        k += 1
+    # remove some labels
+    if i_ax not in [0, 3, 6, 5, 8]:
+        gca.set_ylabel('')
+    if i_ax not in [5, 6, 7, 8]:
+        gca.set_xlabel('')
+
+plt.subplots_adjust(wspace=0.5, hspace=0.5)
+
+if add_possible_clipping:       
+    plt.savefig(combined_results_output_dir + f'/data_correlation_clipping{calibrated_distance}_3x3.png', bbox_inches='tight')
+    plt.savefig(f'/kuafu/yinjx/Sanriku/peak_ampliutde_scaling_results_strain_rate/data_correlation_clipping{calibrated_distance}_3x3.png', bbox_inches='tight')
+else:
+    plt.savefig(combined_results_output_dir + f'/data_correlation{calibrated_distance}_3x3.png', bbox_inches='tight')
+    plt.savefig(f'/kuafu/yinjx/Sanriku/peak_ampliutde_scaling_results_strain_rate/data_correlation{calibrated_distance}_3x3.png', bbox_inches='tight')
+
+
 #%% Only show the clipping figure
+peak_amplitude_df_temp = peak_amplitude_df_all.iloc[::1, :]
+calibrated_distance = ''#'_calibrated_distance'
+peak_amplitude_df_temp['log10(distance)'] = np.log10(peak_amplitude_df_temp.calibrated_distance_in_km.astype('float'))
+# peak_amplitude_df_temp['log10(distance)'] = np.log10(peak_amplitude_df_temp.distance_in_km.astype('float'))
+peak_amplitude_df_temp['log10(peak_P)'] = np.log10(peak_amplitude_df_temp.peak_P.astype('float'))
+peak_amplitude_df_temp['log10(peak_S)'] = np.log10(peak_amplitude_df_temp.peak_S.astype('float'))
+peak_amplitude_df_temp['P/S'] = peak_amplitude_df_temp.peak_P/peak_amplitude_df_temp.peak_S
+
+peak_amplitude_df_temp = peak_amplitude_df_temp[peak_amplitude_df_temp.Array != 'Sanriku']
+peak_amplitude_df_Sanriku = peak_amplitude_df[peak_amplitude_df.Array == 'Sanriku']
+
 fig, ax = plt.subplots(figsize=(10, 10))
 g = sns.histplot(ax=ax, data=peak_amplitude_df_temp[['magnitude','log10(distance)', 'Array']], x='magnitude', y='log10(distance)',
-                 color=".1", pmax=0.5, cbar=True, bins=(200, 200), cbar_kws={'location': 'top', 'fraction':0.02, 'pad':0, 'label':'Counts'})
+                 color=".1", pmax=0.7, cbar=True, bins=(50, 50), cbar_kws={'location': 'top', 'fraction':0.02, 'pad':0, 'label':'Counts'})
 
 # g = sns.histplot(ax=ax, data=peak_amplitude_df_temp[['magnitude','log10(distance)', 'Array']], x='magnitude', y='log10(distance)',
 #                  hue='Array',pmax=0.5, palette='Set2', bins=(200, 200), alpha=0.5)                 
@@ -439,7 +567,7 @@ g.axes.plot(peak_amplitude_df_Sanriku.magnitude, np.log10(peak_amplitude_df_Sanr
 
 ii_4130 = peak_amplitude_df_Sanriku.event_id==4130
 g.axes.plot(peak_amplitude_df_Sanriku[ii_4130].magnitude, np.log10(peak_amplitude_df_Sanriku[ii_4130].distance_in_km), '.', 
-            markersize=5, color='red', alpha=0.5, label='EQ 4130')
+            markersize=5, color='red', alpha=0.8)
 
 
 # Plot P clipping lines
@@ -453,6 +581,7 @@ g.axes.plot(M_clipping, D_clipping_RC_S, '--', color='#7DC0A6', linewidth=2.5, l
 g.axes.plot(M_clipping, D_clipping_LV_N_S, '--', color='#ED926B', linewidth=2.5, label='LV-N S')
 g.axes.plot(M_clipping, D_clipping_LV_S_S, '--', color='#91A0C7', linewidth=2.5, label='LV-S S')
 
+g.axes.text(5.6, 2.1, 'EQ 4130', color='r')
 
 ax.set_xlim(0.5, 8)
 ax.set_ylim(0, 3.5)
