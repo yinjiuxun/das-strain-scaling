@@ -744,7 +744,7 @@ fig.grdimage(
     transparency=30
 )
 
-fig.plot(x=catalog_test_events.longitude.astype('float'), y=catalog_test_events.latitude.astype('float'), style="c0.15c", color='0.5/0.5/0.5')
+fig.plot(x=catalog_test_events.longitude.astype('float'), y=catalog_test_events.latitude.astype('float'), style="c0.15c", color='blue')
 fig.plot(x=catalog_select.longitude.astype('float'), y=catalog_select.latitude.astype('float'), style="c0.2c", color="black")
 
 # show the werid 4130 event
