@@ -1,4 +1,5 @@
 #%% import modules
+from calendar import c
 import os
 import pandas as pd
 #from sep_util import read_file
@@ -129,6 +130,7 @@ def plot_prediction_vs_measure_seaborn(peak_comparison_df, xy_range, phase):
 
 # %% Compare the regression parameters and site terms
 combined_channel_number_list = [10, 20, 50, 100, -1] # -1 means the constant model
+line_label = ['10 channels', '20 channels', '50 channels', '100 channels', 'constant']
 # DataFrame to store parameters for all models
 P_parameters_comparison = pd.DataFrame(columns=['combined_channels', 'magnitude', 'distance', 'magnitude_err', 'distance_err'], 
 index = np.arange(len(combined_channel_number_list)))
@@ -173,20 +175,20 @@ for i_model, combined_channel_number in enumerate(combined_channel_number_list):
     site_term_df.to_csv(regression_results_dir + f'/site_terms_{combined_channel_number}chan.csv', index=False)
 
 # plot to compare the site terms
-fig, ax = plt.subplots(2, 1, figsize=(10, 12), sharex=True, sharey=True)
+fig, ax = plt.subplots(1, 2, figsize=(20, 6), sharex=True, sharey=True)
 for i_model, combined_channel_number in enumerate(combined_channel_number_list):
     try:
         site_term_df = pd.read_csv(regression_results_dir + f'/site_terms_{combined_channel_number}chan.csv')
 
-        ax[0].plot(site_term_df.channel_id*channel_space, site_term_df.site_term_P, '-', label=f'{combined_channel_number} channels')#, Cond.# {regP.condition_number:.2f}')
-        ax[1].plot(site_term_df.channel_id*channel_space, site_term_df.site_term_S, '-', label=f'{combined_channel_number} channels')#, Cond.# {regS.condition_number:.2f}')
+        ax[0].plot(site_term_df.channel_id*channel_space, site_term_df.site_term_P, '-', label=line_label[i_model])#, Cond.# {regP.condition_number:.2f}')
+        ax[1].plot(site_term_df.channel_id*channel_space, site_term_df.site_term_S, '-', label=line_label[i_model])#, Cond.# {regS.condition_number:.2f}')
     except:
         continue
     # reset the regression models
     #del regP, regS
 
-ax[0].legend(fontsize=12)
-ax[1].legend(fontsize=12)
+ax[0].legend(fontsize=12, loc=3)
+ax[1].legend(fontsize=12, loc=3)
 ax[0].xaxis.set_tick_params(which='both',labelbottom=True)
 ax[0].set_xlabel('Distance along cable (km)')
 ax[1].set_xlabel('Distance along cable (km)')
@@ -196,7 +198,7 @@ ax[1].set_ylabel('Site terms S (in log10)')
 
 plt.figure(fig.number)
 plt.savefig(regression_results_dir + '/compare_site_terms.png', bbox_inches='tight')
-
+plt.savefig(regression_results_dir + '/compare_site_terms.pdf', bbox_inches='tight')
 # %% Compare the regression parameters and site terms
 # compare with Yang 2022 for Ridgecrest 
 data = np.load('/kuafu/yinjx/Ridgecrest/Ridgecrest_scaling/site_amplification_Yang2022.npz')
@@ -306,119 +308,113 @@ plt.savefig(regression_results_dir + '/compare_site_terms.png', bbox_inches='tig
 # Specify the file names
 results_output_dir = '/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RM'
 
-# directory to store the fitted results
-regression_results_dir = results_output_dir + '/regression_results_smf_weighted'
-
+# directory to store the fitted results:
+regression_results_dir = results_output_dir + '/regression_results_smf_weighted_100_channel_at_least'
 # %% Compare the regression parameters and site terms
-fig, ax = plt.subplots(3, 2, figsize=(20, 22))#, sharex=True, sharey=True)
-ax = ax.flatten()
+
 
 title_plot = ['Ridgecrest P', 'Ridgecrest S', 'Long Valley North P', 'Long Valley North S', 'Long Valley South P', 'Long Valley South S']
 
 combined_channel_number_list = [10, 20, 50, 100, -1] # -1 means the constant model
 for i_model, combined_channel_number in enumerate(combined_channel_number_list):
     peak_amplitude_df = pd.read_csv(results_output_dir + f'/peak_amplitude_region_site_{combined_channel_number}.csv')
+    region_site = np.sort(peak_amplitude_df.region_site.unique())
 
-    regP = sm.load(regression_results_dir + f"/P_regression_combined_site_terms_{combined_channel_number}chan.pickle")
-    regS = sm.load(regression_results_dir + f"/S_regression_combined_site_terms_{combined_channel_number}chan.pickle")
+    temp_df_P = pd.DataFrame(columns=['region_site', 'site_term_P'])
+    temp_df_S = pd.DataFrame(columns=['region_site', 'site_term_S'])
 
-    # peak_amplitude_df = combined_channels(DAS_index, peak_amplitude_df, combined_channel_number)
-    # combined_channel_id = np.sort(peak_amplitude_df.combined_channel_id.unique())
-    # peak_amplitude_df = add_event_label(peak_amplitude_df)
+    try:
+        regP = sm.load(regression_results_dir + f"/P_regression_combined_site_terms_{combined_channel_number}chan.pickle")
+        site_term_P = regP.params[:-2]
+        # temp_df_P = pd.DataFrame(columns=['combined_channel_id', 'site_term_P'])
+        temp_df_P['region_site'] = [temp.replace('C(region_site)[', '').replace(']', '') for temp in site_term_P.index]
+        temp_df_P['site_term_P'] = np.array(site_term_P)
+        #temp_df_P = get_site_term_dataframe(temp_df_P)
+    except:
+        print('P regression not found, assign Nan to the site term')
+        site_term_P = np.nan
+    try:
+        regS = sm.load(regression_results_dir + f"/S_regression_combined_site_terms_{combined_channel_number}chan.pickle")
+        site_term_S = regS.params[:-2]
+        # temp_df_S = pd.DataFrame(columns=['combined_channel_id', 'site_term_S'])
+        temp_df_S['region_site'] = [temp.replace('C(region_site)[', '').replace(']', '') for temp in site_term_S.index]
+        temp_df_S['site_term_S'] = np.array(site_term_S)
+        #temp_df_S = get_site_term_dataframe(temp_df_S)
+    except:
+        print('S regression not found, assign Nan to the site term')
+        site_term_S = np.nan
 
+    temp_df1 = pd.DataFrame(columns=['region_site'])
+    temp_df1['region_site'] = region_site
+    temp_df1 = pd.merge(temp_df1, temp_df_P, on='region_site', how='outer')
+    temp_df1 = pd.merge(temp_df1, temp_df_S, on='region_site', how='outer')
+
+    temp_df2 = peak_amplitude_df.loc[:, ['region_site', 'channel_id']]
+    site_term_df = pd.merge(temp_df2, temp_df1, on='region_site', how='outer')
+    site_term_df = site_term_df.drop_duplicates(subset=['region_site', 'channel_id'])
+    site_term_df.to_csv(regression_results_dir + f'/site_terms_{combined_channel_number}chan.csv', index=False)
     
-# extract the site terms for different arrays
-    combined_channel_ridgecrest, site_term_P_ridgecrest = process_region_param_keys(regP, 'ridgecrest')
-    combined_channel_ridgecrest, site_term_S_ridgecrest = process_region_param_keys(regS, 'ridgecrest')
 
-    combined_channel_north, site_term_P_north = process_region_param_keys(regP, 'mammothN')
-    combined_channel_north, site_term_S_north = process_region_param_keys(regS, 'mammothN')
+# # select the site terms in different regions
+# site_term_df_RC = site_term_df[site_term_df.region_site.str.contains('ridgecrest')]
+# %%
+fig, ax = plt.subplots(4, 2, figsize=(16, 16))
+plt.subplots_adjust(wspace=0.2, hspace=0.3)
+title_plot = ['Ridgecrest P', 'Ridgecrest S', 'Long Valley North P', 'Long Valley North S', 'Long Valley South P', 'Long Valley South S']
+region_labels = ['ridgecrest', 'mammothN', 'mammothS']
+channel_spacing = [8e-3, 10e-3, 10e-3]
+label_lists = ['10 channels','20 channels','50 channels','100 channels','constant']
+combined_channel_number_list = [10, 20, 50, 100, -1] # -1 means the constant model
+for i_model, combined_channel_number in enumerate(combined_channel_number_list):
+    site_term_df = pd.read_csv(regression_results_dir + f'/site_terms_{combined_channel_number}chan.csv')
 
-    combined_channel_south, site_term_P_south = process_region_param_keys(regP, 'mammothS')
-    combined_channel_south, site_term_S_south = process_region_param_keys(regS, 'mammothS')
-
-    combined_channel_list_plot = [combined_channel_ridgecrest, combined_channel_ridgecrest, 
-                                  combined_channel_north, combined_channel_north,
-                                  combined_channel_south, combined_channel_south]
-    site_term_list_plot = [site_term_P_ridgecrest, site_term_S_ridgecrest,
-                           site_term_P_north, site_term_S_north,
-                           site_term_P_south, site_term_S_south]
-
-    for ii_region in range(0, 6):
-        gca = ax[ii_region]
-
-        if combined_channel_number == -1:
-            gca.hlines(site_term_list_plot[ii_region], xmin=0, xmax=len(combined_channel_list_plot[ii_region])*combined_channel_number, 
-            color='k', label=f'Same site terms')#, Cond.# {regP.condition_number:.2f}')
-
+    for i_region, region_label in enumerate(region_labels):
+        site_term_df_now = site_term_df[site_term_df.region_site.str.contains(region_label)]
+        site_term_df_now = site_term_df_now.sort_values(by='channel_id')
+        
+        gca = ax[i_region, 0]
+        if i_region != 2: 
+            gca.plot(site_term_df_now.channel_id*channel_spacing[i_region], site_term_df_now.site_term_P)
         else:
-            gca.plot(combined_channel_list_plot[ii_region] * combined_channel_number, site_term_list_plot[ii_region],
-             '-', label=f'{combined_channel_number} channels')#, Cond.# {regP.condition_number:.2f}')
+            gca.plot(site_term_df_now.channel_id*channel_spacing[i_region], site_term_df_now.site_term_P, label=label_lists[i_model])
+        gca.set_title(title_plot[i_region * 2])
+        #gca.grid()
 
-        gca.set_xlabel('Channel number')
-        gca.set_ylabel('Site terms')
-        gca.set_title(title_plot[ii_region])
+        gca = ax[i_region, 1]
+        gca.plot(site_term_df_now.channel_id*channel_spacing[i_region], site_term_df_now.site_term_S)
+        gca.set_title(title_plot[i_region * 2 + 1])
+        #gca.grid()
+        #gca.sharey(ax[i_region, 0])
 
-ax[0].legend(fontsize=12)
-gca.xaxis.set_tick_params(which='both',labelbottom=True)
+gca = ax[3, 0]
+fig.delaxes(gca)
+
+# add Sanriku
+sanriku_regression_results_dir = '/kuafu/yinjx/Sanriku/peak_ampliutde_scaling_results_strain_rate/regression_results_smf_weighted_100_channel_at_least'
+combined_channel_number_list=[10, 20, 50, 100]
+
+gca = ax[3, 1]
+for i_model, combined_channel_number in enumerate(combined_channel_number_list):
+    site_term_df = pd.read_csv(sanriku_regression_results_dir + f'/site_terms_{combined_channel_number}chan.csv')
+    gca.plot(site_term_df.channel_id*5/1e3, site_term_df.site_term_S, '-')
+#gca.grid()
+gca.set_title('Sanriku S')
+
+ax[i_region, 0].legend(bbox_to_anchor=(0.8, -0.4), loc=1)
+
+for ii in range(3):
+    ax[ii, 0].set_ylabel('Site term (in log10)')
+ax[2, 0].set_xlabel('Distance (km)')
+ax[3, 1].set_xlabel('Distance (km)')
 
 
-# Adding annotation
 letter_list = [str(chr(k+97)) for k in range(0, 20)]
 k=0
-for gca in ax:
-    if gca is not None:
-        gca.annotate(f'({letter_list[k]})', xy=(-0.1, 1.0), xycoords=gca.transAxes)
-        k += 1
+for i_ax, gca in enumerate(ax.flatten()):
+    if i_ax !=6:
+        gca.annotate(f'({letter_list[k]})', xy=(-0.1, 1.1), xycoords=gca.transAxes, fontsize=20)
+        k+=1
 
-
-#ax[1].invert_xaxis()
-
-plt.figure(fig.number)
-plt.savefig(regression_results_dir + '/compare_site_terms_all.png', bbox_inches='tight')
-
-# plt.figure(fig2.number)
-# plt.savefig(regression_results_dir + '/compare_site_terms_south.png', bbox_inches='tight')
+plt.savefig(results_output_dir + '/compare_site_terms.pdf', bbox_inches='tight')
+plt.savefig(results_output_dir + '/compare_site_terms.png', bbox_inches='tight')
 # %%
-# #Test parameters from strain meter (Not right)
-# fig, ax = plt.subplots(2, 1, figsize=(10, 12), sharex=True, sharey=True)
-# # combined_channel_number_list = [10, 20, 50, 100, -1] # -1 means the constant model
-# combined_channel_number_list = [100]
-# # DataFrame to store parameters for all models
-# P_parameters_comparison = pd.DataFrame(columns=['combined_channels', 'magnitude', 'distance', 'magnitude_err', 'distance_err'], 
-# index = np.arange(len(combined_channel_number_list)))
-# S_parameters_comparison = pd.DataFrame(columns=['combined_channels', 'magnitude', 'distance', 'magnitude_err', 'distance_err'],
-# index = np.arange(len(combined_channel_number_list)))
-
-# for i_model, combined_channel_number in enumerate(combined_channel_number_list):
-
-#     regP = sm.load(regression_results_dir + f"/P_regression_combined_site_terms_{combined_channel_number}chan.pickle")
-#     regS = sm.load(regression_results_dir + f"/S_regression_combined_site_terms_{combined_channel_number}chan.pickle")
-#     # apply parameters from strain meter
-#     regP.params['magnitude'] = 0.92
-#     regP.params['np.log10(distance_in_km)'] = -1.45
-
-#     regS.params['magnitude'] = 0.92
-#     regS.params['np.log10(distance_in_km)'] = -1.45
-
-#     peak_amplitude_df = combined_channels(DAS_index, peak_amplitude_df, combined_channel_number)
-#     combined_channel_id = np.sort(peak_amplitude_df.combined_channel_id.unique())
-#     peak_amplitude_df = add_event_label(peak_amplitude_df)
-
-#     y_P_predict = regP.predict(peak_amplitude_df)
-#     y_S_predict = regS.predict(peak_amplitude_df)
-
-#     temp_peaks = np.array([np.array(peak_amplitude_df.peak_P),
-#               np.array(peak_amplitude_df.peak_S), 
-#               np.array(10**y_P_predict), 
-#               np.array(10**y_S_predict)]).T
-#     peak_comparison_df = pd.DataFrame(data=temp_peaks,
-#                                   columns=['peak_P', 'peak_S', 'peak_P_predict', 'peak_S_predict'])
-    
-#     g = plot_prediction_vs_measure_seaborn(peak_comparison_df, [0.01, 1000], phase='P')
-#     g.savefig(regression_results_dir + f'/P_validate_predicted_combined_site_terms_{combined_channel_number}chan_strainmeter_seaborn.png')
-
-#     g = plot_prediction_vs_measure_seaborn(peak_comparison_df, [0.01, 1000], phase='S')
-#     g.savefig(regression_results_dir + f'/S_validate_predicted_combined_site_terms_{combined_channel_number}chan_strainmeter_seaborn.png')
-#     # plot_compare_prediction_vs_true_values(peak_amplitude_df, y_P_predict, y_S_predict, (-2.0, 2), 
-#     # regression_results_dir + f'/validate_predicted__combined_site_terms_{combined_channel_number}chan.png')

@@ -313,7 +313,7 @@ if region_label == 'sanriku':
 # Check site terms
 # regression_results_dir = results_output_dir + '/regression_results_smf_weighted'
 regression_results_dir = results_output_dir + f'/regression_results_smf_weighted_{min_channel}_channel_at_least'
-
+nearby_channel_number_list = [10, 20, 50, 100]
 for combined_channel_number in nearby_channel_number_list:
     temp_df_P = pd.DataFrame(columns=['combined_channel_id', 'site_term_P'])
     temp_df_S = pd.DataFrame(columns=['combined_channel_id', 'site_term_S'])
@@ -356,7 +356,7 @@ for combined_channel_number in nearby_channel_number_list:
 plt.close('all')
 fig, ax = plt.subplots(2,1, figsize=(12, 9), sharex=True, gridspec_kw={'height_ratios': [1, 2]})
 gca = ax[0]
-gca.hist(peak_amplitude_df_fit.channel_id, range=(0.5, 10000.5), bins=50)
+gca.hist(peak_amplitude_df_fit.channel_id*5/1e3, range=(0.5*5/1e3, 10000.5*5/1e3), bins=50)
 gca.set_ylabel('Counts')
 gca.set_title('Number of measurements')
 gca.grid()
@@ -367,7 +367,7 @@ for i_model, combined_channel_number in enumerate(nearby_channel_number_list):
     try:
         site_term_df = pd.read_csv(regression_results_dir + f'/site_terms_{combined_channel_number}chan.csv')
         # gca.plot(site_term_df.channel_id, site_term_df.site_term_P, '-', label=f'{combined_channel_number} channels')#, Cond.# {regP.condition_number:.2f}')
-        gca.plot(site_term_df.channel_id, site_term_df.site_term_S, '-', label=f'{combined_channel_number} channels', zorder=-i_model)#, Cond.# {regS.condition_number:.2f}')
+        gca.plot(site_term_df.channel_id*5/1e3, site_term_df.site_term_S, '-', label=f'{combined_channel_number} channels', zorder=i_model)#, Cond.# {regS.condition_number:.2f}')
     except:
         continue
     # reset the regression models
@@ -379,7 +379,7 @@ gca.set_xlabel('Channel numbers')
 gca.grid()
 
 #gca.set_xticklabels(np.arange(0, 10000, 1000))
-gca.legend(loc=1, fontsize=14)
+gca.legend(loc=3, fontsize=14)
 plt.savefig(regression_results_dir + '/site_terms.png', bbox_inches='tight')
 plt.savefig(regression_results_dir + '/site_terms.pdf', bbox_inches='tight')
 
