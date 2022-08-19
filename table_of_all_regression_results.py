@@ -168,16 +168,17 @@ plot_coefficients_seaborn(x_key='region', y_key='dist coef. (S)',
 # Adding the Barbour et al. (2021) results
 # TODO: label the line with the values
 barbour_2021_coefficents = [0.92, -1.45]
-ax[0, 0].hlines(y=barbour_2021_coefficents[0], xmin=0, xmax=4, linestyle='--', color='k', linewidth=2)
-ax[0, 1].hlines(y=barbour_2021_coefficents[0], xmin=0, xmax=4, linestyle='--', color='k', linewidth=2)
-ax[1, 0].hlines(y=barbour_2021_coefficents[1], xmin=0, xmax=4, linestyle='--', color='k', linewidth=2)
-ax[1, 1].hlines(y=barbour_2021_coefficents[1], xmin=0, xmax=4, linestyle='--', color='k', linewidth=2, label='Barbour et al. (2021)')
+PGA_coefficients = [0.388142, -1.630351]
+ax[0, 0].hlines(y=PGA_coefficients[0], xmin=0, xmax=4, linestyle='--', color='k', linewidth=2)
+ax[0, 1].hlines(y=PGA_coefficients[0], xmin=0, xmax=4, linestyle='--', color='k', linewidth=2)
+ax[1, 0].hlines(y=PGA_coefficients[1], xmin=0, xmax=4, linestyle='--', color='k', linewidth=2)
+ax[1, 1].hlines(y=PGA_coefficients[1], xmin=0, xmax=4, linestyle='--', color='k', linewidth=2, label='PGA from NGA-West2')
 
 ax[0, 0].get_legend().remove()
 ax[0, 1].get_legend().remove()
 ax[1, 0].get_legend().remove()
 
-my_label = ['Regression', 'Barbour et al. (2021)']#['uniform ST', 'ST-10', 'ST-20', 'ST-50', 'ST-100', 'Barbour et al. (2021)'] 
+my_label = ['Regression', 'PGA from NGA-West2']#['uniform ST', 'ST-10', 'ST-20', 'ST-50', 'ST-100', 'Barbour et al. (2021)'] 
 L = ax[1, 1].legend(loc='center left', bbox_to_anchor=(-1.4, 2.5), ncol=6, title='regression coefficients')
 for i_L in range(len(L.get_texts())):
     L.get_texts()[i_L].set_text(my_label[i_L])
@@ -189,7 +190,6 @@ for gca in ax.flatten():
     if gca is not None:
         gca.annotate(f'({letter_list[k]})', xy=(-0.2, 1.0), xycoords=gca.transAxes, fontsize=18)
         k += 1
-
 
 # TODO: add error bars
 # TODO: edit the legend box
@@ -249,16 +249,26 @@ plot_coefficients_seaborn(x_key='region', y_key='dist coef. (S)', all_results_pd
 # Adding the Barbour et al. (2021) results
 # TODO: label the line with the values
 barbour_2021_coefficents = [0.92, -1.45]
-ax[0, 0].hlines(y=barbour_2021_coefficents[0], xmin=0, xmax=4, linestyle='--', color='k', linewidth=2)
-ax[0, 1].hlines(y=barbour_2021_coefficents[0], xmin=0, xmax=4, linestyle='--', color='k', linewidth=2)
-ax[1, 0].hlines(y=barbour_2021_coefficents[1], xmin=0, xmax=4, linestyle='--', color='k', linewidth=2)
-ax[1, 1].hlines(y=barbour_2021_coefficents[1], xmin=0, xmax=4, linestyle='--', color='k', linewidth=2, label='Barbour et al. (2021)')
+PGA_coefficients_OLS = [0.583631, -1.793554]
+PGA_coefficients_WLS = [0.388142, -1.630351]
+ax[0, 0].hlines(y=PGA_coefficients_OLS[0], xmin=0, xmax=4, linestyle='--', color='r', linewidth=2)
+ax[0, 1].hlines(y=PGA_coefficients_OLS[0], xmin=0, xmax=4, linestyle='--', color='r', linewidth=2)
+ax[1, 0].hlines(y=PGA_coefficients_OLS[1], xmin=0, xmax=4, linestyle='--', color='r', linewidth=2)
+ax[1, 1].hlines(y=PGA_coefficients_OLS[1], xmin=0, xmax=4, linestyle='--', color='r', linewidth=2, label='PGA from NGA-West2 (OLS)')
+
+
+ax[0, 0].hlines(y=PGA_coefficients_WLS[0], xmin=0, xmax=4, linestyle='--', color='b', linewidth=2)
+ax[0, 1].hlines(y=PGA_coefficients_WLS[0], xmin=0, xmax=4, linestyle='--', color='b', linewidth=2)
+ax[1, 0].hlines(y=PGA_coefficients_WLS[1], xmin=0, xmax=4, linestyle='--', color='b', linewidth=2)
+ax[1, 1].hlines(y=PGA_coefficients_WLS[1], xmin=0, xmax=4, linestyle='--', color='b', linewidth=2, label='PGA from NGA-West2 (WLS)')
+
 
 ax[0, 0].get_legend().remove()
 ax[0, 1].get_legend().remove()
 ax[1, 0].get_legend().remove()
 
-my_label = ['all (OLS)', '10 (OLS)', '20 (OLS)', '50 (OLS)', '100 (OLS)', 'all (WLS)', '10 (WLS)', '20 (WLS)', '50 (WLS)', '100 (WLS)',  'Barbour et al. (2021)'] #
+my_label = ['all (OLS)', '10 (OLS)', '20 (OLS)', '50 (OLS)', '100 (OLS)', 'all (WLS)', 
+            '10 (WLS)', '20 (WLS)', '50 (WLS)', '100 (WLS)',  'PGA from NGA-West2 (OLS)', 'PGA from NGA-West2 (WLS)'] #
 L = ax[1, 1].legend(loc='center left', bbox_to_anchor=(-1.4, 2.5), ncol=6, title='regression coefficients')
 for i_L in range(len(L.get_texts())):
     L.get_texts()[i_L].set_text(my_label[i_L])
@@ -274,7 +284,6 @@ for gca in ax.flatten():
 
 # TODO: add error bars
 # TODO: edit the legend box
-
 plt.savefig('/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RMS/coefficients_comparison_all.png', bbox_inches='tight', dpi=200)
 plt.savefig('/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RMS/coefficients_comparison_all.pdf', bbox_inches='tight')
 # %%
