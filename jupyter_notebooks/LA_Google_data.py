@@ -198,7 +198,7 @@ def save_das_event_data(event_now, DAS_info_df, data_files, data_folder, fig_fol
 
         # Show data
         fig, ax1 = plt.subplots(figsize=(8,4))
-        pclip=90
+        pclip=70
         clipVal = np.percentile(np.absolute(event_data), pclip)
         # Vx
         ax1.imshow(event_data, 
@@ -220,10 +220,9 @@ def save_das_event_data(event_now, DAS_info_df, data_files, data_folder, fig_fol
         pass
 
 
-# event_info_df = event_info_df[event_info_df.magnitude >=1.5]
+event_info_df = event_info_df[event_info_df.magnitude >=1.5]
+
 # save_das_event_data(event_info_df.iloc[0, ], DAS_info_df, data_files, data_folder, fig_folder)
-
-
 
 n_run = event_info_df.shape[0]
 with tqdm_joblib(tqdm(desc="extracting segmented event data", total=n_run)) as progress_bar:
