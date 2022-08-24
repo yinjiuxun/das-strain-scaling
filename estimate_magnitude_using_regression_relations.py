@@ -42,9 +42,7 @@ def calculate_magnitude_from_strain(peak_amplitude_df, reg, type, fitting_type='
     if secondary_calibration:
         second_calibration = pd.read_csv(results_output_dir + '/' + regression_dir + f'/secondary_site_terms_calibration_{nearby_channel_number}chan.csv')
         peak_amplitude_df = pd.merge(peak_amplitude_df, second_calibration, on=['channel_id', 'region', 'region_site'])
-        # # apply secondary calibration
-        # y_P_predict = y_P_predict + peak_amplitude_df.diff_peak_P
-        # y_S_predict = y_S_predict + peak_amplitude_df.diff_peak_S
+        # MUST BE VERY CAREFUL WHEN USING merge, it changes the order of DataFrame!
 
     if fitting_type == 'with_site':
         # get the annoying categorical keys
@@ -58,7 +56,7 @@ def calculate_magnitude_from_strain(peak_amplitude_df, reg, type, fitting_type='
                         - reg.params['np.log10(distance_in_km)'] * np.log10(peak_amplitude_df.distance_in_km)) \
                         / reg.params['magnitude']
             if secondary_calibration:
-                M_predict = M_predict.array + peak_amplitude_df.diff_peak_P.array/reg.params['magnitude']
+                M_predict = M_predict.copy() - peak_amplitude_df.diff_peak_P/reg.params['magnitude']
 
         elif type == 'S':
             M_predict = (np.log10(peak_amplitude_df.peak_S) \
@@ -66,7 +64,7 @@ def calculate_magnitude_from_strain(peak_amplitude_df, reg, type, fitting_type='
                         - reg.params['np.log10(distance_in_km)'] * np.log10(peak_amplitude_df.distance_in_km)) \
                         / reg.params['magnitude']
             if secondary_calibration:
-                M_predict = M_predict.array + peak_amplitude_df.diff_peak_S.array/reg.params['magnitude']
+                M_predict = M_predict.copy() - peak_amplitude_df.diff_peak_S/reg.params['magnitude']
         else:
             raise NameError(f'{type} is not defined! Only "P" or "S"')
 
@@ -110,7 +108,7 @@ def calculate_magnitude_from_strain(peak_amplitude_df, reg, type, fitting_type='
     else:
         raise NameError('Fitting type is undefined!')
         
-    return M_predict
+    return M_predict, peak_amplitude_df
 
 def get_mean_magnitude(peak_amplitude_df, M_predict):
     temp_df = peak_amplitude_df[['event_id', 'magnitude']].copy()
@@ -178,9 +176,9 @@ def estimate_magnitude(results_output_dir, regression_dir, nearby_channel_number
     print(regS.params[-2:])
     print('\n\n')   
 
-    M_P = calculate_magnitude_from_strain(peak_amplitude_df_P, regP, 'P', fitting_type=fitting_type, 
+    M_P, peak_amplitude_df_P = calculate_magnitude_from_strain(peak_amplitude_df_P, regP, 'P', fitting_type=fitting_type, 
                                         site_term_column=site_term_column, secondary_calibration=secondary_calibration)
-    M_S = calculate_magnitude_from_strain(peak_amplitude_df_S, regS, 'S', fitting_type=fitting_type, 
+    M_S, peak_amplitude_df_S = calculate_magnitude_from_strain(peak_amplitude_df_S, regS, 'S', fitting_type=fitting_type, 
                                         site_term_column=site_term_column, secondary_calibration=secondary_calibration)
 
     temp_df_P = get_mean_magnitude(peak_amplitude_df_P, M_P)
@@ -224,13 +222,13 @@ def plot_magnitude_seaborn(df_magnitude):
 # First check how well the regression relation can be used to calculate Magnitude
 # load the results from combined regional site terms t
 min_channel=100
-M_std_percentile = 90
+M_std_percentile = None
 results_output_dir = '/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RM'
 regression_dir = f'regression_results_smf_weighted_{min_channel}_channel_at_least' # 'regression_results_smf_M4'
 site_term_column = 'region_site'
 fitting_type = 'with_site'
-nearby_channel_numbers = [100]#[-1, 10, 20, 50, 100]
-secondary_calibration = False
+nearby_channel_numbers = [-1, 10, 20, 50, 100]
+secondary_calibration = True
 output_label = []
 
 # List to hold the estiamted magnitude
@@ -546,3 +544,62 @@ for ii, nearby_channel_number in enumerate(nearby_channel_numbers):
 #     gca.grid()
 #     gca.annotate('(d)', xy=(-0.1, 1.05), xycoords=gca.transAxes)
 #     return fig
+
+
+
+# #%%
+# #  debuging
+# nearby_channel_number = 100
+# magnitude_threshold = None
+# snr_threshold = 10
+# min_channel = 100
+# type = 'P'
+
+# peak_amplitude_df = pd.read_csv(results_output_dir + f'/peak_amplitude_region_site_{nearby_channel_number}.csv')
+# if magnitude_threshold is not None:
+#     peak_amplitude_df = peak_amplitude_df[(peak_amplitude_df.magnitude>=magnitude_threshold[0]) & (peak_amplitude_df.magnitude<=magnitude_threshold[1])]
+
+# peak_amplitude_df_P, peak_amplitude_df_S = split_P_S_dataframe(peak_amplitude_df, site_term_column)
+# print(peak_amplitude_df_P.shape)
+# if snr_threshold is not None:
+#     peak_amplitude_df_P = peak_amplitude_df_P[peak_amplitude_df_P.snrP >= snr_threshold]
+#     peak_amplitude_df_S = peak_amplitude_df_S[peak_amplitude_df_S.snrS >= snr_threshold]
+
+# if min_channel:
+#     peak_amplitude_df_P = filter_by_channel_number(peak_amplitude_df_P, min_channel)
+#     peak_amplitude_df_S = filter_by_channel_number(peak_amplitude_df_S, min_channel)
+
+# print(peak_amplitude_df_P.shape)
+
+# # load regression with different regional site terms
+# regP = sm.load(results_output_dir + '/' + regression_dir + f"/P_regression_combined_site_terms_{nearby_channel_number}chan.pickle")
+# regS = sm.load(results_output_dir + '/' + regression_dir + f"/S_regression_combined_site_terms_{nearby_channel_number}chan.pickle")
+
+# #%%
+
+# second_calibration = pd.read_csv(results_output_dir + '/' + regression_dir + f'/secondary_site_terms_calibration_{nearby_channel_number}chan.csv')
+# peak_amplitude_df0 = pd.merge(peak_amplitude_df, second_calibration, on=['channel_id', 'region', 'region_site'])
+
+
+# site_term_keys = np.array([f'C({site_term_column})[{site_term}]' for site_term in peak_amplitude_df[site_term_column]])
+
+# M_predict = (np.log10(peak_amplitude_df0.peak_P) \
+#             - np.array(regP.params[site_term_keys]) \
+#             - regP.params['np.log10(distance_in_km)'] * np.log10(peak_amplitude_df0.distance_in_km)) \
+#             / regP.params['magnitude']
+
+# M_predict = M_predict.copy() - peak_amplitude_df.diff_peak_P/reg.params['magnitude']
+
+
+# M_predict1 = calculate_magnitude_from_strain(peak_amplitude_df, regP, type, fitting_type=fitting_type, site_term_column=site_term_column, secondary_calibration=True)
+# M_predict2 = calculate_magnitude_from_strain(peak_amplitude_df, regP, type, fitting_type=fitting_type, site_term_column=site_term_column, secondary_calibration=False)
+
+
+# # plt.plot(peak_amplitude_df.magnitude, M_predict1, 'b.', alpha=0.01, zorder=10)
+# plt.plot(peak_amplitude_df0.magnitude, M_predict, 'g.', alpha=0.01, zorder=10)
+# plt.plot(peak_amplitude_df.magnitude, M_predict2, 'r.', alpha=0.01, zorder=5)
+# plt.plot([1, 8], [1, 8], '-k')
+# plt.xlim(1, 8)
+# plt.ylim(1, 8)
+
+

@@ -311,8 +311,6 @@ results_output_dir = '/kuafu/yinjx/multi_array_combined_scaling/combined_strain_
 # directory to store the fitted results:
 regression_results_dir = results_output_dir + '/regression_results_smf_weighted_100_channel_at_least'
 # %% Compare the regression parameters and site terms
-
-
 title_plot = ['Ridgecrest P', 'Ridgecrest S', 'Long Valley North P', 'Long Valley North S', 'Long Valley South P', 'Long Valley South S']
 
 combined_channel_number_list = [10, 20, 50, 100, -1] # -1 means the constant model
@@ -358,6 +356,7 @@ for i_model, combined_channel_number in enumerate(combined_channel_number_list):
 # # select the site terms in different regions
 # site_term_df_RC = site_term_df[site_term_df.region_site.str.contains('ridgecrest')]
 # %%
+show_calibrated = True
 fig, ax = plt.subplots(4, 2, figsize=(16, 16))
 plt.subplots_adjust(wspace=0.2, hspace=0.3)
 title_plot = ['Ridgecrest P', 'Ridgecrest S', 'Long Valley North P', 'Long Valley North S', 'Long Valley South P', 'Long Valley South S']
@@ -366,15 +365,28 @@ channel_spacing = [8e-3, 10e-3, 10e-3]
 label_lists = ['10 channels','20 channels','50 channels','100 channels','constant']
 combined_channel_number_list = [10, 20, 50, 100, -1] # -1 means the constant model
 for i_model, combined_channel_number in enumerate(combined_channel_number_list):
-    site_term_df = pd.read_csv(regression_results_dir + f'/site_terms_{combined_channel_number}chan.csv')
+    site_term_df0 = pd.read_csv(regression_results_dir + f'/site_terms_{combined_channel_number}chan.csv')
+    site_term_df0 = site_term_df0.sort_values(by=['channel_id'])
+    second_calibration =pd.read_csv(regression_results_dir + f'/secondary_site_terms_calibration_{combined_channel_number}chan.csv')
+    # to obtain the site term calibration
+    site_term_df_calibrated = pd.merge(site_term_df0, second_calibration, on=['region_site', 'channel_id'])
 
+    if show_calibrated:
+        site_term_df = site_term_df_calibrated
+        site_term_df.site_term_P = site_term_df.site_term_P + site_term_df.diff_peak_P
+        site_term_df.site_term_S = site_term_df.site_term_S + site_term_df.diff_peak_S
+    else:
+        site_term_df = site_term_df0
+        
     for i_region, region_label in enumerate(region_labels):
         site_term_df_now = site_term_df[site_term_df.region_site.str.contains(region_label)]
+        #site_term_df0_now = site_term_df0[site_term_df0.region_site.str.contains(region_label)]
         site_term_df_now = site_term_df_now.sort_values(by='channel_id')
         
         gca = ax[i_region, 0]
         if i_region != 2: 
             gca.plot(site_term_df_now.channel_id*channel_spacing[i_region], site_term_df_now.site_term_P)
+            #gca.plot(site_term_df0_now.channel_id*channel_spacing[i_region], site_term_df0_now.site_term_P)
         else:
             gca.plot(site_term_df_now.channel_id*channel_spacing[i_region], site_term_df_now.site_term_P, label=label_lists[i_model])
         gca.set_title(title_plot[i_region * 2])
@@ -383,6 +395,7 @@ for i_model, combined_channel_number in enumerate(combined_channel_number_list):
         gca = ax[i_region, 1]
         gca.plot(site_term_df_now.channel_id*channel_spacing[i_region], site_term_df_now.site_term_S)
         gca.set_title(title_plot[i_region * 2 + 1])
+        
         #gca.grid()
         #gca.sharey(ax[i_region, 0])
 
@@ -396,7 +409,7 @@ combined_channel_number_list=[10, 20, 50, 100]
 gca = ax[3, 1]
 for i_model, combined_channel_number in enumerate(combined_channel_number_list):
     site_term_df = pd.read_csv(sanriku_regression_results_dir + f'/site_terms_{combined_channel_number}chan.csv')
-    gca.plot(site_term_df.channel_id*5/1e3, site_term_df.site_term_S, '-')
+    gca.plot(site_term_df.channel_id*5/1e3, site_term_df.site_term_S + site_term_df.diff_peak_S, '-')
 #gca.grid()
 gca.set_title('Sanriku S')
 
@@ -417,4 +430,39 @@ for i_ax, gca in enumerate(ax.flatten()):
 
 plt.savefig(results_output_dir + '/compare_site_terms.pdf', bbox_inches='tight')
 plt.savefig(results_output_dir + '/compare_site_terms.png', bbox_inches='tight')
+# %%
+# show channel numbers
+fig, ax = plt.subplots(2, 1, figsize=(16, 8), squeeze=False, sharex=True)
+plt.subplots_adjust(wspace=0.2, hspace=0.3)
+title_plot = ['Ridgecrest P', 'Ridgecrest S', 'Long Valley North P', 'Long Valley North S', 'Long Valley South P', 'Long Valley South S']
+region_labels = ['ridgecrest', 'mammothN', 'mammothS']
+channel_spacing = [8e-3, 10e-3, 10e-3]
+label_lists = ['10 channels','20 channels','50 channels','100 channels','constant']
+combined_channel_number_list = [10, 20, 50, 100, -1] # -1 means the constant model
+
+
+region_labels = ['ridgecrest']
+for i_model, combined_channel_number in enumerate(combined_channel_number_list):
+    site_term_df = pd.read_csv(regression_results_dir + f'/site_terms_{combined_channel_number}chan.csv')
+
+    for i_region, region_label in enumerate(region_labels):
+        site_term_df_now = site_term_df[site_term_df.region_site.str.contains(region_label)]
+        site_term_df_now = site_term_df_now.sort_values(by='channel_id')
+        
+        gca = ax[0, i_region]
+        if i_region != 2: 
+            gca.plot(site_term_df_now.channel_id, site_term_df_now.site_term_P)
+        else:
+            gca.plot(site_term_df_now.channel_id, site_term_df_now.site_term_P, label=label_lists[i_model])
+        gca.set_title(title_plot[i_region * 2])
+        #gca.grid()
+
+        gca = ax[1, i_region]
+        gca.plot(site_term_df_now.channel_id, site_term_df_now.site_term_S)
+        gca.set_title(title_plot[i_region * 2 + 1])
+        #gca.grid()
+        #gca.sharey(ax[i_region, 0])
+
+gca.set_xlim(550, 650)
+
 # %%

@@ -145,9 +145,9 @@ def secondary_site_calibration(regP, regS, peak_amplitude_df):
     peak_amplitude_df_temp.region = peak_amplitude_df.region
     peak_amplitude_df_temp.magnitude = peak_amplitude_df.magnitude
 
-    weighted_all = np.nansum(10**peak_amplitude_df.magnitude)
-    peak_amplitude_df_temp.diff_peak_P = (-y_P_predict + np.log10(peak_amplitude_df.peak_P))*10**peak_amplitude_df.magnitude/weighted_all
-    peak_amplitude_df_temp.diff_peak_S = (-y_S_predict + np.log10(peak_amplitude_df.peak_S))*10**peak_amplitude_df.magnitude/weighted_all
+    #weighted_all = np.nansum(10**peak_amplitude_df.magnitude)
+    peak_amplitude_df_temp.diff_peak_P = (-y_P_predict + np.log10(peak_amplitude_df.peak_P))#*10**peak_amplitude_df.magnitude/weighted_all
+    peak_amplitude_df_temp.diff_peak_S = (-y_S_predict + np.log10(peak_amplitude_df.peak_S))#*10**peak_amplitude_df.magnitude/weighted_all
     peak_amplitude_df_temp.region_site = peak_amplitude_df_temp.region + '-' + peak_amplitude_df.combined_channel_id.astype('str')
 
     # ridgecrest_second_calibration = peak_amplitude_df_temp[peak_amplitude_df_temp.region == 'ridgecrest'].groupby(['channel_id'], as_index=False).mean()
@@ -290,43 +290,42 @@ S_regression_parameter_df.to_csv(regression_parameter_txt + '_S.txt', index=Fals
 
 ddxxad
 #%%
-
-
-second_calibration = secondary_site_calibration(regP, regS, peak_amplitude_df)
-second_calibration.to_csv(regression_results_dir + f'/secondary_site_terms_calibration_{combined_channel_number}chan.csv', index=False)
-
-
-#%% Add the secondary site term calibration
+combined_channel_number_list = [100]
 regression_results_dir = results_output_dir + f'/regression_results_smf_weighted_{min_channel}_channel_at_least'
 if not os.path.exists(regression_results_dir):
     os.mkdir(regression_results_dir)
 
-combined_channel_number=100
+regression_parameter_txt = regression_results_dir + '/regression_slopes'
+mag_slopeP, dist_slopeP, mag_slopeS, dist_slopeS = [], [], [], []
 
-peak_amplitude_df = pd.read_csv(results_output_dir + f'/peak_amplitude_region_site_{combined_channel_number}.csv')
-if apply_calibrated_distance: 
-    peak_amplitude_df['distance_in_km'] = peak_amplitude_df['calibrated_distance_in_km']
+for nearby_channel_number in combined_channel_number_list:
+    # Load the processed DataFrame
+    peak_amplitude_df = pd.read_csv(results_output_dir + f'/peak_amplitude_region_site_{nearby_channel_number}.csv')
+    # Specify magnitude range to do regression
+    M_threshold = [0, 9]
+    regP, regS = fit_regression_with_weight_magnitude_range(peak_amplitude_df, M_threshold, regression_results_dir, nearby_channel_number, min_channel=min_channel)
 
-peak_amplitude_df = peak_amplitude_df[(peak_amplitude_df.snrP >=snr_threshold) | (peak_amplitude_df.snrS >=snr_threshold)]
-peak_amplitude_df = peak_amplitude_df[(peak_amplitude_df.magnitude >=magnitude_threshold[0]) & (peak_amplitude_df.magnitude <=magnitude_threshold[1])]
+    #add secondary calibration second_calibration = secondary_site_calibration(regP, regS, peak_amplitude_df)
+    second_calibration = secondary_site_calibration(regP, regS, peak_amplitude_df)
+    # second_calibration.to_csv(regression_results_dir + f'/secondary_site_terms_calibration_{nearby_channel_number}chan.csv', index=False)
 
-peak_amplitude_df = peak_amplitude_df[peak_amplitude_df.peak_P>0]
-peak_amplitude_df = peak_amplitude_df[peak_amplitude_df.peak_S>0]
+    # mag_slopeP.append(regP.params[-2])
+    # dist_slopeP.append(regP.params[-1])
+    # mag_slopeS.append(regS.params[-2])
+    # dist_slopeS.append(regS.params[-1])
 
-regP = sm.load(regression_results_dir + f"/P_regression_combined_site_terms_{combined_channel_number}chan.pickle")
-regS = sm.load(regression_results_dir + f"/S_regression_combined_site_terms_{combined_channel_number}chan.pickle")
 
-
-#%%
-# for each channel, further calculate the secondary calibration factors
 y_P_predict = regP.predict(peak_amplitude_df)
 y_S_predict = regS.predict(peak_amplitude_df)
 
-peak_amplitude_df_temp = pd.DataFrame(columns=['region_site', 'channel_id', 'region', 'diff_peak_P', 'diff_peak_S', 'site_calibate_P', 'site_calibrate_S'])
+peak_amplitude_df_temp = pd.DataFrame(columns=['region_site', 'channel_id', 'region', 'magnitude', 'diff_peak_P', 'diff_peak_S', 'site_calibate_P', 'site_calibrate_S'])
 peak_amplitude_df_temp.channel_id = peak_amplitude_df.channel_id
 peak_amplitude_df_temp.region = peak_amplitude_df.region
-peak_amplitude_df_temp.diff_peak_P = -y_P_predict + np.log10(peak_amplitude_df.peak_P)
-peak_amplitude_df_temp.diff_peak_S = -y_S_predict + np.log10(peak_amplitude_df.peak_S)
+peak_amplitude_df_temp.magnitude = peak_amplitude_df.magnitude
+
+weighted_all = np.nansum(10**peak_amplitude_df.magnitude)
+peak_amplitude_df_temp.diff_peak_P = (-y_P_predict + np.log10(peak_amplitude_df.peak_P))*10**peak_amplitude_df.magnitude/weighted_all
+peak_amplitude_df_temp.diff_peak_S = (-y_S_predict + np.log10(peak_amplitude_df.peak_S))*10**peak_amplitude_df.magnitude/weighted_all
 peak_amplitude_df_temp.region_site = peak_amplitude_df_temp.region + '-' + peak_amplitude_df.combined_channel_id.astype('str')
 
 # ridgecrest_second_calibration = peak_amplitude_df_temp[peak_amplitude_df_temp.region == 'ridgecrest'].groupby(['channel_id'], as_index=False).mean()
@@ -336,139 +335,14 @@ peak_amplitude_df_temp.region_site = peak_amplitude_df_temp.region + '-' + peak_
 second_calibration = peak_amplitude_df_temp.groupby(['channel_id', 'region'], as_index=False).mean()
 temp_df = peak_amplitude_df_temp[['region_site', 'channel_id', 'region']].drop_duplicates(subset=['channel_id', 'region_site'])
 second_calibration = pd.merge(second_calibration, temp_df, on=['channel_id', 'region'])
-second_calibration.to_csv(regression_results_dir + f'/secondary_site_terms_calibration_{combined_channel_number}chan.csv', index=False)
+second_calibration = second_calibration.drop(columns=['magnitude'])
 
-# site_term_df = pd.read_csv(regression_results_dir + f'/site_terms_{combined_channel_number}chan.csv')
-# ridgecrest_site_term_df = site_term_df[site_term_df.region_site.str.contains('ridgecrest')]
-
-
-#%% test on the secondary calibration
-peak_amplitude_df_new = pd.merge(peak_amplitude_df, second_calibration, on=['channel_id', 'region', 'region_site'])
-
-# %%
-
-# ======================= Below are the part to use the small events to do the regression ===========================
-# Now only use the smaller earthquakes to do the regression
-# directory to store the fitted results
-regression_results_dir = results_output_dir + '/regression_results_smf_M4'
-if not os.path.exists(regression_results_dir):
-    os.mkdir(regression_results_dir)
-
-for nearby_channel_number in combined_channel_number_list:
-    # Load the processed DataFrame
-    peak_amplitude_df = pd.read_csv(results_output_dir + f'/peak_amplitude_region_site_{nearby_channel_number}.csv')
-    # Specify magnitude range to do regression
-    M_threshold = [0, 4]
-    regP, regS = fit_regression_magnitude_range(peak_amplitude_df, M_threshold, regression_results_dir, nearby_channel_number)
-    # reset the regression models
-    del regP, regS
-
-#%%
-# ===================== Show the comparison between measured and predicted strain rate ==============================
-# directory to store the fitted results
-regression_results_dir = results_output_dir + '/regression_results_smf'
-if not os.path.exists(regression_results_dir):
-    os.mkdir(regression_results_dir)
-
-regression_parameter_txt = regression_results_dir + '/regression_slopes'
-mag_slopeP, dist_slopeP, mag_slopeS, dist_slopeS = [], [], [], []
-
-for nearby_channel_number in combined_channel_number_list:
-    # Load the regression
-    file_name_P = f"/P_regression_combined_site_terms_{nearby_channel_number}chan"
-    file_name_S = f"/S_regression_combined_site_terms_{nearby_channel_number}chan"
-
-    regP = sm.load(regression_results_dir + '/' + file_name_P + '.pickle')
-    regS = sm.load(regression_results_dir + '/' + file_name_S + '.pickle')
-
-    mag_slopeP.append(regP.params[-2])
-    dist_slopeP.append(regP.params[-1])
-    mag_slopeS.append(regS.params[-2])
-    dist_slopeS.append(regS.params[-1])
-
-    peak_amplitude_df = pd.read_csv(results_output_dir + f'/peak_amplitude_region_site_{nearby_channel_number}.csv')
-    
-    y_P_predict = regP.predict(peak_amplitude_df)
-    y_S_predict = regS.predict(peak_amplitude_df)
-    
-    plot_compare_prediction_vs_true_values(peak_amplitude_df, y_P_predict, y_S_predict, (2.5, 6.5), 
-    regression_results_dir + f'/validate_predicted__combined_site_terms_{nearby_channel_number}chan.png')
-
-P_regression_parameter_df = pd.DataFrame({'site_channels':combined_channel_number_list, 'magnitude-P':mag_slopeP, 'log(distance)-P':dist_slopeP})  
-S_regression_parameter_df = pd.DataFrame({'site_channels':combined_channel_number_list, 'magnitude-S':mag_slopeS, 'log(distance)-S':dist_slopeS})  
-P_regression_parameter_df.to_csv(regression_parameter_txt + '_P.txt', index=False, sep='\t', float_format='%.3f')
-S_regression_parameter_df.to_csv(regression_parameter_txt + '_S.txt', index=False, sep='\t', float_format='%.3f')
-
-#%%
-# ===================== Show the comparison between measured and predicted strain rate ==============================
-# directory to store the fitted results
-regression_results_dir = results_output_dir + '/regression_results_smf_M4'
-if not os.path.exists(regression_results_dir):
-    os.mkdir(regression_results_dir)
-
-regression_parameter_txt = regression_results_dir + '/regression_slopes'
-mag_slopeP, dist_slopeP, mag_slopeS, dist_slopeS = [], [], [], []
-
-for nearby_channel_number in combined_channel_number_list:
-    # Load the regression
-    file_name_P = f"/P_regression_combined_site_terms_{nearby_channel_number}chan"
-    file_name_S = f"/S_regression_combined_site_terms_{nearby_channel_number}chan"
-
-    regP = sm.load(regression_results_dir + '/' + file_name_P + '.pickle')
-    regS = sm.load(regression_results_dir + '/' + file_name_S + '.pickle')
-
-    mag_slopeP.append(regP.params[-2])
-    dist_slopeP.append(regP.params[-1])
-    mag_slopeS.append(regS.params[-2])
-    dist_slopeS.append(regS.params[-1])
-
-    peak_amplitude_df = pd.read_csv(results_output_dir + f'/peak_amplitude_region_site_{nearby_channel_number}.csv')
-    
-    y_P_predict = regP.predict(peak_amplitude_df)
-    y_S_predict = regS.predict(peak_amplitude_df)
-    
-    plot_compare_prediction_vs_true_values(peak_amplitude_df, y_P_predict, y_S_predict, (2.5, 6.5), 
-    regression_results_dir + f'/validate_predicted_combined_site_terms_{nearby_channel_number}chan.png')
-
-P_regression_parameter_df = pd.DataFrame({'site_channels':combined_channel_number_list, 'magnitude-P':mag_slopeP, 'log(distance)-P':dist_slopeP})  
-S_regression_parameter_df = pd.DataFrame({'site_channels':combined_channel_number_list, 'magnitude-S':mag_slopeS, 'log(distance)-S':dist_slopeS})  
-P_regression_parameter_df.to_csv(regression_parameter_txt + '_P.txt', index=False, sep='\t', float_format='%.3f')
-S_regression_parameter_df.to_csv(regression_parameter_txt + '_S.txt', index=False, sep='\t', float_format='%.3f')
-
-# %%
-
-# # DataFrame to store parameters for all models
-# P_parameters_comparison = pd.DataFrame(columns=['combined_channels', 'magnitude', 'distance', 'magnitude_err', 'distance_err']) 
-# S_parameters_comparison = pd.DataFrame(columns=['combined_channels', 'magnitude', 'distance', 'magnitude_err', 'distance_err'])
-
-# # Store the parameters 
-# P_parameters_comparison = pd.concat([P_parameters_comparison, model_parameters_df(regP, nearby_channel_number)], axis=0)
-# S_parameters_comparison = pd.concat([S_parameters_comparison, model_parameters_df(regS, nearby_channel_number)], axis=0)
-
-# P_parameters_comparison.to_csv(regression_text + '/parameter_comparison_P.txt', index=False, sep='\t')
-# S_parameters_comparison.to_csv(regression_text + '/parameter_comparison_S.txt', index=False, sep='\t')
+calibration_all = []
+for channel_num in range(0, 1150):
+    temp_x = peak_amplitude_df_temp[(peak_amplitude_df_temp.region_site == 'ridgecrest-3') & (peak_amplitude_df_temp.channel_id == channel_num)]
+    calibration_all.append(np.nanmean(temp_x.diff_peak_P*10**(temp_x.magnitude))/np.nansum(10**(temp_x.magnitude)))
 
 
-#%%
-df_ridgecrest = peak_amplitude_df[peak_amplitude_df.region == 'ridgecrest']
-df_mammoth = peak_amplitude_df[peak_amplitude_df.region != 'ridgecrest']
-
-plt.plot(np.log10(df_ridgecrest.distance_in_km), np.log10(df_ridgecrest.peak_P), 'rx')
-plt.plot(np.log10(df_mammoth.distance_in_km), np.log10(df_mammoth.peak_P)-1.5, 'bx', alpha=0.01)
-#%% 
-from patsy import dmatrix, demo_data, ContrastMatrix, Poly
-
-temp = dmatrix("C(region) :distance_in_km - 1", data = peak_amplitude_df)
-xx = np.asarray(temp)
-# %%
-
-#%% Combine the peak results from different regions
-results_output_dir = '/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_ROM'
-if not os.path.exists(results_output_dir):
-    os.mkdir(results_output_dir)
-
-peak_amplitude_df = pd.read_csv(results_output_dir + f'/peak_amplitude_region_site_50.csv')
-#%%
-regP_attenuation = smf.ols(formula='np.log10(peak_P) ~ magnitude + np.log10(distance_in_km) + C(region):distance_in_km + C(region_site) - 1', data=peak_amplitude_df).fit()
-# %%
-predict_E = regP_attenuation.predict(peak_amplitude_df)
+channel_num=585
+temp_x = peak_amplitude_df_temp[(peak_amplitude_df_temp.region == 'ridgecrest') & (peak_amplitude_df_temp.channel_id == channel_num)]
+np.nanmean(temp_x.diff_peak_P*10**(temp_x.magnitude)/2)/np.nansum(10**(temp_x.magnitude)/2)

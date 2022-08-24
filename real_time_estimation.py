@@ -16,7 +16,12 @@ import matplotlib as mpl
 
 #%% Define functions
 # Use the predicted strain to calculate magnitude
-def estimate_magnitude_from_data(peak_amplitude_df, reg, type, fitting_type='without_site', site_term_column='region_site'):
+def estimate_magnitude_from_data(peak_amplitude_df, reg, type, fitting_type='without_site', site_term_column='region_site', secondary_calibration=False):
+    if secondary_calibration:
+        second_calibration = pd.read_csv(results_output_dir + '/' + regression_dir + f'/secondary_site_terms_calibration_{nearby_channel_number}chan.csv')
+        peak_amplitude_df = pd.merge(peak_amplitude_df, second_calibration, on=['channel_id', 'region', 'region_site'])
+        # MUST BE VERY CAREFUL WHEN USING merge, it changes the order of DataFrame!
+    
     if fitting_type == 'with_site':
         # get the annoying categorical keys
         try:
@@ -29,11 +34,15 @@ def estimate_magnitude_from_data(peak_amplitude_df, reg, type, fitting_type='wit
                         - np.array(reg.params[site_term_keys]) \
                         - reg.params['np.log10(distance_in_km)'] * np.log10(peak_amplitude_df.distance_in_km)) \
                         / reg.params['magnitude']
+            if secondary_calibration:
+                M_predict = M_predict.copy() - peak_amplitude_df.diff_peak_P/reg.params['magnitude']
         elif type == 'S':
             M_predict = (np.log10(peak_amplitude_df.peak_S) \
                         - np.array(reg.params[site_term_keys]) \
                         - reg.params['np.log10(distance_in_km)'] * np.log10(peak_amplitude_df.distance_in_km)) \
                         / reg.params['magnitude']
+            if secondary_calibration:
+                M_predict = M_predict.copy() - peak_amplitude_df.diff_peak_S/reg.params['magnitude']
         else:
             raise NameError(f'{type} is not defined! Only "P" or "S"')
 
@@ -101,10 +110,13 @@ site_term_column = 'region_site'
 fitting_type = 'with_site'
 nearby_channel_number = 10
 
-region_label = 'ridgecrest' #'mammothN' #
-event_folder = '/kuafu/EventData/Ridgecrest' #'/kuafu/EventData/Mammoth_north'#'/kuafu/EventData/Mammoth_south'
-tt_dir = event_folder +  '/theoretical_arrival_time' ##'/model_proc_tt/CVM3D'
-test_event_id = 40063391 #40063391(M4.57) #73584926(M6) 73481241(M5) 39493944(M5.8) 73585021(M4.6)
+# apply secondary calibration to the site terms
+apply_secondary_calibration = True
+
+region_label = 'mammothN' #'mammothN' #ridgecrest
+event_folder = '/kuafu/EventData/Mammoth_north' #'/kuafu/EventData/Mammoth_north'#'/kuafu/EventData/Mammoth_south' #'/kuafu/EventData/Ridgecrest'
+tt_dir = event_folder +  '/model_proc_tt/CVM3D' #'/theoretical_arrival_time' ##
+test_event_id = 73584926 #40063391(M4.57) #73584926(M6) 73481241(M5) 39493944(M5.8) 73585021(M4.6)
 
 # load catalog
 catalog = pd.read_csv(event_folder + '/catalog.csv')
@@ -227,6 +239,25 @@ for ii, site_term_key in enumerate(site_term_keys):
         site_terms_S[ii] = regS.params[site_term_key]
     else:
         site_terms_S[ii] = np.nan
+
+
+if apply_secondary_calibration:
+    second_calibration = pd.read_csv(results_output_dir + '/' + regression_dir + f'/secondary_site_terms_calibration_{nearby_channel_number}chan.csv')
+    second_calibration = second_calibration[second_calibration.region.str.contains(region_label)]
+    
+    # interpolate to balance some missing channels
+    second_calibration_channel = np.array(second_calibration.channel_id)
+    second_calibration_P = np.array(second_calibration.diff_peak_P)
+    second_calibration_S = np.array(second_calibration.diff_peak_S)
+
+    second_calibration_P = np.interp(np.arange(site_term_keys.shape[0]), second_calibration_channel, second_calibration_P, right=0, left=0)
+    second_calibration_S = np.interp(np.arange(site_term_keys.shape[0]), second_calibration_channel, second_calibration_S, right=0, left=0)
+    second_calibration_P[np.isnan(second_calibration_P)] = 0
+    second_calibration_S[np.isnan(second_calibration_S)] = 0
+
+    # apply the secondary calibration
+    site_terms_P = site_terms_P + second_calibration_P
+    site_terms_S = site_terms_S + second_calibration_S
 
 
 #site_terms = site_terms[DAS_index]
@@ -409,6 +440,7 @@ plt.savefig(fig_output_dir + f'/{test_event_id}_estimated_mag_image_{region_labe
 
 #%% Having all together as one figure
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+time_rang_show = [40, 70]
 
 fig, ax = plt.subplots(3, 1, figsize=(14,20))
 # Strain
@@ -420,12 +452,12 @@ clb = gca.imshow(strain_rate.T,
             aspect='auto', vmin=-clipVal, vmax=clipVal, cmap=plt.get_cmap('seismic'))
 gca.plot(cvm_tt_tp.flatten(), np.arange(cvm_tt_tp.shape[1]), '-k', linewidth=4)
 gca.plot(cvm_tt_ts.flatten(), np.arange(cvm_tt_ts.shape[1]), '-k', linewidth=4)
-gca.vlines(x=[np.min(cvm_tt_tp), np.min(cvm_tt_ts)], ymax=1150, ymin=0, label='earliest tP and tS', color='b')
-gca.vlines(x=[np.max(cvm_tt_tp)+2, np.max(cvm_tt_ts)+2], ymax=1150, ymin=0, linestyle='--', color='b', label='latest tP+2s and tS+2s')
+gca.vlines(x=[np.min(cvm_tt_tp), np.min(cvm_tt_ts)], ymax=strain_rate.shape[1], ymin=0, label='earliest tP and tS', color='b')
+gca.vlines(x=[np.max(cvm_tt_tp)+2, np.max(cvm_tt_ts)+2], ymax=strain_rate.shape[1], ymin=0, linestyle='--', color='b', label='latest tP+2s and tS+2s')
 
 gca.set_xlabel('Time (s)')
 gca.set_ylabel('channel number')
-gca.set_xlim(31, 40)
+gca.set_xlim(time_rang_show[0], time_rang_show[1])
 gca.invert_yaxis()
 
 axins1 = inset_axes(gca,
@@ -456,12 +488,12 @@ clb = gca.imshow(mag_estimate_final.T,
             aspect='auto', vmin=0, vmax=8, cmap=cmap)
 gca.plot(cvm_tt_tp.flatten(), np.arange(cvm_tt_tp.shape[1]), '-k', linewidth=4)
 gca.plot(cvm_tt_ts.flatten(), np.arange(cvm_tt_ts.shape[1]), '-k', linewidth=4)
-gca.vlines(x=[np.min(cvm_tt_tp), np.min(cvm_tt_ts)], ymax=1150, ymin=0, label='earliest tP and tS', color='b', zorder=10)
-gca.vlines(x=[np.max(cvm_tt_tp)+2, np.max(cvm_tt_ts)+2], ymax=1150, ymin=0, linestyle='--', color='b', label='latest tP+2s and tS+2s', zorder=10)
+gca.vlines(x=[np.min(cvm_tt_tp), np.min(cvm_tt_ts)], ymax=mag_estimate_final.shape[1], ymin=0, label='earliest tP and tS', color='b', zorder=10)
+gca.vlines(x=[np.max(cvm_tt_tp)+2, np.max(cvm_tt_ts)+2], ymax=mag_estimate_final.shape[1], ymin=0, linestyle='--', color='b', label='latest tP+2s and tS+2s', zorder=10)
 
 gca.set_xlabel('Time (s)')
 gca.set_ylabel('channel number')
-gca.set_xlim(31, 40)
+gca.set_xlim(time_rang_show[0], time_rang_show[1])
 gca.invert_yaxis()
 
 axins2 = inset_axes(gca,
@@ -483,8 +515,7 @@ gca.vlines(x=[np.max(cvm_tt_tp)+2, np.max(cvm_tt_ts)+2], ymax=10, ymin=0, linest
 gca.hlines(y=[eq_mag], xmin=-10, xmax=120, color='green', label='catalog M')
 gca.set_yticks(np.arange(0, 9))
 gca.set_ylim(0, eq_mag.values*1.4)
-gca.set_xlim(31, 40)
-#gca.set_xlim(30, 60)
+gca.set_xlim(time_rang_show[0], time_rang_show[1])
 gca.set_xlabel('Time (s)')
 gca.set_ylabel('Estimated Magnitude')
 gca.legend(loc=4)
@@ -498,8 +529,8 @@ for ii in range(0, 3):
     ax[ii].annotate(f'({letter_list[k]})', xy=(-0.05, 1.0), xycoords=ax[ii].transAxes)
     k+=1
 
-plt.savefig(fig_output_dir + f'/{test_event_id}_estimated_mag_image_{region_label}_all.png', bbox_inches='tight')
-plt.savefig(fig_output_dir + f'/{test_event_id}_estimated_mag_image_{region_label}_all.pdf', bbox_inches='tight')
+plt.savefig(fig_output_dir + f'/{test_event_id}_estimated_mag_image_{region_label}_all_10_calibrated.png', bbox_inches='tight')
+plt.savefig(fig_output_dir + f'/{test_event_id}_estimated_mag_image_{region_label}_all_10_calibrated.pdf', bbox_inches='tight')
 # fig.tight_layout()
 
 # %%

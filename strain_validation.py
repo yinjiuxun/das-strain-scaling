@@ -173,7 +173,7 @@ snr_threshold = 10
 magnitude_threshold = [2, 10]
 apply_calibrated_distance = True # if true, use the depth-calibrated distance to do regression
 output_label = ''
-apply_secondary_calibration = False # if true, use the secondary site term calibration
+apply_secondary_calibration = True # if true, use the secondary site term calibration
 
 # directory to store the fitted results
 regression_results_dir = results_output_dir + f'/regression_results_smf_weighted_{min_channel}_channel_at_least'
@@ -181,7 +181,7 @@ regression_results_dir = results_output_dir + f'/regression_results_smf_weighted
 # %% Compare the regression parameters and site terms
 fig, ax = plt.subplots(2, 1, figsize=(10, 18), sharex=True, sharey=True) # north
 fig2, ax2 = plt.subplots(2, 1, figsize=(10, 18), sharex=True, sharey=True) # south
-combined_channel_number_list = [100]#[10, 20, 50, 100, -1] # -1 means the constant model
+combined_channel_number_list = [10, 20, 50, 100, -1] # -1 means the constant model
 for i_model, combined_channel_number in enumerate(combined_channel_number_list):
     peak_amplitude_df = pd.read_csv(results_output_dir + f'/peak_amplitude_region_site_{combined_channel_number}.csv')
     if apply_calibrated_distance: 
@@ -207,8 +207,8 @@ for i_model, combined_channel_number in enumerate(combined_channel_number_list):
         second_calibration =pd.read_csv(regression_results_dir + f'/secondary_site_terms_calibration_{combined_channel_number}chan.csv')
         peak_amplitude_df = pd.merge(peak_amplitude_df, second_calibration, on=['channel_id', 'region', 'region_site'])
         # apply secondary calibration
-        y_P_predict = y_P_predict.array + peak_amplitude_df.diff_peak_P.array
-        y_S_predict = y_S_predict.array + peak_amplitude_df.diff_peak_S.array
+        y_P_predict = regP.predict(peak_amplitude_df) + peak_amplitude_df.diff_peak_P
+        y_S_predict = regS.predict(peak_amplitude_df) + peak_amplitude_df.diff_peak_S
         output_label = '_calibrated'
 
     temp_peaks = np.array([np.array(peak_amplitude_df.peak_P),
@@ -268,7 +268,7 @@ for i_model, combined_channel_number in enumerate(combined_channel_number_list):
             g = plot_prediction_vs_measure_seaborn(peak_comparison_df, [0.01, 100], phase='S', bins=20)
             g.savefig(regression_results_dir + f'/channel_validations/S_validation_{specific_region_channel[0]}_channel_{specific_region_channel[1]}.png')
 
-            # plt.close('all')
+            plt.close('all')
 
 
 # %%
@@ -322,6 +322,6 @@ for i_model, combined_channel_number in enumerate(combined_channel_number_list):
             g = plot_prediction_vs_measure_seaborn(peak_comparison_df, [0.01, 100], phase='S', bins=20)
             g.savefig(regression_results_dir + f'/channel_validations/S_validation_{specific_region_channel[0]}_channel_{specific_region_channel[1]}_calibrated.png')
 
-            # plt.close('all')
+            plt.close('all')
 
 # %%
