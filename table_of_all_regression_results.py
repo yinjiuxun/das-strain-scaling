@@ -123,23 +123,10 @@ sns.set_theme(style="ticks", rc=custom_params, font_scale=1.2)
 
 fig, ax = plt.subplots(2, 2, figsize=(12, 9))
 def plot_coefficients_seaborn(x_key, y_key, all_results_pd, ax, xlim=None, ylim=None):
-    # g = sns.pointplot(x=x_key, y=y_key, hue='site-term smoothing',
-    #             capsize=.2, palette="crest", markers="o", linestyles='', scale=1.5, linewidth=2, edgecolor='k',
-    #             kind=x_key, data=all_results_pd[all_results_pd.weight=='unweighted'], ax=ax, legend = False)
-
     g = sns.pointplot(x="region", y=y_key, hue='site-term smoothing', ci=y_key[:-3]+'uncertainty '+y_key[-3:],
                 capsize=.2, palette="crest", markers="d", linestyles='', scale=2, 
                 kind="point", data=all_results_pd[all_results_pd.weight=='weighted'], ax=ax, legend = False)
-    
-    # g = sns.scatterplot(data=all_results_pd[all_results_pd.weight=='unweighted'],
-    #                     x=x_key, y=y_key, s=100, hue='site-term smoothing',
-    #                     palette="Blues", markers="o",linewidth=1, edgecolor='k',
-    #                     ax=ax, legend = True)
 
-    # g = sns.scatterplot(data=all_results_pd[all_results_pd.weight=='weighted'], 
-    #                     x="region", y=y_key, s=100, hue='site-term smoothing',
-    #                     palette="Reds", markers="d",linewidth=1, edgecolor='k',
-    #                     ax=ax, legend = True)
     
     ax.set_xticklabels(['RC', 'LV-N', 'LV-S', 'Sanriku', 'combined'])
     ax.set_yticks(np.arange(-10, 10, 0.2))
@@ -168,17 +155,24 @@ plot_coefficients_seaborn(x_key='region', y_key='dist coef. (S)',
 # Adding the Barbour et al. (2021) results
 # TODO: label the line with the values
 barbour_2021_coefficents = [0.92, -1.45]
-PGA_coefficients = [0.388142, -1.630351]
-ax[0, 0].hlines(y=PGA_coefficients[0], xmin=0, xmax=4, linestyle='--', color='k', linewidth=2)
-ax[0, 1].hlines(y=PGA_coefficients[0], xmin=0, xmax=4, linestyle='--', color='k', linewidth=2)
-ax[1, 0].hlines(y=PGA_coefficients[1], xmin=0, xmax=4, linestyle='--', color='k', linewidth=2)
-ax[1, 1].hlines(y=PGA_coefficients[1], xmin=0, xmax=4, linestyle='--', color='k', linewidth=2, label='PGA from NGA-West2')
+PGA_coefficients_WLS = [0.388142, -1.630351]
 
+for ii in range(2):
+    for jj in range(2):
+        if (ii == 1) and (jj == 1):
+            label_text2 = 'PGA from NGA-West2 (WLS)'
+            label_text3 = 'Strainmeter Barbour et al. (2021)'
+        else:
+            label_text2, label_text3 = None, None
+
+        ax[ii, jj].hlines(y=PGA_coefficients_WLS[ii], xmin=0, xmax=4, linestyle='--', color='b', linewidth=2, label=label_text2)
+        ax[ii, jj].hlines(y=barbour_2021_coefficents[ii], xmin=0, xmax=4, linestyle='--', color='r', linewidth=2, label=label_text3)
+        
 ax[0, 0].get_legend().remove()
 ax[0, 1].get_legend().remove()
 ax[1, 0].get_legend().remove()
 
-my_label = ['Regression', 'PGA from NGA-West2']#['uniform ST', 'ST-10', 'ST-20', 'ST-50', 'ST-100', 'Barbour et al. (2021)'] 
+my_label = ['Regression', 'PGA from NGA-West2', 'Strainmeter Barbour et al. (2021)']#['uniform ST', 'ST-10', 'ST-20', 'ST-50', 'ST-100', 'Barbour et al. (2021)'] 
 L = ax[1, 1].legend(loc='center left', bbox_to_anchor=(-1.4, 2.5), ncol=6, title='regression coefficients')
 for i_L in range(len(L.get_texts())):
     L.get_texts()[i_L].set_text(my_label[i_L])
@@ -192,8 +186,6 @@ for gca in ax.flatten():
         k += 1
 
 # TODO: add error bars
-# TODO: edit the legend box
-
 plt.savefig('/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RMS/coefficients_comparison.png', bbox_inches='tight', dpi=200)
 plt.savefig('/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RMS/coefficients_comparison.pdf', bbox_inches='tight')
 
@@ -251,25 +243,27 @@ plot_coefficients_seaborn(x_key='region', y_key='dist coef. (S)', all_results_pd
 barbour_2021_coefficents = [0.92, -1.45]
 PGA_coefficients_OLS = [0.583631, -1.793554]
 PGA_coefficients_WLS = [0.388142, -1.630351]
-ax[0, 0].hlines(y=PGA_coefficients_OLS[0], xmin=0, xmax=4, linestyle='--', color='r', linewidth=2)
-ax[0, 1].hlines(y=PGA_coefficients_OLS[0], xmin=0, xmax=4, linestyle='--', color='r', linewidth=2)
-ax[1, 0].hlines(y=PGA_coefficients_OLS[1], xmin=0, xmax=4, linestyle='--', color='r', linewidth=2)
-ax[1, 1].hlines(y=PGA_coefficients_OLS[1], xmin=0, xmax=4, linestyle='--', color='r', linewidth=2, label='PGA from NGA-West2 (OLS)')
 
+for ii in range(2):
+    for jj in range(2):
+        if (ii == 1) and (jj == 1):
+            label_text1 = 'PGA from NGA-West2 (OLS)'
+            label_text2 = 'PGA from NGA-West2 (WLS)'
+            label_text3 = 'Strainmeter Barbour et al. (2021)'
+        else:
+            label_text1, label_text2, label_text3 = None, None, None
 
-ax[0, 0].hlines(y=PGA_coefficients_WLS[0], xmin=0, xmax=4, linestyle='--', color='b', linewidth=2)
-ax[0, 1].hlines(y=PGA_coefficients_WLS[0], xmin=0, xmax=4, linestyle='--', color='b', linewidth=2)
-ax[1, 0].hlines(y=PGA_coefficients_WLS[1], xmin=0, xmax=4, linestyle='--', color='b', linewidth=2)
-ax[1, 1].hlines(y=PGA_coefficients_WLS[1], xmin=0, xmax=4, linestyle='--', color='b', linewidth=2, label='PGA from NGA-West2 (WLS)')
-
-
+        ax[ii, jj].hlines(y=PGA_coefficients_OLS[ii], xmin=0, xmax=4, linestyle='--', color='r', linewidth=2, label=label_text1)
+        ax[ii, jj].hlines(y=PGA_coefficients_WLS[ii], xmin=0, xmax=4, linestyle='--', color='b', linewidth=2, label=label_text2)
+        ax[ii, jj].hlines(y=barbour_2021_coefficents[ii], xmin=0, xmax=4, linestyle='--', color='orange', linewidth=2, label=label_text3)
+        
 ax[0, 0].get_legend().remove()
 ax[0, 1].get_legend().remove()
 ax[1, 0].get_legend().remove()
 
 my_label = ['all (OLS)', '10 (OLS)', '20 (OLS)', '50 (OLS)', '100 (OLS)', 'all (WLS)', 
-            '10 (WLS)', '20 (WLS)', '50 (WLS)', '100 (WLS)',  'PGA from NGA-West2 (OLS)', 'PGA from NGA-West2 (WLS)'] #
-L = ax[1, 1].legend(loc='center left', bbox_to_anchor=(-1.4, 2.5), ncol=6, title='regression coefficients')
+            '10 (WLS)', '20 (WLS)', '50 (WLS)', '100 (WLS)',  'PGA from NGA-West2 (OLS)', 'PGA from NGA-West2 (WLS)', 'Strainmeter Barbour et al. (2021)'] #
+L = ax[1, 1].legend(loc='center left', bbox_to_anchor=(-1.22, -0.5), ncol=4, title='Regression Coefficients')
 for i_L in range(len(L.get_texts())):
     L.get_texts()[i_L].set_text(my_label[i_L])
 
@@ -281,9 +275,7 @@ for gca in ax.flatten():
         gca.annotate(f'({letter_list[k]})', xy=(-0.2, 1.0), xycoords=gca.transAxes, fontsize=18)
         k += 1
 
-
 # TODO: add error bars
-# TODO: edit the legend box
 plt.savefig('/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RMS/coefficients_comparison_all.png', bbox_inches='tight', dpi=200)
 plt.savefig('/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RMS/coefficients_comparison_all.pdf', bbox_inches='tight')
 # %%
