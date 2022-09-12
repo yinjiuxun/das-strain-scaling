@@ -22,7 +22,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 params = {
     'image.interpolation': 'nearest',
     'image.cmap': 'gray',
-    'savefig.dpi': 300,  # to adjust notebook inline plot size
+    'savefig.dpi': 100,  # to adjust notebook inline plot size
     'axes.labelsize': 18, # fontsize for x and y labels (was 10)
     'axes.titlesize': 18,
     'font.size': 18,
@@ -135,6 +135,9 @@ def save_das_event_data(event_now, DAS_info_df, data_files, data_folder, fig_fol
     """
     Function to save event data in parallel
     """
+    matplotlib.rcParams.update(params) # Set up the plotting parameters
+    warnings.filterwarnings('ignore')
+
     event_time0  = obspy.UTCDateTime(event_now.event_time)
 
     data_files_time_t_begin = np.array([obspy.UTCDateTime(data_files[i][38:57]) for i in range(len(data_files))])
@@ -151,7 +154,7 @@ def save_das_event_data(event_now, DAS_info_df, data_files, data_folder, fig_fol
             lam = fid["Data"].attrs['LaserWavelength']
             n = fid["Data"].attrs['RefractiveIndex']
             ChSamp = fid['Data'].attrs['ChSamp']
-            conversion_factor = lam / (0.78 * 4 * np.pi * n * G) *1e6 # convert to micro strain
+            conversion_factor = lam / (0.78 * 4 * np.pi * n * G) *1e6 *np.pi/2**15 # convert to micro strain
 
             data0 = fid["Data"][:] * conversion_factor
             ntS = fid["Data"].attrs['nt']
@@ -176,7 +179,8 @@ def save_das_event_data(event_now, DAS_info_df, data_files, data_folder, fig_fol
 
         # %
         event_data = data_diff_rs.T
-
+        # print(event_data.shape)
+        # print(np.percentile(np.absolute(event_data), 80))
         event_data = event_data[:, DAS_info_df['index']]
         event_info = {}
         event_info['event_id'] = event_now.event_id
