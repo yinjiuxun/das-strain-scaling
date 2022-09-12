@@ -234,6 +234,102 @@ def get_mean_magnitude(peak_amplitude_df, M_predict):
     temp_df = pd.concat([temp_df, temp_df2['predicted_M_std']], axis=1)
     return temp_df
 
+def store_site_terms(regression_results_dir, combined_channel_number, peak_amplitude_df_fit):
+    """Function to extract site terms as individual csv file"""
+    temp_df_P = pd.DataFrame(columns=['combined_channel_id', 'site_term_P'])
+    temp_df_S = pd.DataFrame(columns=['combined_channel_id', 'site_term_S'])
+
+    try:
+        regP = sm.load(regression_results_dir + f"/P_regression_combined_site_terms_{combined_channel_number}chan.pickle")
+        site_term_P = regP.params[:-2]
+        # temp_df_P = pd.DataFrame(columns=['combined_channel_id', 'site_term_P'])
+        temp_df_P['combined_channel_id'] = [int(temp.replace('C(combined_channel_id)[', '').replace(']', '')) for temp in site_term_P.index]
+        temp_df_P['site_term_P'] = np.array(site_term_P)
+    except:
+        print('P regression not found, assign Nan to the site term')
+        site_term_P = np.nan
+    try:
+        regS = sm.load(regression_results_dir + f"/S_regression_combined_site_terms_{combined_channel_number}chan.pickle")
+        site_term_S = regS.params[:-2]
+        # temp_df_S = pd.DataFrame(columns=['combined_channel_id', 'site_term_S'])
+        temp_df_S['combined_channel_id'] = [int(temp.replace('C(combined_channel_id)[', '').replace(']', '')) for temp in site_term_S.index]
+        temp_df_S['site_term_S'] = np.array(site_term_S)
+    except:
+        print('S regression not found, assign Nan to the site term')
+        site_term_S = np.nan
+
+    peak_amplitude_df_fit = combined_channels(DAS_index, peak_amplitude_df_fit, combined_channel_number)
+    combined_channel_id = np.sort(peak_amplitude_df_fit.combined_channel_id.unique())
+
+    # combining the site terms into one csv file
+    temp_df1 = pd.DataFrame(columns=['combined_channel_id'])
+    temp_df1['combined_channel_id'] = combined_channel_id
+    temp_df1 = pd.merge(temp_df1, temp_df_P, on='combined_channel_id', how='outer')
+    temp_df1 = pd.merge(temp_df1, temp_df_S, on='combined_channel_id', how='outer')
+
+    temp_df2 = peak_amplitude_df_fit.loc[:, ['combined_channel_id', 'channel_id']]
+    temp_df2 = temp_df2.drop_duplicates(subset=['channel_id']).sort_values(by='channel_id')
+    site_term_df = pd.merge(temp_df2, temp_df1, on='combined_channel_id')
+
+    # load secondary calibration and merge
+    second_calibration = pd.read_csv(regression_results_dir + f'/secondary_site_terms_calibration_{nearby_channel_number}chan.csv')
+    site_term_df = pd.merge(site_term_df, second_calibration, on='channel_id')
+    
+    # Store the site terms
+    site_term_df.to_csv(regression_results_dir + f'/site_terms_{combined_channel_number}chan.csv', index=False)
+
+    return site_term_df
+
+# %% ==========================================================================================
+# Apply to more data to predict the magnitude
+import seaborn as sns
+def plot_magnitude_seaborn(df_magnitude):
+    sns.set_theme(style="ticks", font_scale=2)
+
+    g = sns.JointGrid(data=df_magnitude, x="magnitude", y="predicted_M", marginal_ticks=True,
+    xlim=(0, 7), ylim=(0, 7), height=10, space=0.3)
+
+
+    # Create an inset legend for the histogram colorbar
+    cax = g.figure.add_axes([.65, .2, .02, .2])
+
+    # Add the joint and marginal histogram plots 03012d
+    g.plot_joint(
+    sns.histplot, discrete=(False, False),
+    cmap="light:#9C4D4D", pmax=.7, cbar=True, cbar_ax=cax, cbar_kws={'label': 'counts'})
+    g.plot_marginals(sns.histplot, element="step", color="#9C4D4D") #flare; light:#9C4D4D; dark:salmon_r
+
+    g.ax_joint.plot([0,8], [0,8], 'k-', linewidth = 2)
+    g.ax_joint.plot([0,8], [1,9], 'k--', linewidth = 1)
+    g.ax_joint.plot([0,8], [-1,7], 'k--', linewidth = 1)
+    g.ax_joint.set_xlabel('catalog magnitude')
+    g.ax_joint.set_ylabel('predicted magnitude')
+
+    return g
+
+def plot_prediction_vs_measure_seaborn(peak_comparison_df, xy_range, phase):
+    sns.set_theme(style="ticks", font_scale=2)
+    if phase == 'P':
+        g = sns.JointGrid(data=peak_comparison_df, x="peak_P", y="peak_P_predict", marginal_ticks=True,
+                        xlim=xy_range, ylim=xy_range, height=10, space=0.3)
+    elif phase == 'S':
+        g = sns.JointGrid(data=peak_comparison_df, x="peak_S", y="peak_S_predict", marginal_ticks=True,
+                        xlim=xy_range, ylim=xy_range, height=10, space=0.3)
+    g.ax_joint.set(xscale="log")
+    g.ax_joint.set(yscale="log")
+
+    # Create an inset legend for the histogram colorbar
+    cax = g.figure.add_axes([.65, .2, .02, .2])
+
+    # Add the joint and marginal histogram plots 03012d
+    bins=40
+    g.plot_joint(sns.histplot, discrete=(False, False), bins=(bins, bins), cmap="light:#4D4D9C", pmax=.6, cbar=True, cbar_ax=cax, cbar_kws={'label': 'counts'})
+    g.plot_marginals(sns.histplot, element="step", bins=bins, binrange=(-2, 2), color="#4D4D9C")
+
+    g.ax_joint.plot(xy_range, xy_range, 'k-', linewidth = 2)
+    g.ax_joint.set_xlabel('measured peak strain rate\n (micro strain/s)')
+    g.ax_joint.set_ylabel('calculated peak strain rate\n (micro strain/s)')
+    return g
 
 # ==============================  Sanriku data ========================================
 #%% Specify the file names
@@ -317,10 +413,10 @@ with open(results_output_dir + '/data_info.txt', 'w') as f:
 # Fit the site term only
 # Regression OLS
 if region_label == 'sanriku':
-    given_coefficients_list = [[np.nan, np.nan, 0.648, -1.366],
-                               [np.nan, np.nan, 0.653, -1.377],
-                               [np.nan, np.nan, 0.66, -1.396],
-                               [np.nan, np.nan, 0.666, -1.412]]
+    given_coefficients_list = [[np.nan, np.nan, 0.649, -1.372],
+                               [np.nan, np.nan, 0.653, -1.382],
+                               [np.nan, np.nan, 0.661, -1.401],
+                               [np.nan, np.nan, 0.667, -1.417]]
 
     nearby_channel_number_list = [100, 50, 20, 10]
 
@@ -344,10 +440,10 @@ if region_label == 'sanriku':
 #%% ==========================================================================================
 # Regression with weight
 if region_label == 'sanriku':
-    given_coefficients_list = [[np.nan, np.nan, 0.591, -1.302],
-                               [np.nan, np.nan, 0.595, -1.318],
-                               [np.nan, np.nan, 0.608, -1.356],
-                               [np.nan, np.nan, 0.620, -1.392]]
+    given_coefficients_list = [[np.nan, np.nan, 0.590, -1.304],
+                               [np.nan, np.nan, 0.595, -1.320],
+                               [np.nan, np.nan, 0.608, -1.358],
+                               [np.nan, np.nan, 0.619, -1.393]]
 
     nearby_channel_number_list = [100, 50, 20, 10]
 
@@ -374,47 +470,49 @@ if region_label == 'sanriku':
 regression_results_dir = results_output_dir + f'/regression_results_smf_weighted_{min_channel}_channel_at_least'
 nearby_channel_number_list = [10, 20, 50, 100]
 for combined_channel_number in nearby_channel_number_list:
-    temp_df_P = pd.DataFrame(columns=['combined_channel_id', 'site_term_P'])
-    temp_df_S = pd.DataFrame(columns=['combined_channel_id', 'site_term_S'])
+    store_site_terms(regression_results_dir, combined_channel_number, peak_amplitude_df_fit)
 
-    try:
-        regP = sm.load(regression_results_dir + f"/P_regression_combined_site_terms_{combined_channel_number}chan.pickle")
-        site_term_P = regP.params[:-2]
-        # temp_df_P = pd.DataFrame(columns=['combined_channel_id', 'site_term_P'])
-        temp_df_P['combined_channel_id'] = [int(temp.replace('C(combined_channel_id)[', '').replace(']', '')) for temp in site_term_P.index]
-        temp_df_P['site_term_P'] = np.array(site_term_P)
-    except:
-        print('P regression not found, assign Nan to the site term')
-        site_term_P = np.nan
-    try:
-        regS = sm.load(regression_results_dir + f"/S_regression_combined_site_terms_{combined_channel_number}chan.pickle")
-        site_term_S = regS.params[:-2]
-        # temp_df_S = pd.DataFrame(columns=['combined_channel_id', 'site_term_S'])
-        temp_df_S['combined_channel_id'] = [int(temp.replace('C(combined_channel_id)[', '').replace(']', '')) for temp in site_term_S.index]
-        temp_df_S['site_term_S'] = np.array(site_term_S)
-    except:
-        print('S regression not found, assign Nan to the site term')
-        site_term_S = np.nan
+    # temp_df_P = pd.DataFrame(columns=['combined_channel_id', 'site_term_P'])
+    # temp_df_S = pd.DataFrame(columns=['combined_channel_id', 'site_term_S'])
 
-    peak_amplitude_df_fit = combined_channels(DAS_index, peak_amplitude_df_fit, combined_channel_number)
-    combined_channel_id = np.sort(peak_amplitude_df_fit.combined_channel_id.unique())
+    # try:
+    #     regP = sm.load(regression_results_dir + f"/P_regression_combined_site_terms_{combined_channel_number}chan.pickle")
+    #     site_term_P = regP.params[:-2]
+    #     # temp_df_P = pd.DataFrame(columns=['combined_channel_id', 'site_term_P'])
+    #     temp_df_P['combined_channel_id'] = [int(temp.replace('C(combined_channel_id)[', '').replace(']', '')) for temp in site_term_P.index]
+    #     temp_df_P['site_term_P'] = np.array(site_term_P)
+    # except:
+    #     print('P regression not found, assign Nan to the site term')
+    #     site_term_P = np.nan
+    # try:
+    #     regS = sm.load(regression_results_dir + f"/S_regression_combined_site_terms_{combined_channel_number}chan.pickle")
+    #     site_term_S = regS.params[:-2]
+    #     # temp_df_S = pd.DataFrame(columns=['combined_channel_id', 'site_term_S'])
+    #     temp_df_S['combined_channel_id'] = [int(temp.replace('C(combined_channel_id)[', '').replace(']', '')) for temp in site_term_S.index]
+    #     temp_df_S['site_term_S'] = np.array(site_term_S)
+    # except:
+    #     print('S regression not found, assign Nan to the site term')
+    #     site_term_S = np.nan
 
-    # combining the site terms into one csv file
-    temp_df1 = pd.DataFrame(columns=['combined_channel_id'])
-    temp_df1['combined_channel_id'] = combined_channel_id
-    temp_df1 = pd.merge(temp_df1, temp_df_P, on='combined_channel_id', how='outer')
-    temp_df1 = pd.merge(temp_df1, temp_df_S, on='combined_channel_id', how='outer')
+    # peak_amplitude_df_fit = combined_channels(DAS_index, peak_amplitude_df_fit, combined_channel_number)
+    # combined_channel_id = np.sort(peak_amplitude_df_fit.combined_channel_id.unique())
 
-    temp_df2 = peak_amplitude_df_fit.loc[:, ['combined_channel_id', 'channel_id']]
-    temp_df2 = temp_df2.drop_duplicates(subset=['channel_id']).sort_values(by='channel_id')
-    site_term_df = pd.merge(temp_df2, temp_df1, on='combined_channel_id')
+    # # combining the site terms into one csv file
+    # temp_df1 = pd.DataFrame(columns=['combined_channel_id'])
+    # temp_df1['combined_channel_id'] = combined_channel_id
+    # temp_df1 = pd.merge(temp_df1, temp_df_P, on='combined_channel_id', how='outer')
+    # temp_df1 = pd.merge(temp_df1, temp_df_S, on='combined_channel_id', how='outer')
 
-    # load secondary calibration and merge
-    second_calibration = pd.read_csv(regression_results_dir + f'/secondary_site_terms_calibration_{nearby_channel_number}chan.csv')
-    site_term_df = pd.merge(site_term_df, second_calibration, on='channel_id')
+    # temp_df2 = peak_amplitude_df_fit.loc[:, ['combined_channel_id', 'channel_id']]
+    # temp_df2 = temp_df2.drop_duplicates(subset=['channel_id']).sort_values(by='channel_id')
+    # site_term_df = pd.merge(temp_df2, temp_df1, on='combined_channel_id')
+
+    # # load secondary calibration and merge
+    # second_calibration = pd.read_csv(regression_results_dir + f'/secondary_site_terms_calibration_{nearby_channel_number}chan.csv')
+    # site_term_df = pd.merge(site_term_df, second_calibration, on='channel_id')
     
-    # Store the site terms
-    site_term_df.to_csv(regression_results_dir + f'/site_terms_{combined_channel_number}chan.csv', index=False)
+    # # Store the site terms
+    # site_term_df.to_csv(regression_results_dir + f'/site_terms_{combined_channel_number}chan.csv', index=False)
 
 
 #%% ==========================================================================================
@@ -482,223 +580,148 @@ gca.legend(loc=3, fontsize=14)
 plt.savefig(regression_results_dir + '/site_terms_calibrated.png', bbox_inches='tight')
 plt.savefig(regression_results_dir + '/site_terms_calibrated.pdf', bbox_inches='tight')
 
-# %% ==========================================================================================
-# Apply to more data to predict the magnitude
-import seaborn as sns
-def plot_magnitude_seaborn(df_magnitude):
-    sns.set_theme(style="ticks", font_scale=2)
 
-    g = sns.JointGrid(data=df_magnitude, x="magnitude", y="predicted_M", marginal_ticks=True,
-    xlim=(0, 7), ylim=(0, 7), height=10, space=0.3)
-
-
-    # Create an inset legend for the histogram colorbar
-    cax = g.figure.add_axes([.65, .2, .02, .2])
-
-    # Add the joint and marginal histogram plots 03012d
-    g.plot_joint(
-    sns.histplot, discrete=(False, False),
-    cmap="light:#9C4D4D", pmax=.7, cbar=True, cbar_ax=cax, cbar_kws={'label': 'counts'})
-    g.plot_marginals(sns.histplot, element="step", color="#9C4D4D") #flare; light:#9C4D4D; dark:salmon_r
-
-    g.ax_joint.plot([0,8], [0,8], 'k-', linewidth = 2)
-    g.ax_joint.plot([0,8], [1,9], 'k--', linewidth = 1)
-    g.ax_joint.plot([0,8], [-1,7], 'k--', linewidth = 1)
-    g.ax_joint.set_xlabel('catalog magnitude')
-    g.ax_joint.set_ylabel('predicted magnitude')
-
-    return g
-
-def plot_prediction_vs_measure_seaborn(peak_comparison_df, xy_range, phase):
-    sns.set_theme(style="ticks", font_scale=2)
-    if phase == 'P':
-        g = sns.JointGrid(data=peak_comparison_df, x="peak_P", y="peak_P_predict", marginal_ticks=True,
-                        xlim=xy_range, ylim=xy_range, height=10, space=0.3)
-    elif phase == 'S':
-        g = sns.JointGrid(data=peak_comparison_df, x="peak_S", y="peak_S_predict", marginal_ticks=True,
-                        xlim=xy_range, ylim=xy_range, height=10, space=0.3)
-    g.ax_joint.set(xscale="log")
-    g.ax_joint.set(yscale="log")
-
-    # Create an inset legend for the histogram colorbar
-    cax = g.figure.add_axes([.65, .2, .02, .2])
-
-    # Add the joint and marginal histogram plots 03012d
-    bins=40
-    g.plot_joint(sns.histplot, discrete=(False, False), bins=(bins, bins), cmap="light:#4D4D9C", pmax=.6, cbar=True, cbar_ax=cax, cbar_kws={'label': 'counts'})
-    g.plot_marginals(sns.histplot, element="step", bins=bins, binrange=(-2, 2), color="#4D4D9C")
-
-    g.ax_joint.plot(xy_range, xy_range, 'k-', linewidth = 2)
-    g.ax_joint.set_xlabel('measured peak strain rate\n (micro strain/s)')
-    g.ax_joint.set_ylabel('calculated peak strain rate\n (micro strain/s)')
-    return g
 
 #%% 
 # =====================magnitude prediction================================
-weighted = ''
-regression_results_dir = results_output_dir + f'/regression_results_smf_{weighted}{min_channel}_channel_at_least'
-# regression_results_dir = results_output_dir + '/regression_results_smf_weighted'
+weighted = 'weighted_'
+secondary_calibration = True
 
-secondary_calibration = False
-if secondary_calibration:
-    calibrated_label = '_calibrated'
-else:
-    calibrated_label = ''
+for weighted in ['', 'weighted_']:
+    for secondary_calibration in [True, False]:
 
-if weighted == '':
-    given_coefficients_list =  [[0.648, -1.366],
-                                [0.653, -1.377],
-                                [0.66, -1.396],
-                                [0.666, -1.412]] # coefficients of unweighted regression
-elif weighted == 'weighted_':                            
-    given_coefficients_list =  [[0.591, -1.302],
-                                [0.595, -1.318],
-                                [0.608, -1.356],
-                                [0.620, -1.392]] # coefficients of weighted regression
-else:
-    raise NameError            
+        regression_results_dir = results_output_dir + f'/regression_results_smf_{weighted}{min_channel}_channel_at_least'
+        # regression_results_dir = results_output_dir + '/regression_results_smf_weighted'
 
-# given_coefficients_list = [None, None, None, None]
+        if secondary_calibration:
+            calibrated_label = '_calibrated'
+        else:
+            calibrated_label = ''
 
-# do the magnitude estimation with the regression results
-nearby_channel_number_list = [100, 50, 20, 10]
-for ii, nearby_channel_number in enumerate(nearby_channel_number_list):
-    peak_amplitude_df_fit = combined_channels(DAS_index, peak_amplitude_df_fit, nearby_channel_number)
-    peak_amplitude_df_predict = combined_channels(DAS_index, peak_amplitude_df_predict, nearby_channel_number)
+        if weighted == '':
+            given_coefficients_list = [[0.649, -1.372],
+                                    [0.653, -1.382],
+                                    [0.661, -1.401],
+                                    [0.667, -1.417]] # coefficients of unweighted regression
+        elif weighted == 'weighted_':                            
+            given_coefficients_list = [[0.590, -1.304],
+                                    [0.595, -1.320],
+                                    [0.608, -1.358],
+                                    [0.619, -1.393]]  # coefficients of weighted regression
+        else:
+            raise NameError            
 
-    regS = sm.load(regression_results_dir + f"/S_regression_combined_site_terms_{nearby_channel_number}chan.pickle")
-    
-    # only keep the channels that have been constrained
-    site_term_column='combined_channel_id'
-    site_term_keys = np.array([f'C({site_term_column})[{site_term}]' for site_term in peak_amplitude_df_predict[site_term_column]])
-    ii_channel = np.isin(site_term_keys, regS.params.keys())
-    peak_amplitude_df_predict = peak_amplitude_df_predict[ii_channel]
+        # given_coefficients_list = [None, None, None, None]
 
-    # Apply to the fit set
-    M_fit, peak_amplitude_df_fit_temp = calculate_magnitude_from_strain(peak_amplitude_df_fit, regS, type='S', 
-                        site_term_column=site_term_column, given_coefficients=given_coefficients_list[ii], secondary_calibration=secondary_calibration)
-    M_df_fit = get_mean_magnitude(peak_amplitude_df_fit_temp, M_fit)
+        # do the magnitude estimation with the regression results
+        nearby_channel_number_list = [100, 50, 20, 10]
+        for ii, nearby_channel_number in enumerate(nearby_channel_number_list):
+            peak_amplitude_df_fit = combined_channels(DAS_index, peak_amplitude_df_fit, nearby_channel_number)
+            peak_amplitude_df_predict = combined_channels(DAS_index, peak_amplitude_df_predict, nearby_channel_number)
 
-    # Apply to the prediction set
-    M_predict, peak_amplitude_df_predict_temp = calculate_magnitude_from_strain(peak_amplitude_df_predict, regS, type='S', 
-                        site_term_column=site_term_column, given_coefficients=given_coefficients_list[ii], secondary_calibration=secondary_calibration)
-    M_df_predict = get_mean_magnitude(peak_amplitude_df_predict_temp, M_predict)
+            regS = sm.load(regression_results_dir + f"/S_regression_combined_site_terms_{nearby_channel_number}chan.pickle")
+            
+            # only keep the channels that have been constrained
+            site_term_column='combined_channel_id'
+            site_term_keys = np.array([f'C({site_term_column})[{site_term}]' for site_term in peak_amplitude_df_predict[site_term_column]])
+            ii_channel = np.isin(site_term_keys, regS.params.keys())
+            peak_amplitude_df_predict = peak_amplitude_df_predict[ii_channel]
 
-    gca = plot_magnitude_seaborn(M_df_predict)
-    gca.ax_joint.plot(M_df_fit.magnitude, M_df_fit.predicted_M, 'k.', markersize=10)
-    if 4130 in M_df_fit.index:
-        gca.ax_joint.plot(M_df_fit[M_df_fit.index == 4130].magnitude, M_df_fit[M_df_fit.index == 4130].predicted_M, 'r.', markersize=15)
-        gca.ax_joint.text(M_df_fit[M_df_fit.index == 4130].magnitude, M_df_fit[M_df_fit.index == 4130].predicted_M+0.2, 'clipped', color='r')
-    gca.savefig(regression_results_dir + f"/predicted_magnitude_S_{nearby_channel_number}_seaborn{calibrated_label}.png",bbox_inches='tight')
-    gca.savefig(regression_results_dir + f"/predicted_magnitude_S_{nearby_channel_number}_seaborn{calibrated_label}.pdf",bbox_inches='tight')
-    plt.close('all')
-#%%
-# look into the incorrect associated event
-# print(M_df_predict[(M_df_predict.predicted_M - M_df_predict.magnitude)>1])
+            # Apply to the fit set
+            M_fit, peak_amplitude_df_fit_temp = calculate_magnitude_from_strain(peak_amplitude_df_fit, regS, type='S', 
+                                site_term_column=site_term_column, given_coefficients=given_coefficients_list[ii], secondary_calibration=secondary_calibration)
+            M_df_fit = get_mean_magnitude(peak_amplitude_df_fit_temp, M_fit)
 
-# from obspy.geodetics import locations2degrees
-# peak_amplitude_df_2776 = peak_amplitude_df_predict[peak_amplitude_df_predict.event_id==2776]
-# # correct its distance
-# possible_event_2777 = [36.647, 140.657, 10.4, 2.1]
-# possible_event_2778 = [42.611, 141.961, 134.2, 1.2]
-# possible_event_2780 = [37.513, 142.276, 29.6, 2.7]
+            # Apply to the prediction set
+            M_predict, peak_amplitude_df_predict_temp = calculate_magnitude_from_strain(peak_amplitude_df_predict, regS, type='S', 
+                                site_term_column=site_term_column, given_coefficients=given_coefficients_list[ii], secondary_calibration=secondary_calibration)
+            M_df_predict = get_mean_magnitude(peak_amplitude_df_predict_temp, M_predict)
 
-# possible_event = possible_event_2780
-
-# das_info = pd.read_csv('/kuafu/EventData/Sanriku_ERI/das_info.csv')
-# distance_event = locations2degrees(das_info.latitude, das_info.longitude, possible_event[0], possible_event[1]) * 113
-# distance_event = np.sqrt(distance_event**2 + possible_event[2]**2)
-
-# peak_amplitude_df_event = peak_amplitude_df_2776.copy()
-# distance_event = distance_event[peak_amplitude_df_event.channel_id.astype('int')]
-# peak_amplitude_df_event['distance_in_km'] = distance_event
-# peak_amplitude_df_event['calibrated_distance_in_km'] = distance_event
-# peak_amplitude_df_event.magnitude = possible_event[3]
-# peak_amplitude_df_event
-
-# regression_results_dir = results_output_dir + f'/regression_results_smf_weighted_100_channel_at_least'              
-# regS = sm.load(regression_results_dir + f"/S_regression_combined_site_terms_100chan.pickle")
-# # only keep the channels that have been constrained
-# site_term_column='combined_channel_id'
-# site_term_keys = np.array([f'C({site_term_column})[{site_term}]' for site_term in peak_amplitude_df_event[site_term_column]])
-# ii_channel = np.isin(site_term_keys, regS.params.keys())
-# peak_amplitude_df_event = peak_amplitude_df_event[ii_channel]
-
-# M_event = calculate_magnitude_from_strain(peak_amplitude_df_event, regS, type='S', site_term_column='combined_channel_id', given_coefficients=[0.591, -1.302])
-# M_df_event = get_mean_magnitude(peak_amplitude_df_event, M_event)
-
+            gca = plot_magnitude_seaborn(M_df_predict)
+            gca.ax_joint.plot(M_df_fit.magnitude, M_df_fit.predicted_M, 'k.', markersize=10)
+            if 4130 in M_df_fit.index:
+                gca.ax_joint.plot(M_df_fit[M_df_fit.index == 4130].magnitude, M_df_fit[M_df_fit.index == 4130].predicted_M, 'r.', markersize=15)
+                gca.ax_joint.text(M_df_fit[M_df_fit.index == 4130].magnitude, M_df_fit[M_df_fit.index == 4130].predicted_M+0.2, 'clipped', color='r')
+            gca.savefig(regression_results_dir + f"/predicted_magnitude_S_{nearby_channel_number}_seaborn{calibrated_label}.png",bbox_inches='tight')
+            gca.savefig(regression_results_dir + f"/predicted_magnitude_S_{nearby_channel_number}_seaborn{calibrated_label}.pdf",bbox_inches='tight')
+            plt.close('all')
 
 # %%Validate the strain rate for all data using the transfered scaling
 import seaborn as sns
 peak_amplitude_df_all0 = pd.concat([peak_amplitude_df_fit, peak_amplitude_df_predict], axis=0)
 
-apply_secondary_calibration = False
-if apply_secondary_calibration:
-    calibrated_label = '_calibrated'
-else:
-    calibrated_label = ''
-
-if_given_coefficents = True
-nearby_channel_number_list = [100, 50, 20, 10]
 weighted = 'weighted_'
+secondary_calibration = True
 
-regression_results_dir = results_output_dir + f'/regression_results_smf_{weighted}{min_channel}_channel_at_least'
-# regression_results_dir = results_output_dir + '/regression_results_smf_weighted'
+for weighted in ['', 'weighted_']:
+    for secondary_calibration in [True, False]:
 
-if weighted == '':
-    given_coefficients_list =  [[0.648, -1.366],
-                                [0.653, -1.377],
-                                [0.66, -1.396],
-                                [0.666, -1.412]] # coefficients of unweighted regression
-elif weighted == 'weighted_':                            
-    given_coefficients_list =  [[0.591, -1.302],
-                                [0.595, -1.318],
-                                [0.608, -1.356],
-                                [0.620, -1.392]] # coefficients of weighted regression
-else:
-    raise NameError       
+        if secondary_calibration:
+            calibrated_label = '_calibrated'
+        else:
+            calibrated_label = ''
 
-                    
-plt.close('all')
-for ii, combined_channel_number in enumerate(nearby_channel_number_list):
-
-    given_coefficients = given_coefficients_list[ii]
-    mag_coef_S, dist_coef_S = given_coefficients[0], given_coefficients[1]
-
-    regS = sm.load(regression_results_dir + f"/S_regression_combined_site_terms_{combined_channel_number}chan.pickle")
-    
-    peak_amplitude_df_all = combined_channels(DAS_index, peak_amplitude_df_all0, combined_channel_number)
-
-    # only keep the channels that have been constrained
-    site_term_column='combined_channel_id'
-    site_term_keys = np.array([f'C({site_term_column})[{site_term}]' for site_term in peak_amplitude_df_all[site_term_column]])
-    ii_channel = np.isin(site_term_keys, regS.params.keys())
-    peak_amplitude_df_all = peak_amplitude_df_all[ii_channel]
-
-    if apply_secondary_calibration:
-        second_calibration = pd.read_csv(regression_results_dir + f'/secondary_site_terms_calibration_{combined_channel_number}chan.csv')
-        peak_amplitude_df_all = pd.merge(peak_amplitude_df_all, second_calibration, on=['channel_id', 'region'])
-    
-    peak_amplitude_calculated = regS.predict(peak_amplitude_df_all)
-
-    if if_given_coefficents:
-        peak_amplitude_calculated = peak_amplitude_calculated + (peak_amplitude_df_all.magnitude * mag_coef_S) \
-                                    + np.log10(peak_amplitude_df_all.distance_in_km)*dist_coef_S
-
-    if apply_secondary_calibration:
-        peak_amplitude_calculated = peak_amplitude_calculated + peak_amplitude_df_all.diff_peak_S
-
-    peak_amplitude_calculated = 10**peak_amplitude_calculated
+        if_given_coefficents = True
+        nearby_channel_number_list = [100, 50, 20, 10]
 
 
-    temp_peaks = np.array([np.array(peak_amplitude_df_all.peak_S), peak_amplitude_calculated]).T
-    peak_comparison_df = pd.DataFrame(data=temp_peaks,
-                                  columns=['peak_S', 'peak_S_predict'])
+        regression_results_dir = results_output_dir + f'/regression_results_smf_{weighted}{min_channel}_channel_at_least'
+        # regression_results_dir = results_output_dir + '/regression_results_smf_weighted'
 
-    g = plot_prediction_vs_measure_seaborn(peak_comparison_df, [0.01, 100], phase='S')
-    g.savefig(regression_results_dir + f'/S_validate_predicted_combined_site_terms_{combined_channel_number}chan_seaborn{calibrated_label}.png')
-    g.savefig(regression_results_dir + f'/S_validate_predicted_combined_site_terms_{combined_channel_number}chan_seaborn{calibrated_label}.pdf')
-    plt.close('all')
+        if weighted == '':
+            given_coefficients_list = [[0.649, -1.372],
+                                    [0.653, -1.382],
+                                    [0.661, -1.401],
+                                    [0.667, -1.417]] # coefficients of unweighted regression
+        elif weighted == 'weighted_':                            
+            given_coefficients_list = [[0.590, -1.304],
+                                    [0.595, -1.320],
+                                    [0.608, -1.358],
+                                    [0.619, -1.393]]  # coefficients of weighted regression
+        else:
+            raise NameError      
+
+                            
+        plt.close('all')
+        for ii, combined_channel_number in enumerate(nearby_channel_number_list):
+
+            given_coefficients = given_coefficients_list[ii]
+            mag_coef_S, dist_coef_S = given_coefficients[0], given_coefficients[1]
+
+            regS = sm.load(regression_results_dir + f"/S_regression_combined_site_terms_{combined_channel_number}chan.pickle")
+            
+            peak_amplitude_df_all = combined_channels(DAS_index, peak_amplitude_df_all0, combined_channel_number)
+
+            # only keep the channels that have been constrained
+            site_term_column='combined_channel_id'
+            site_term_keys = np.array([f'C({site_term_column})[{site_term}]' for site_term in peak_amplitude_df_all[site_term_column]])
+            ii_channel = np.isin(site_term_keys, regS.params.keys())
+            peak_amplitude_df_all = peak_amplitude_df_all[ii_channel]
+
+            if secondary_calibration:
+                second_calibration = pd.read_csv(regression_results_dir + f'/secondary_site_terms_calibration_{combined_channel_number}chan.csv')
+                peak_amplitude_df_all = pd.merge(peak_amplitude_df_all, second_calibration, on=['channel_id', 'region'])
+            
+            peak_amplitude_calculated = regS.predict(peak_amplitude_df_all)
+
+            if if_given_coefficents:
+                peak_amplitude_calculated = peak_amplitude_calculated + (peak_amplitude_df_all.magnitude * mag_coef_S) \
+                                            + np.log10(peak_amplitude_df_all.distance_in_km)*dist_coef_S
+
+            if secondary_calibration:
+                peak_amplitude_calculated = peak_amplitude_calculated + peak_amplitude_df_all.diff_peak_S
+
+            peak_amplitude_calculated = 10**peak_amplitude_calculated
+
+
+            temp_peaks = np.array([np.array(peak_amplitude_df_all.peak_S), peak_amplitude_calculated]).T
+            peak_comparison_df = pd.DataFrame(data=temp_peaks,
+                                        columns=['peak_S', 'peak_S_predict'])
+
+            g = plot_prediction_vs_measure_seaborn(peak_comparison_df, [0.01, 100], phase='S')
+            g.savefig(regression_results_dir + f'/S_validate_predicted_combined_site_terms_{combined_channel_number}chan_seaborn{calibrated_label}.png')
+            g.savefig(regression_results_dir + f'/S_validate_predicted_combined_site_terms_{combined_channel_number}chan_seaborn{calibrated_label}.pdf')
+            plt.close('all')
 
 
 
@@ -726,6 +749,11 @@ if region_label == 'sanriku':
         second_calibration = secondary_site_calibration(regP, regS, peak_amplitude_df_all)
         second_calibration.to_csv(regression_results_dir + f'/secondary_site_terms_calibration_{nearby_channel_number}chan.csv', index=False)
 
+    # output site terms
+    for combined_channel_number in nearby_channel_number_list:
+        store_site_terms(regression_results_dir, combined_channel_number, peak_amplitude_df_all)
+
+
 # Regression with weight, drop the event 4130
 peak_amplitude_df_all = peak_amplitude_df_all.drop(index = peak_amplitude_df_all[peak_amplitude_df_all.event_id == 4130].index)
 if region_label == 'sanriku':
@@ -745,17 +773,54 @@ if region_label == 'sanriku':
         second_calibration = secondary_site_calibration(regP, regS, peak_amplitude_df_all)
         second_calibration.to_csv(regression_results_dir + f'/secondary_site_terms_calibration_{nearby_channel_number}chan.csv', index=False)
 
+    # output site terms
+    for combined_channel_number in nearby_channel_number_list:
+        store_site_terms(regression_results_dir, combined_channel_number, peak_amplitude_df_all)
 
+
+#%% plot site terms
+regression_results_dir = results_output_dir + f'/regression_results_smf_weighted_all_coefficients_drop_4130_{min_channel}_channel_at_least'
+# Check site terms with calibration
+plt.close('all')
+fig, ax = plt.subplots(2,1, figsize=(12, 9), sharex=True, gridspec_kw={'height_ratios': [1, 2]})
+gca = ax[0]
+gca.hist(peak_amplitude_df_fit.channel_id*5/1e3, range=(0.5*5/1e3, 10000.5*5/1e3), bins=50)
+gca.set_ylabel('Counts')
+gca.set_title('Number of measurements')
+gca.grid()
+
+zorder_num = 0
+gca = ax[1]
+for i_model, combined_channel_number in enumerate(nearby_channel_number_list):
+    try:
+        site_term_df = pd.read_csv(regression_results_dir + f'/site_terms_{combined_channel_number}chan.csv')
+        # gca.plot(site_term_df.channel_id, site_term_df.site_term_P, '-', label=f'{combined_channel_number} channels')#, Cond.# {regP.condition_number:.2f}')
+        gca.plot(site_term_df.channel_id*5/1e3, site_term_df.site_term_S + site_term_df.diff_peak_S, '-', label=f'{combined_channel_number} channels', zorder=i_model)#, Cond.# {regS.condition_number:.2f}')
+    except:
+        continue
+    # reset the regression models
+    #del regP, regS
+
+# gca.set_yscale('log')
+gca.set_ylabel('Site terms S (in log10)')
+gca.set_xlabel('Channel numbers')
+gca.grid()
+#gca.set_xlim(10, 12)
+
+#gca.set_xticklabels(np.arange(0, 10000, 1000))
+gca.legend(loc=3, fontsize=14)
+plt.savefig(regression_results_dir + '/site_terms_calibrated.png', bbox_inches='tight')
+plt.savefig(regression_results_dir + '/site_terms_calibrated.pdf', bbox_inches='tight')
 
 # %%
 # Validate the strain rate for all data
-weighted = 'weighted_'
+weighted = ''
 
 regression_results_dir = results_output_dir + f'/regression_results_smf_{weighted}all_coefficients_drop_4130_{min_channel}_channel_at_least'
 peak_amplitude_df_all0 = pd.concat([peak_amplitude_df_fit, peak_amplitude_df_predict], axis=0)
 #peak_amplitude_df_all0 = peak_amplitude_df_all0.drop(peak_amplitude_df_all0[peak_amplitude_df_all0.event_id==4130].index)
 
-apply_secondary_calibration = True
+apply_secondary_calibration = False
 if apply_secondary_calibration:
     calibrated_label = '_calibrated'
 else:
@@ -805,13 +870,13 @@ for ii, combined_channel_number in enumerate(nearby_channel_number_list):
 
 # %% 
 # magnitude prediction
-apply_secondary_calibration = True
+apply_secondary_calibration = False
 if apply_secondary_calibration:
     calibrated_label = '_calibrated'
 else:
     calibrated_label = ''
 
-weighted = ''
+weighted = 'weighted_'
 regression_results_dir = results_output_dir + f'/regression_results_smf_{weighted}all_coefficients_drop_4130_{min_channel}_channel_at_least'
 
 
@@ -849,207 +914,231 @@ for ii, nearby_channel_number in enumerate(nearby_channel_number_list):
 
 
 
-# %% ==================The following is just for testing purpose============================
-# %% 
-# ==================Fit the all coefficients with partial data====================================
-# Regression OLS
-if region_label == 'sanriku':
-    nearby_channel_number_list = [100, 50, 20, 10]
-
-    regression_results_dir = results_output_dir + f'/regression_results_smf_all_coefficients_{min_channel}_channel_at_least_partial'
-    if not os.path.exists(regression_results_dir):
-        os.mkdir(regression_results_dir)
-
-    regression_parameter_txt = regression_results_dir + '/regression_slopes'
-    mag_slopeP, dist_slopeP, mag_slopeS, dist_slopeS = [], [], [], []
-
-    for ii, nearby_channel_number in enumerate(nearby_channel_number_list):
-        peak_amplitude_df_fit = combined_channels(DAS_index, peak_amplitude_df_fit, nearby_channel_number)
-        regP, regS = fit_regression_magnitude_range(peak_amplitude_df_fit, M_threshold, regression_results_dir, nearby_channel_number, given_coefficients=None)
-
-#%% ==========================================================================================
-# Regression with weight
-if region_label == 'sanriku':
-    nearby_channel_number_list = [100, 50, 20, 10]
-
-    regression_results_dir = results_output_dir + f'/regression_results_smf_weighted_all_coefficients_{min_channel}_channel_at_least_partial'
-    if not os.path.exists(regression_results_dir):
-        os.mkdir(regression_results_dir)
-
-    regression_parameter_txt = regression_results_dir + '/regression_slopes'
-    mag_slopeP, dist_slopeP, mag_slopeS, dist_slopeS = [], [], [], []
-
-    for ii, nearby_channel_number in enumerate(nearby_channel_number_list):
-        peak_amplitude_df_fit = combined_channels(DAS_index, peak_amplitude_df_fit, nearby_channel_number)
-        regP, regS = fit_regression_with_weight_magnitude_range(peak_amplitude_df_fit, M_threshold, regression_results_dir, nearby_channel_number, given_coefficients=None)
 
 
-#%% ==========================================================================================
-# Regression without weight, drop the event 4130
-peak_amplitude_df_fit_drop = peak_amplitude_df_fit.drop(index = peak_amplitude_df_fit[peak_amplitude_df_fit.event_id == 4130].index)
-if region_label == 'sanriku':
-    nearby_channel_number_list = [100, 50, 20, 10]
-
-    regression_results_dir = results_output_dir + f'/regression_results_smf_all_coefficients_drop_4130_{min_channel}_channel_at_least_partial'
-    if not os.path.exists(regression_results_dir):
-        os.mkdir(regression_results_dir)
-
-    regression_parameter_txt = regression_results_dir + '/regression_slopes'
-    mag_slopeP, dist_slopeP, mag_slopeS, dist_slopeS = [], [], [], []
-
-    for ii, nearby_channel_number in enumerate(nearby_channel_number_list):
-        peak_amplitude_df_fit_drop = combined_channels(DAS_index, peak_amplitude_df_fit_drop, nearby_channel_number)
-        regP, regS = fit_regression_magnitude_range(peak_amplitude_df_fit_drop, M_threshold, regression_results_dir, nearby_channel_number, given_coefficients=None)
-
-# Regression with weight, drop the event 4130
-peak_amplitude_df_fit_drop = peak_amplitude_df_fit.drop(index = peak_amplitude_df_fit[peak_amplitude_df_fit.event_id == 4130].index)
-if region_label == 'sanriku':
-    nearby_channel_number_list = [100, 50, 20, 10]
-
-    regression_results_dir = results_output_dir + f'/regression_results_smf_weighted_all_coefficients_drop_4130_{min_channel}_channel_at_least_partial'
-    if not os.path.exists(regression_results_dir):
-        os.mkdir(regression_results_dir)
-
-    regression_parameter_txt = regression_results_dir + '/regression_slopes'
-    mag_slopeP, dist_slopeP, mag_slopeS, dist_slopeS = [], [], [], []
-
-    for ii, nearby_channel_number in enumerate(nearby_channel_number_list):
-        peak_amplitude_df_fit_drop = combined_channels(DAS_index, peak_amplitude_df_fit_drop, nearby_channel_number)
-        regP, regS = fit_regression_with_weight_magnitude_range(peak_amplitude_df_fit_drop, M_threshold, regression_results_dir, nearby_channel_number, given_coefficients=None)
 
 
-# %% ==========================================================================================
-# Validate the strain rate 
-import seaborn as sns
-def plot_prediction_vs_measure_seaborn(peak_comparison_df, xy_range, phase):
-    sns.set_theme(style="ticks", font_scale=2)
-    if phase == 'P':
-        g = sns.JointGrid(data=peak_comparison_df, x="peak_P", y="peak_P_predict", marginal_ticks=True,
-                        xlim=xy_range, ylim=xy_range, height=10, space=0.3)
-    elif phase == 'S':
-        g = sns.JointGrid(data=peak_comparison_df, x="peak_S", y="peak_S_predict", marginal_ticks=True,
-                        xlim=xy_range, ylim=xy_range, height=10, space=0.3)
-    g.ax_joint.set(xscale="log")
-    g.ax_joint.set(yscale="log")
-
-# Create an inset legend for the histogram colorbar
-    cax = g.figure.add_axes([.65, .2, .02, .2])
-
-# Add the joint and marginal histogram plots 03012d
-    bins=20
-    g.plot_joint(sns.histplot, discrete=(False, False), bins=(bins, bins), cmap="light:#4D4D9C", pmax=.4, cbar=True, cbar_ax=cax, cbar_kws={'label': 'counts'})
-    g.plot_marginals(sns.histplot, element="step", bins=bins, color="#4D4D9C")
-
-    g.ax_joint.plot(xy_range, xy_range, 'k-', linewidth = 2)
-    g.ax_joint.set_xlabel('measured peak strain rate\n (micro strain/s)')
-    g.ax_joint.set_ylabel('calculated peak strain rate\n (micro strain/s)')
-    return g
-
-# regression_results_dir = results_output_dir + f'/regression_results_smf_weighted_all_coefficients_drop_4130_{min_channel}_channel_at_least'
-peak_amplitude_df_fit = peak_amplitude_df_fit.drop(index = peak_amplitude_df_fit[peak_amplitude_df_fit.event_id == 4130].index)
-regression_results_dir = results_output_dir + '/regression_results_smf_weighted_100_channel_at_least'
 
 
-if_given_coefficents = True
 
 
-nearby_channel_number_list = [100, 50, 20, 10]
 
-given_coefficients_list = [[0.591, -1.302],
-                            [0.595, -1.318],
-                            [0.608, -1.356],
-                            [0.620, -1.392]] # coefficients of weighted regression
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# # %% ==================The following is just for testing purpose============================
+# # %% 
+# # ==================Fit the all coefficients with partial data====================================
+# # Regression OLS
+# if region_label == 'sanriku':
+#     nearby_channel_number_list = [100, 50, 20, 10]
+
+#     regression_results_dir = results_output_dir + f'/regression_results_smf_all_coefficients_{min_channel}_channel_at_least_partial'
+#     if not os.path.exists(regression_results_dir):
+#         os.mkdir(regression_results_dir)
+
+#     regression_parameter_txt = regression_results_dir + '/regression_slopes'
+#     mag_slopeP, dist_slopeP, mag_slopeS, dist_slopeS = [], [], [], []
+
+#     for ii, nearby_channel_number in enumerate(nearby_channel_number_list):
+#         peak_amplitude_df_fit = combined_channels(DAS_index, peak_amplitude_df_fit, nearby_channel_number)
+#         regP, regS = fit_regression_magnitude_range(peak_amplitude_df_fit, M_threshold, regression_results_dir, nearby_channel_number, given_coefficients=None)
+
+# #%% ==========================================================================================
+# # Regression with weight
+# if region_label == 'sanriku':
+#     nearby_channel_number_list = [100, 50, 20, 10]
+
+#     regression_results_dir = results_output_dir + f'/regression_results_smf_weighted_all_coefficients_{min_channel}_channel_at_least_partial'
+#     if not os.path.exists(regression_results_dir):
+#         os.mkdir(regression_results_dir)
+
+#     regression_parameter_txt = regression_results_dir + '/regression_slopes'
+#     mag_slopeP, dist_slopeP, mag_slopeS, dist_slopeS = [], [], [], []
+
+#     for ii, nearby_channel_number in enumerate(nearby_channel_number_list):
+#         peak_amplitude_df_fit = combined_channels(DAS_index, peak_amplitude_df_fit, nearby_channel_number)
+#         regP, regS = fit_regression_with_weight_magnitude_range(peak_amplitude_df_fit, M_threshold, regression_results_dir, nearby_channel_number, given_coefficients=None)
+
+
+# #%% ==========================================================================================
+# # Regression without weight, drop the event 4130
+# peak_amplitude_df_fit_drop = peak_amplitude_df_fit.drop(index = peak_amplitude_df_fit[peak_amplitude_df_fit.event_id == 4130].index)
+# if region_label == 'sanriku':
+#     nearby_channel_number_list = [100, 50, 20, 10]
+
+#     regression_results_dir = results_output_dir + f'/regression_results_smf_all_coefficients_drop_4130_{min_channel}_channel_at_least_partial'
+#     if not os.path.exists(regression_results_dir):
+#         os.mkdir(regression_results_dir)
+
+#     regression_parameter_txt = regression_results_dir + '/regression_slopes'
+#     mag_slopeP, dist_slopeP, mag_slopeS, dist_slopeS = [], [], [], []
+
+#     for ii, nearby_channel_number in enumerate(nearby_channel_number_list):
+#         peak_amplitude_df_fit_drop = combined_channels(DAS_index, peak_amplitude_df_fit_drop, nearby_channel_number)
+#         regP, regS = fit_regression_magnitude_range(peak_amplitude_df_fit_drop, M_threshold, regression_results_dir, nearby_channel_number, given_coefficients=None)
+
+# # Regression with weight, drop the event 4130
+# peak_amplitude_df_fit_drop = peak_amplitude_df_fit.drop(index = peak_amplitude_df_fit[peak_amplitude_df_fit.event_id == 4130].index)
+# if region_label == 'sanriku':
+#     nearby_channel_number_list = [100, 50, 20, 10]
+
+#     regression_results_dir = results_output_dir + f'/regression_results_smf_weighted_all_coefficients_drop_4130_{min_channel}_channel_at_least_partial'
+#     if not os.path.exists(regression_results_dir):
+#         os.mkdir(regression_results_dir)
+
+#     regression_parameter_txt = regression_results_dir + '/regression_slopes'
+#     mag_slopeP, dist_slopeP, mag_slopeS, dist_slopeS = [], [], [], []
+
+#     for ii, nearby_channel_number in enumerate(nearby_channel_number_list):
+#         peak_amplitude_df_fit_drop = combined_channels(DAS_index, peak_amplitude_df_fit_drop, nearby_channel_number)
+#         regP, regS = fit_regression_with_weight_magnitude_range(peak_amplitude_df_fit_drop, M_threshold, regression_results_dir, nearby_channel_number, given_coefficients=None)
+
+
+# # %% ==========================================================================================
+# # Validate the strain rate 
+# import seaborn as sns
+# def plot_prediction_vs_measure_seaborn(peak_comparison_df, xy_range, phase):
+#     sns.set_theme(style="ticks", font_scale=2)
+#     if phase == 'P':
+#         g = sns.JointGrid(data=peak_comparison_df, x="peak_P", y="peak_P_predict", marginal_ticks=True,
+#                         xlim=xy_range, ylim=xy_range, height=10, space=0.3)
+#     elif phase == 'S':
+#         g = sns.JointGrid(data=peak_comparison_df, x="peak_S", y="peak_S_predict", marginal_ticks=True,
+#                         xlim=xy_range, ylim=xy_range, height=10, space=0.3)
+#     g.ax_joint.set(xscale="log")
+#     g.ax_joint.set(yscale="log")
+
+# # Create an inset legend for the histogram colorbar
+#     cax = g.figure.add_axes([.65, .2, .02, .2])
+
+# # Add the joint and marginal histogram plots 03012d
+#     bins=20
+#     g.plot_joint(sns.histplot, discrete=(False, False), bins=(bins, bins), cmap="light:#4D4D9C", pmax=.4, cbar=True, cbar_ax=cax, cbar_kws={'label': 'counts'})
+#     g.plot_marginals(sns.histplot, element="step", bins=bins, color="#4D4D9C")
+
+#     g.ax_joint.plot(xy_range, xy_range, 'k-', linewidth = 2)
+#     g.ax_joint.set_xlabel('measured peak strain rate\n (micro strain/s)')
+#     g.ax_joint.set_ylabel('calculated peak strain rate\n (micro strain/s)')
+#     return g
+
+# # regression_results_dir = results_output_dir + f'/regression_results_smf_weighted_all_coefficients_drop_4130_{min_channel}_channel_at_least'
+# peak_amplitude_df_fit = peak_amplitude_df_fit.drop(index = peak_amplitude_df_fit[peak_amplitude_df_fit.event_id == 4130].index)
+# regression_results_dir = results_output_dir + '/regression_results_smf_weighted_100_channel_at_least'
+
+
+# if_given_coefficents = True
+
+
+# nearby_channel_number_list = [100, 50, 20, 10]
+
+# given_coefficients_list = [[0.591, -1.302],
+#                             [0.595, -1.318],
+#                             [0.608, -1.356],
+#                             [0.620, -1.392]] # coefficients of weighted regression
 
                         
-                            # [[0.648, -1.366],
-                            # [0.653, -1.377],
-                            # [0.66, -1.396],
-                            # [0.666, -1.412]] # coefficients of unweighted regression
+#                             # [[0.648, -1.366],
+#                             # [0.653, -1.377],
+#                             # [0.66, -1.396],
+#                             # [0.666, -1.412]] # coefficients of unweighted regression
 
-plt.close('all')
-for ii, combined_channel_number in enumerate(nearby_channel_number_list):
+# plt.close('all')
+# for ii, combined_channel_number in enumerate(nearby_channel_number_list):
 
-    given_coefficients = given_coefficients_list[ii]
-    mag_coef_S, dist_coef_S = given_coefficients[0], given_coefficients[1]
+#     given_coefficients = given_coefficients_list[ii]
+#     mag_coef_S, dist_coef_S = given_coefficients[0], given_coefficients[1]
 
-    regS = sm.load(regression_results_dir + f"/S_regression_combined_site_terms_{combined_channel_number}chan.pickle")
+#     regS = sm.load(regression_results_dir + f"/S_regression_combined_site_terms_{combined_channel_number}chan.pickle")
     
-    peak_amplitude_df_fit = combined_channels(DAS_index, peak_amplitude_df_fit, combined_channel_number)
-    peak_amplitude_calculated = regS.predict(peak_amplitude_df_fit)
+#     peak_amplitude_df_fit = combined_channels(DAS_index, peak_amplitude_df_fit, combined_channel_number)
+#     peak_amplitude_calculated = regS.predict(peak_amplitude_df_fit)
 
-    if if_given_coefficents:
-        peak_amplitude_calculated = peak_amplitude_calculated + (peak_amplitude_df_fit.magnitude * mag_coef_S) \
-                                    + np.log10(peak_amplitude_df_fit.distance_in_km)*dist_coef_S
+#     if if_given_coefficents:
+#         peak_amplitude_calculated = peak_amplitude_calculated + (peak_amplitude_df_fit.magnitude * mag_coef_S) \
+#                                     + np.log10(peak_amplitude_df_fit.distance_in_km)*dist_coef_S
 
-    peak_amplitude_calculated = 10**peak_amplitude_calculated
-
-
-    temp_peaks = np.array([np.array(peak_amplitude_df_fit.peak_S), peak_amplitude_calculated]).T
-    peak_comparison_df = pd.DataFrame(data=temp_peaks,
-                                  columns=['peak_S', 'peak_S_predict'])
-
-    g = plot_prediction_vs_measure_seaborn(peak_comparison_df, [0.01, 100], phase='S')
-    g.savefig(regression_results_dir + f'/S_validate_predicted_combined_site_terms_{combined_channel_number}chan_seaborn.png')
+#     peak_amplitude_calculated = 10**peak_amplitude_calculated
 
 
-#%% ==========================================================================================
-# check those 'special' ones
-print(peak_amplitude_df_fit[peak_amplitude_calculated >1].event_id.unique())
+#     temp_peaks = np.array([np.array(peak_amplitude_df_fit.peak_S), peak_amplitude_calculated]).T
+#     peak_comparison_df = pd.DataFrame(data=temp_peaks,
+#                                   columns=['peak_S', 'peak_S_predict'])
 
-id_to_check = 3734
-ii = peak_amplitude_df_fit.event_id == id_to_check
-measured = peak_amplitude_df_fit[ii].peak_S
-calculated = peak_amplitude_calculated[ii]
+#     g = plot_prediction_vs_measure_seaborn(peak_comparison_df, [0.01, 100], phase='S')
+#     g.savefig(regression_results_dir + f'/S_validate_predicted_combined_site_terms_{combined_channel_number}chan_seaborn.png')
 
-# 3306, 1662, 3424, 2350 are good ones, 4130 is bad???!!,
-fig, gca = plt.subplots(figsize=(8, 8))
-gca.loglog(measured, calculated, '.')
-gca.loglog([1e-2, 1e2], [1e-2, 1e2], '-k')
-gca.set_xlim(1e-2, 1e1)
-gca.set_ylim(1e-2, 1e1)
 
-#%% look into waveforms
-# 4130 is a special bad case that may not be S wave
-# 3734 (M4.7), 1580 (M5.4) are two large event in the prediction dataset
-id_to_check = 3734
+# #%% ==========================================================================================
+# # check those 'special' ones
+# print(peak_amplitude_df_fit[peak_amplitude_calculated >1].event_id.unique())
 
-from scipy.signal import butter, filtfilt
+# id_to_check = 3734
+# ii = peak_amplitude_df_fit.event_id == id_to_check
+# measured = peak_amplitude_df_fit[ii].peak_S
+# calculated = peak_amplitude_calculated[ii]
 
-def apply_highpass_filter(event_data, f_pass, dt):
-    aa, bb = butter(4, f_pass*2*dt, 'high')
-    event_data_filter = filtfilt(aa, bb, event_data, axis=0)
-    return event_data_filter
+# # 3306, 1662, 3424, 2350 are good ones, 4130 is bad???!!,
+# fig, gca = plt.subplots(figsize=(8, 8))
+# gca.loglog(measured, calculated, '.')
+# gca.loglog([1e-2, 1e2], [1e-2, 1e2], '-k')
+# gca.set_xlim(1e-2, 1e1)
+# gca.set_ylim(1e-2, 1e1)
 
-def show_event_data(event_data, das_time, gca, pclip=99.5):
-    if pclip is None:
-        clipVal = np.amax(abs(event_data))/20
-    else:
-        clipVal = np.percentile(np.absolute(event_data), pclip)
-    gca.imshow(event_data, 
-            extent=[0, event_data.shape[1], das_time[-1], das_time[0]],
-            aspect='auto', vmin=-clipVal, vmax=clipVal, cmap=plt.get_cmap('seismic'))
+# #%% look into waveforms
+# # 4130 is a special bad case that may not be S wave
+# # 3734 (M4.7), 1580 (M5.4) are two large event in the prediction dataset
+# id_to_check = 3734
 
-    gca.set_xlabel("Channel number")
-    gca.set_ylabel("Time [s]")
-    gca.grid()
-    return gca
+# from scipy.signal import butter, filtfilt
 
-event_folder = '/kuafu/EventData/Sanriku_ERI/data'
-catalog = pd.read_csv('/kuafu/EventData/Sanriku_ERI/catalog.csv')
-event_data, event_info = load_event_data(event_folder, id_to_check)
-das_time = np.arange(0, event_data.shape[0]) * event_info['dt_s']
+# def apply_highpass_filter(event_data, f_pass, dt):
+#     aa, bb = butter(4, f_pass*2*dt, 'high')
+#     event_data_filter = filtfilt(aa, bb, event_data, axis=0)
+#     return event_data_filter
 
-# Show data
-event_data = apply_highpass_filter(event_data, 0.5, event_info['dt_s'])
+# def show_event_data(event_data, das_time, gca, pclip=99.5):
+#     if pclip is None:
+#         clipVal = np.amax(abs(event_data))/20
+#     else:
+#         clipVal = np.percentile(np.absolute(event_data), pclip)
+#     gca.imshow(event_data, 
+#             extent=[0, event_data.shape[1], das_time[-1], das_time[0]],
+#             aspect='auto', vmin=-clipVal, vmax=clipVal, cmap=plt.get_cmap('seismic'))
 
-fig, ax = plt.subplots(2, 1, figsize=(10,10), sharey=True)
-gca = ax[1]
-gca = show_event_data(event_data, das_time, gca, pclip=85)
-gca.set_ylim(10,40)
+#     gca.set_xlabel("Channel number")
+#     gca.set_ylabel("Time [s]")
+#     gca.grid()
+#     return gca
 
-gca = ax[0]
-gca.plot(event_data[:, ::1000] + np.cumsum(1*np.ones((event_data[:, ::1000].shape[1]))), das_time, linewidth=0.5)
-gca.set_xticklabels('')
-gca.set_ylim(10,40)
+# event_folder = '/kuafu/EventData/Sanriku_ERI/data'
+# catalog = pd.read_csv('/kuafu/EventData/Sanriku_ERI/catalog.csv')
+# event_data, event_info = load_event_data(event_folder, id_to_check)
+# das_time = np.arange(0, event_data.shape[0]) * event_info['dt_s']
 
-plt.savefig(results_output_dir + f'/event_{id_to_check}_waveforms.png', bbox_inches='tight')
+# # Show data
+# event_data = apply_highpass_filter(event_data, 0.5, event_info['dt_s'])
+
+# fig, ax = plt.subplots(2, 1, figsize=(10,10), sharey=True)
+# gca = ax[1]
+# gca = show_event_data(event_data, das_time, gca, pclip=85)
+# gca.set_ylim(10,40)
+
+# gca = ax[0]
+# gca.plot(event_data[:, ::1000] + np.cumsum(1*np.ones((event_data[:, ::1000].shape[1]))), das_time, linewidth=0.5)
+# gca.set_xticklabels('')
+# gca.set_ylim(10,40)
+
+# plt.savefig(results_output_dir + f'/event_{id_to_check}_waveforms.png', bbox_inches='tight')

@@ -321,12 +321,13 @@ selected_event_id = peak_amplitude_df_all.event_id.unique()
 
 #%% ==========================================================================================
 # Regression with weight
-given_coefficients_list = [[np.nan, np.nan, 0.591, -1.302],
-                            [np.nan, np.nan, 0.595, -1.318],
-                            [np.nan, np.nan, 0.608, -1.356],
-                            [np.nan, np.nan, 0.620, -1.392]]
+given_coefficients_list = [[np.nan, np.nan, 0.590, -1.304],
+                            [np.nan, np.nan, 0.595, -1.320],
+                            [np.nan, np.nan, 0.608, -1.358],
+                            [np.nan, np.nan, 0.619, -1.393]]
 
 nearby_channel_number_list = [100]
+peak_amplitude_df_all = combined_channels(DAS_index, peak_amplitude_df_all, nearby_channel_number_list[0])
 
 # Randomly choose events, calculate the site terms
 good_proportion_all = []
@@ -334,7 +335,7 @@ for num_fit_events in range(2, 31):
     # i_test = 0
     good_proportion = []
     for i_test in range(0, 50):
-        
+        plt.close('all')
         event_id_fit = np.random.choice(selected_event_id, num_fit_events)
         peak_amplitude_df_fit = peak_amplitude_df_all[peak_amplitude_df_all.event_id.isin(event_id_fit)]
         peak_amplitude_df_predict = peak_amplitude_df_all.drop(index=peak_amplitude_df_fit.index)
@@ -351,7 +352,7 @@ for num_fit_events in range(2, 31):
         mag_slopeP, dist_slopeP, mag_slopeS, dist_slopeS = [], [], [], []
 
         for ii, nearby_channel_number in enumerate(nearby_channel_number_list):
-            peak_amplitude_df_fit = combined_channels(DAS_index, peak_amplitude_df_fit, nearby_channel_number)
+            #peak_amplitude_df_fit = combined_channels(DAS_index, peak_amplitude_df_fit, nearby_channel_number)
             combined_channel_id = np.sort(peak_amplitude_df_fit.combined_channel_id.unique())
             
             given_coefficients = given_coefficients_list[ii]
@@ -381,7 +382,6 @@ for num_fit_events in range(2, 31):
                 print('S regression not found, assign Nan to the site term')
                 site_term_S = np.nan
 
-            
 
             # combining the site terms into one csv file
             temp_df1 = pd.DataFrame(columns=['combined_channel_id'])
@@ -398,11 +398,36 @@ for num_fit_events in range(2, 31):
             # Store the site terms
             site_term_df.to_csv(regression_results_dir + f'/site_terms_{i_test}th_test.csv', index=False)
 
-
-
-            # predict
+            # =====================================validate strain rate
             # only keep the channels that have been constrained
-            
+            site_term_column='combined_channel_id'
+            site_term_keys = np.array([f'C({site_term_column})[{site_term}]' for site_term in peak_amplitude_df_all[site_term_column]])
+            ii_channel = np.isin(site_term_keys, regS.params.keys())
+            peak_amplitude_df_all_temp = peak_amplitude_df_all[ii_channel]
+
+            peak_amplitude_df_all_temp = pd.merge(peak_amplitude_df_all_temp, second_calibration, on=['channel_id', 'region'])
+            peak_amplitude_calculated = regS.predict(peak_amplitude_df_all_temp)
+
+            given_coefficients = given_coefficients_list[ii]
+            mag_coef_S, dist_coef_S = given_coefficients[2], given_coefficients[3]
+            peak_amplitude_calculated = peak_amplitude_calculated + (peak_amplitude_df_all_temp.magnitude * mag_coef_S) \
+                                        + np.log10(peak_amplitude_df_all_temp.distance_in_km)*dist_coef_S
+
+            peak_amplitude_calculated = peak_amplitude_calculated + peak_amplitude_df_all_temp.diff_peak_S
+            peak_amplitude_calculated = 10**peak_amplitude_calculated
+
+
+            temp_peaks = np.array([np.array(peak_amplitude_df_all_temp.peak_S), peak_amplitude_calculated]).T
+            peak_comparison_df = pd.DataFrame(data=temp_peaks,
+                                        columns=['peak_S', 'peak_S_predict'])
+
+            g = plot_prediction_vs_measure_seaborn(peak_comparison_df, [0.01, 100], phase='S')
+            g.savefig(regression_results_dir + f'/S_validate_predicted_combined_site_terms_{nearby_channel_number}chan_seaborn.png')
+            g.savefig(regression_results_dir + f'/S_validate_predicted_combined_site_terms_{nearby_channel_number}chan_seaborn.pdf')
+
+
+            # =====================================predict
+            # only keep the channels that have been constrained
             site_term_column='combined_channel_id'
             site_term_keys = np.array([f'C({site_term_column})[{site_term}]' for site_term in peak_amplitude_df_fit[site_term_column]])
             ii_channel = np.isin(site_term_keys, regS.params.keys())
@@ -425,7 +450,7 @@ for num_fit_events in range(2, 31):
             gca = plot_magnitude_seaborn(M_df_predict)
             gca.ax_joint.plot(M_df_fit.magnitude, M_df_fit.predicted_M, 'k.', markersize=10)
             gca.savefig(regression_results_dir + f"/predicted_magnitude_S_{nearby_channel_number}_seaborn.png",bbox_inches='tight')
-            #gca.savefig(regression_results_dir + f"/predicted_magnitude_S_{nearby_channel_number}_seaborn.pdf",bbox_inches='tight')
+            gca.savefig(regression_results_dir + f"/predicted_magnitude_S_{nearby_channel_number}_seaborn.pdf",bbox_inches='tight')
             plt.close('all')
 
             # count the percentage of good estimation in the predicted dataset
