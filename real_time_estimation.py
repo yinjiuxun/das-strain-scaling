@@ -105,18 +105,19 @@ def get_mean_magnitude(peak_amplitude_df, M_predict):
 # Then try to use the regression relation from small events to predict the larger ones
 #%% load the results from combined regional site terms t
 results_output_dir = '/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RM/'#'/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RO'
-regression_dir = 'regression_results_smf_weighted_100_channel_at_least'
+nearby_channel_number = 100
+regression_dir = f'regression_results_smf_weighted_{nearby_channel_number}_channel_at_least'
 site_term_column = 'region_site'
 fitting_type = 'with_site'
-nearby_channel_number = 10
+
 
 # apply secondary calibration to the site terms
 apply_secondary_calibration = True
 
-region_label = 'mammothN' #'mammothN' #ridgecrest
-event_folder = '/kuafu/EventData/Mammoth_north' #'/kuafu/EventData/Mammoth_north'#'/kuafu/EventData/Mammoth_south' #'/kuafu/EventData/Ridgecrest'
-tt_dir = event_folder +  '/model_proc_tt/CVM3D' #'/theoretical_arrival_time' ##
-test_event_id = 73584926 #40063391(M4.57) #73584926(M6) 73481241(M5) 39493944(M5.8) 73585021(M4.6)
+region_label = 'ridgecrest' #'mammothN' #ridgecrest
+event_folder = '/kuafu/EventData/Ridgecrest' #'/kuafu/EventData/Mammoth_north'#'/kuafu/EventData/Mammoth_south' #'/kuafu/EventData/Ridgecrest'
+tt_dir = event_folder +  '/theoretical_arrival_time' #'/model_proc_tt/CVM3D' ##
+test_event_id = 40063391 #40063391(M4.57) #73584926(M6) 73481241(M5) 39493944(M5.8) 73585021(M4.6)
 
 # load catalog
 catalog = pd.read_csv(event_folder + '/catalog.csv')
@@ -285,6 +286,106 @@ mean_mag = np.nanmean(mag_estimate_final, axis=1)
 std_mag = np.nanstd(mag_estimate_final, axis=1)
 
 
+#%% Having all together as one figure
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+time_rang_show = [31, 40]
+
+fig, ax = plt.subplots(3, 1, figsize=(14,20))
+# Strain
+pclip=99
+clipVal = np.percentile(np.absolute(strain_rate), pclip)
+gca = ax[0]
+clb = gca.imshow(strain_rate.T, 
+            extent=[das_time[0], das_time[-1], mag_estimate_P.shape[1], 0],
+            aspect='auto', vmin=-clipVal, vmax=clipVal, cmap=plt.get_cmap('seismic'))
+gca.plot(cvm_tt_tp.flatten(), np.arange(cvm_tt_tp.shape[1]), '-k', linewidth=4)
+gca.plot(cvm_tt_ts.flatten(), np.arange(cvm_tt_ts.shape[1]), '-k', linewidth=4)
+gca.vlines(x=[np.min(cvm_tt_tp), np.min(cvm_tt_ts)], ymax=strain_rate.shape[1], ymin=0, label='earliest tP and tS', color='b')
+gca.vlines(x=[np.max(cvm_tt_tp)+2, np.max(cvm_tt_ts)+2], ymax=strain_rate.shape[1], ymin=0, linestyle='--', color='b', label='latest tP+2s and tS+2s')
+
+gca.set_xlabel('Time (s)')
+gca.set_ylabel('channel number')
+gca.set_xlim(time_rang_show[0], time_rang_show[1])
+gca.invert_yaxis()
+
+axins1 = inset_axes(gca,
+                    width="2%",  # width = 50% of parent_bbox width
+                    height="70%",  # height : 5%
+                    loc='lower left')
+gca.set_title(f'id: {test_event_id}, magnitude: {eq_mag.values[0]}', fontsize=20)
+fig.colorbar(clb, cax=axins1, orientation="vertical", label='strain rate ($10^{-6}$/s)')
+# axins1.xaxis.set_ticks_position("bottom")
+
+
+#fig.colorbar(clb, ax=gca, label='strain rate ($10^{-6}$/s)')
+
+# Magnitude
+# cmap = plt.cm.Spectral_r  # define the colormap
+# # extract all colors from the .jet map
+# cmaplist = [cmap(i) for i in range(cmap.N)]
+# # force the first color entry to be grey
+# # create the new map
+# cmap = mpl.colors.LinearSegmentedColormap.from_list(
+#     'Custom cmap', cmaplist, cmap.N)
+
+cmap = plt.cm.get_cmap('OrRd', 8)
+
+gca = ax[1]
+clb = gca.imshow(mag_estimate_final.T, 
+            extent=[das_time[0], das_time[-1], mag_estimate_final.shape[1], 0],
+            aspect='auto', vmin=0, vmax=8, cmap=cmap)
+gca.plot(cvm_tt_tp.flatten(), np.arange(cvm_tt_tp.shape[1]), '-k', linewidth=4)
+gca.plot(cvm_tt_ts.flatten(), np.arange(cvm_tt_ts.shape[1]), '-k', linewidth=4)
+gca.vlines(x=[np.min(cvm_tt_tp), np.min(cvm_tt_ts)], ymax=mag_estimate_final.shape[1], ymin=0, label='earliest tP and tS', color='b', zorder=10)
+gca.vlines(x=[np.max(cvm_tt_tp)+2, np.max(cvm_tt_ts)+2], ymax=mag_estimate_final.shape[1], ymin=0, linestyle='--', color='b', label='latest tP+2s and tS+2s', zorder=10)
+
+gca.set_xlabel('Time (s)')
+gca.set_ylabel('channel number')
+gca.set_xlim(time_rang_show[0], time_rang_show[1])
+gca.invert_yaxis()
+
+axins2 = inset_axes(gca,
+                    width="2%",  # width = 50% of parent_bbox width
+                    height="70%",  # height : 5%
+                    loc='lower left')
+fig.colorbar(clb, cax=axins2, orientation="vertical", label='Magnitude')
+#fig.colorbar(clb, ax=gca, label='Mag.')
+
+
+gca=ax[2]
+# gca.plot(das_time, mag_estimate_final, '-k', linewidth=0.1, alpha=0.1)
+gca.plot(das_time, mean_mag, '-r', linewidth=4, alpha=1, zorder=3, label='mean')
+gca.plot(das_time, mean_mag-std_mag, '--r', linewidth=2, alpha=0.5, zorder=3, label='STD')
+gca.plot(das_time, mean_mag+std_mag, '--r', linewidth=2, alpha=0.5, zorder=3)
+gca.vlines(x=[np.min(cvm_tt_tp), np.min(cvm_tt_ts)], ymax=10, ymin=0, label='earliest tP and tS', color='b')
+gca.vlines(x=[np.max(cvm_tt_tp)+2, np.max(cvm_tt_ts)+2], ymax=10, ymin=0, linestyle='--', color='b', label='latest tP+2s and tS+2s')
+
+gca.hlines(y=[eq_mag], xmin=-10, xmax=120, color='green', label='catalog M')
+gca.set_yticks(np.arange(0, 9))
+gca.set_ylim(0, eq_mag.values*1.4)
+gca.set_xlim(time_rang_show[0], time_rang_show[1])
+gca.set_xlabel('Time (s)')
+gca.set_ylabel('Estimated Magnitude')
+gca.legend(loc=4)
+
+plt.subplots_adjust(hspace=0.2)
+
+# some final handling
+letter_list = [str(chr(k+97)) for k in range(0, 3)]
+k=0
+for ii in range(0, 3):
+    ax[ii].annotate(f'({letter_list[k]})', xy=(-0.05, 1.0), xycoords=ax[ii].transAxes)
+    k+=1
+
+plt.savefig(fig_output_dir + f'/{test_event_id}_estimated_mag_image_{region_label}_all_{nearby_channel_number}_calibrated.png', bbox_inches='tight')
+plt.savefig(fig_output_dir + f'/{test_event_id}_estimated_mag_image_{region_label}_all_{nearby_channel_number}_calibrated.pdf', bbox_inches='tight')
+# fig.tight_layout()
+
+# %%
+
+
+
+
 # mag_estimate_P_align = (np.log10(data_peak_mat_aligned+1e-12) - site_terms_P - np.log10(distance_to_source)*regP.params['np.log10(distance_in_km)'])/regP.params['magnitude']
 # median_mag_P_align = np.nanmedian(mag_estimate_P_align, axis=1)
 # std_mag_P_align = np.nanstd(mag_estimate_P_align, axis=1)
@@ -436,101 +537,3 @@ gca.set_ylim(30, 50)
 gca.invert_yaxis()
 fig.colorbar(clb, ax=gca, label='Mag.')
 plt.savefig(fig_output_dir + f'/{test_event_id}_estimated_mag_image_{region_label}.png')
-
-
-#%% Having all together as one figure
-from mpl_toolkits.axes_grid1.inset_locator import inset_axes
-time_rang_show = [40, 70]
-
-fig, ax = plt.subplots(3, 1, figsize=(14,20))
-# Strain
-pclip=99
-clipVal = np.percentile(np.absolute(strain_rate), pclip)
-gca = ax[0]
-clb = gca.imshow(strain_rate.T, 
-            extent=[das_time[0], das_time[-1], mag_estimate_P.shape[1], 0],
-            aspect='auto', vmin=-clipVal, vmax=clipVal, cmap=plt.get_cmap('seismic'))
-gca.plot(cvm_tt_tp.flatten(), np.arange(cvm_tt_tp.shape[1]), '-k', linewidth=4)
-gca.plot(cvm_tt_ts.flatten(), np.arange(cvm_tt_ts.shape[1]), '-k', linewidth=4)
-gca.vlines(x=[np.min(cvm_tt_tp), np.min(cvm_tt_ts)], ymax=strain_rate.shape[1], ymin=0, label='earliest tP and tS', color='b')
-gca.vlines(x=[np.max(cvm_tt_tp)+2, np.max(cvm_tt_ts)+2], ymax=strain_rate.shape[1], ymin=0, linestyle='--', color='b', label='latest tP+2s and tS+2s')
-
-gca.set_xlabel('Time (s)')
-gca.set_ylabel('channel number')
-gca.set_xlim(time_rang_show[0], time_rang_show[1])
-gca.invert_yaxis()
-
-axins1 = inset_axes(gca,
-                    width="2%",  # width = 50% of parent_bbox width
-                    height="70%",  # height : 5%
-                    loc='lower left')
-gca.set_title(f'id: {test_event_id}, magnitude: {eq_mag.values[0]}', fontsize=20)
-fig.colorbar(clb, cax=axins1, orientation="vertical", label='strain rate ($10^{-6}$/s)')
-# axins1.xaxis.set_ticks_position("bottom")
-
-
-#fig.colorbar(clb, ax=gca, label='strain rate ($10^{-6}$/s)')
-
-# Magnitude
-# cmap = plt.cm.Spectral_r  # define the colormap
-# # extract all colors from the .jet map
-# cmaplist = [cmap(i) for i in range(cmap.N)]
-# # force the first color entry to be grey
-# # create the new map
-# cmap = mpl.colors.LinearSegmentedColormap.from_list(
-#     'Custom cmap', cmaplist, cmap.N)
-
-cmap = plt.cm.get_cmap('OrRd', 8)
-
-gca = ax[1]
-clb = gca.imshow(mag_estimate_final.T, 
-            extent=[das_time[0], das_time[-1], mag_estimate_final.shape[1], 0],
-            aspect='auto', vmin=0, vmax=8, cmap=cmap)
-gca.plot(cvm_tt_tp.flatten(), np.arange(cvm_tt_tp.shape[1]), '-k', linewidth=4)
-gca.plot(cvm_tt_ts.flatten(), np.arange(cvm_tt_ts.shape[1]), '-k', linewidth=4)
-gca.vlines(x=[np.min(cvm_tt_tp), np.min(cvm_tt_ts)], ymax=mag_estimate_final.shape[1], ymin=0, label='earliest tP and tS', color='b', zorder=10)
-gca.vlines(x=[np.max(cvm_tt_tp)+2, np.max(cvm_tt_ts)+2], ymax=mag_estimate_final.shape[1], ymin=0, linestyle='--', color='b', label='latest tP+2s and tS+2s', zorder=10)
-
-gca.set_xlabel('Time (s)')
-gca.set_ylabel('channel number')
-gca.set_xlim(time_rang_show[0], time_rang_show[1])
-gca.invert_yaxis()
-
-axins2 = inset_axes(gca,
-                    width="2%",  # width = 50% of parent_bbox width
-                    height="70%",  # height : 5%
-                    loc='lower left')
-fig.colorbar(clb, cax=axins2, orientation="vertical", label='Magnitude')
-#fig.colorbar(clb, ax=gca, label='Mag.')
-
-
-gca=ax[2]
-# gca.plot(das_time, mag_estimate_final, '-k', linewidth=0.1, alpha=0.1)
-gca.plot(das_time, mean_mag, '-r', linewidth=4, alpha=1, zorder=3, label='mean')
-gca.plot(das_time, mean_mag-std_mag, '--r', linewidth=2, alpha=0.5, zorder=3, label='STD')
-gca.plot(das_time, mean_mag+std_mag, '--r', linewidth=2, alpha=0.5, zorder=3)
-gca.vlines(x=[np.min(cvm_tt_tp), np.min(cvm_tt_ts)], ymax=10, ymin=0, label='earliest tP and tS', color='b')
-gca.vlines(x=[np.max(cvm_tt_tp)+2, np.max(cvm_tt_ts)+2], ymax=10, ymin=0, linestyle='--', color='b', label='latest tP+2s and tS+2s')
-
-gca.hlines(y=[eq_mag], xmin=-10, xmax=120, color='green', label='catalog M')
-gca.set_yticks(np.arange(0, 9))
-gca.set_ylim(0, eq_mag.values*1.4)
-gca.set_xlim(time_rang_show[0], time_rang_show[1])
-gca.set_xlabel('Time (s)')
-gca.set_ylabel('Estimated Magnitude')
-gca.legend(loc=4)
-
-plt.subplots_adjust(hspace=0.2)
-
-# some final handling
-letter_list = [str(chr(k+97)) for k in range(0, 3)]
-k=0
-for ii in range(0, 3):
-    ax[ii].annotate(f'({letter_list[k]})', xy=(-0.05, 1.0), xycoords=ax[ii].transAxes)
-    k+=1
-
-plt.savefig(fig_output_dir + f'/{test_event_id}_estimated_mag_image_{region_label}_all_10_calibrated.png', bbox_inches='tight')
-plt.savefig(fig_output_dir + f'/{test_event_id}_estimated_mag_image_{region_label}_all_10_calibrated.pdf', bbox_inches='tight')
-# fig.tight_layout()
-
-# %%

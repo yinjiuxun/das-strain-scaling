@@ -29,19 +29,21 @@ matplotlib.rcParams.update(params)
 das_pick_file_folder_list = ['/kuafu/yinjx/Ridgecrest/Ridgecrest_scaling/peak_amplitude_events',
                             '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/South/peak_amplitude_events',
                             '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/North/peak_amplitude_events',
-                            '/kuafu/yinjx/Sanriku/peak_ampliutde_scaling_results_strain_rate/peak_amplitude_events']
+                            '/kuafu/yinjx/Sanriku/peak_ampliutde_scaling_results_strain_rate/peak_amplitude_events',
+                            '/kuafu/yinjx/LA_Google/peak_ampliutde_scaling_results_strain_rate/peak_amplitude_events']
 
 catalog_file_list = ['/kuafu/EventData/Ridgecrest/catalog.csv',
                 '/kuafu/EventData/Mammoth_south/catalog.csv',
                 '/kuafu/EventData/Mammoth_north/catalog.csv',
-                '/kuafu/EventData/Sanriku_ERI/catalog.csv']
+                '/kuafu/EventData/Sanriku_ERI/catalog.csv',
+                '/kuafu/EventData/LA_Google/catalog.csv']
 
-region_list = ['Ridgecrest', 'Long-Vally south', 'Long-Valley north', 'Sanriku']
+region_list = ['Ridgecrest', 'Long-Vally south', 'Long-Valley north', 'Sanriku', 'LA-Google']
 
 das_pick_file_name = 'peak_amplitude.csv'
 
 #%%
-for ii in [3]:#range(4):
+for ii in [4]:#range(4):
     das_pick_file_folder = das_pick_file_folder_list[ii]
     catalog_file = catalog_file_list[ii]
     print(f'=========== Working on {das_pick_file_folder} ===============')

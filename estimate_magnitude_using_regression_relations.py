@@ -224,12 +224,12 @@ def plot_magnitude_seaborn(df_magnitude):
 min_channel=100
 M_std_percentile = None
 results_output_dir = '/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RM'
-regression_dir = f'regression_results_smf_weighted_{min_channel}_channel_at_least' # 'regression_results_smf_M4'
+regression_dir = f'regression_results_smf_{min_channel}_channel_at_least' # 'regression_results_smf_M4'
 site_term_column = 'region_site'
 fitting_type = 'with_site'
 nearby_channel_numbers = [-1, 10, 20, 50, 100]
 secondary_calibration = True
-output_label = []
+output_label = ''
 
 # List to hold the estiamted magnitude
 temp_df_P_list = []

@@ -29,7 +29,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 params = { 
     'image.interpolation': 'nearest',
     'image.cmap': 'gray',
-    'savefig.dpi': 300,  # to adjust notebook inline plot size
+    'savefig.dpi': 100,  # to adjust notebook inline plot size
     'axes.labelsize': 18, # fontsize for x and y labels (was 10)
     'axes.titlesize': 18,
     'font.size': 18,
@@ -209,11 +209,14 @@ def load_phase_pick(pick_path, eq_id, das_time, channel, time_range=None, includ
 Ridgecrest_conversion_factor = 1550.12 / (0.78 * 4 * np.pi * 1.46 * 8)
 # %%
 # Setup the paths
-event_folder_list = ['/kuafu/EventData/Ridgecrest', '/kuafu/EventData/Mammoth_north', '/kuafu/EventData/Mammoth_south', '/kuafu/EventData/Sanriku_ERI']
+event_folder_list = ['/kuafu/EventData/Ridgecrest', '/kuafu/EventData/Mammoth_north', 
+                     '/kuafu/EventData/Mammoth_south', '/kuafu/EventData/Sanriku_ERI',
+                     '/kuafu/EventData/LA_Google']
 peak_amplitude_dir_list = ['/kuafu/yinjx/Ridgecrest/Ridgecrest_scaling/peak_amplitude_events_nan', 
                            '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/North/peak_amplitude_events', 
                            '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/South/peak_amplitude_events',
-                           '/kuafu/yinjx/Sanriku/peak_ampliutde_scaling_results_strain_rate/peak_amplitude_events_ML']
+                           '/kuafu/yinjx/Sanriku/peak_ampliutde_scaling_results_strain_rate/peak_amplitude_events_ML',
+                           '/kuafu/yinjx/LA_Google/peak_ampliutde_scaling_results_strain_rate/peak_amplitude_events']
 
 def extract_peak_amplitude(event_folder, peak_amplitude_dir, ii_region, data_path, pick_path, catalog, das_info, P_window_list, S_window_list, snr_window, i_eq):
     matplotlib.rcParams.update(params) # Set up the plotting parameters
@@ -252,12 +255,13 @@ def extract_peak_amplitude(event_folder, peak_amplitude_dir, ii_region, data_pat
             tt_1d.P_arrival = tt_1d.P_arrival + 30
             tt_1d.S_arrival = tt_1d.S_arrival + 30
 
-        min_P_1d = tt_1d.P_arrival.min()
-        min_S_1d = tt_1d.S_arrival.min()   
-
-        time_range = (min_P_1d-15, min_P_1d+15, min_S_1d-15, min_S_1d+15)#(25, 40, 25, 60)
-
-
+        if ii_region <=2:
+            min_P_1d = tt_1d.P_arrival.min()
+            min_S_1d = tt_1d.S_arrival.min() 
+            time_range = (min_P_1d-15, min_P_1d+15, min_S_1d-15, min_S_1d+15)#(25, 40, 25, 60) 
+        else:
+            time_range = (30, 90, 30, 90)
+             
         pick_P, channel_P, pick_S, channel_S = load_phase_pick(pick_path, event_now.event_id, das_time, das_info.index, time_range, include_nan=True)
         # except:
         #     continue
@@ -326,8 +330,7 @@ def extract_peak_amplitude(event_folder, peak_amplitude_dir, ii_region, data_pat
         # Store to csv
         peak_amplitude_df.to_csv(peak_amplitude_dir + f'/{event_now.event_id}.csv',index=False)
 
-
-        #%%
+        #%
         # Show data
         fig, ax = plt.subplots(figsize=(10,5))
         # Main
@@ -339,9 +342,10 @@ def extract_peak_amplitude(event_folder, peak_amplitude_dir, ii_region, data_pat
         plt.colorbar(cbar, label='SNR')
         gca.plot(channel_S, pick_S, '.k', markersize=2)
 
-        gca.plot(tt_1d.index, tt_1d.P_arrival, '--g')
-        gca.plot(tt_1d.index, tt_1d.S_arrival, '-g')
-        gca.set_ylim(time_range[0], time_range[-1]+10)
+        # gca.plot(tt_1d.index, tt_1d.P_arrival, '--g')
+        # gca.plot(tt_1d.index, tt_1d.S_arrival, '-g')
+        # gca.set_ylim(30, 120)
+
         gca.set_title(f'ID {event_now.event_id}, M {event_now.magnitude}')
         plt.savefig(peak_amplitude_dir + f'/figures/{event_now.event_id}.png', bbox_inches='tight')
         plt.close('all')
@@ -350,8 +354,8 @@ def extract_peak_amplitude(event_folder, peak_amplitude_dir, ii_region, data_pat
         print('nothing')
         pass
  
-
-for ii_region in [3]:#[0, 1, 2, 3]:
+#%%
+for ii_region in [4]:#[0, 1, 2, 3]:
     event_folder, peak_amplitude_dir = event_folder_list[ii_region], peak_amplitude_dir_list[ii_region]
 
     print('='*10 + peak_amplitude_dir + '='*10)
@@ -381,14 +385,18 @@ for ii_region in [3]:#[0, 1, 2, 3]:
     with tqdm_joblib(tqdm(desc="File desampling", total=n_eq)) as progress_bar:
         Parallel(n_jobs=Ncores)(delayed(extract_peak_amplitude)(event_folder, peak_amplitude_dir, ii_region, data_path, pick_path, catalog, das_info, P_window_list, S_window_list, snr_window, i_eq) for i_eq in range(n_eq))
 
-xxxxx
 # %%
 # Combine all the individual peak amplitude files into one for regression
-event_folder_list = ['/kuafu/EventData/Ridgecrest', '/kuafu/EventData/Mammoth_north', '/kuafu/EventData/Mammoth_south']
-peak_amplitude_dir_list = ['/kuafu/yinjx/Ridgecrest/Ridgecrest_scaling/peak_amplitude_events', 
+event_folder_list = ['/kuafu/EventData/Ridgecrest', '/kuafu/EventData/Mammoth_north', 
+                     '/kuafu/EventData/Mammoth_south', '/kuafu/EventData/Sanriku_ERI',
+                     '/kuafu/EventData/LA_Google']
+peak_amplitude_dir_list = ['/kuafu/yinjx/Ridgecrest/Ridgecrest_scaling/peak_amplitude_events_nan', 
                            '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/North/peak_amplitude_events', 
-                           '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/South/peak_amplitude_events']
-for ii_region in [0, 1, 2]:
+                           '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/South/peak_amplitude_events',
+                           '/kuafu/yinjx/Sanriku/peak_ampliutde_scaling_results_strain_rate/peak_amplitude_events_ML',
+                           '/kuafu/yinjx/LA_Google/peak_ampliutde_scaling_results_strain_rate/peak_amplitude_events']
+
+for ii_region in [4]:#[0, 1, 2]:
     peak_amplitude_dir = peak_amplitude_dir_list[ii_region]
 
     print('='*10 + peak_amplitude_dir + '='*10)

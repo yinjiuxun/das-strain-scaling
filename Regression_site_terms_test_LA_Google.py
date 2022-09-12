@@ -285,28 +285,28 @@ def plot_prediction_vs_measure_seaborn(peak_comparison_df, xy_range, phase):
     g.ax_joint.set_ylabel('calculated peak strain rate\n (micro strain/s)')
     return g
 
-# ==============================  Sanriku data ========================================
+# ==============================  LAX data ========================================
 #%% Specify the file names
-results_output_dir = '/kuafu/yinjx/Sanriku/peak_ampliutde_scaling_results_strain_rate/robustness_test'
+results_output_dir = '/kuafu/yinjx/LA_Google/peak_ampliutde_scaling_results_strain_rate/robustness_test'
 if not os.path.exists(results_output_dir):
         os.mkdir(results_output_dir)
 
-das_pick_file_folder = '/kuafu/yinjx/Sanriku/peak_ampliutde_scaling_results_strain_rate/peak_amplitude_events'
+results_output_dir = '/kuafu/yinjx/LA_Google/peak_ampliutde_scaling_results_strain_rate'
+das_pick_file_folder = '/kuafu/yinjx/LA_Google/peak_ampliutde_scaling_results_strain_rate/peak_amplitude_events'
 das_pick_file_name = 'calibrated_peak_amplitude.csv'
-region_label = 'sanriku'
+region_label = 'lax'
 min_channel = 100
 apply_calibrated_distance = True
 #%% load the peak amplitude results
 # Load the peak amplitude results for regression
-snr_threshold = 5
+snr_threshold = 10
 M_threshold = [1, 10]
 
 peak_amplitude_df_all, DAS_index = load_and_add_region(das_pick_file_folder + '/' + das_pick_file_name, 
                                                    region_label=region_label, snr_threshold=snr_threshold)
 
 peak_amplitude_df_all = peak_amplitude_df_all[(peak_amplitude_df_all.magnitude >= M_threshold[0]) & 
-                                              (peak_amplitude_df_all.magnitude <= M_threshold[1]) &
-                                              (peak_amplitude_df_all.QA == 'Yes')]
+                                              (peak_amplitude_df_all.magnitude <= M_threshold[1])]
                                               
 # if apply_calibrated_distance:
 #     peak_amplitude_df_predict['distance_in_km'] = peak_amplitude_df_predict['calibrated_distance_in_km']
@@ -340,7 +340,7 @@ for num_fit_events in range(2, 31):
         peak_amplitude_df_fit = peak_amplitude_df_all[peak_amplitude_df_all.event_id.isin(event_id_fit)]
         peak_amplitude_df_predict = peak_amplitude_df_all.drop(index=peak_amplitude_df_fit.index)
 
-        regression_results_dir = results_output_dir + f'/{num_fit_events}_for_fitting'
+        regression_results_dir = results_output_dir + f'/robustness_test/{num_fit_events}_for_fitting'
         if not os.path.exists(regression_results_dir):
             os.mkdir(regression_results_dir)
 
@@ -356,14 +356,20 @@ for num_fit_events in range(2, 31):
             combined_channel_id = np.sort(peak_amplitude_df_fit.combined_channel_id.unique())
             
             given_coefficients = given_coefficients_list[ii]
-            regP, regS = fit_regression_with_weight_magnitude_range(peak_amplitude_df_fit, M_threshold, regression_results_dir, 
-                        nearby_channel_number, given_coefficients=given_coefficients)
-            
-            second_calibration = secondary_site_calibration(regP, regS, peak_amplitude_df_fit, given_coefficients=given_coefficients)
-            second_calibration.to_csv(regression_results_dir + f'/secondary_site_terms_calibration_{nearby_channel_number}chan.csv', index=False)
+            try:
+                regP, regS = fit_regression_with_weight_magnitude_range(peak_amplitude_df_fit, M_threshold, regression_results_dir, 
+                            nearby_channel_number, given_coefficients=given_coefficients)
+                
+                regP = None
+                second_calibration = secondary_site_calibration(regP, regS, peak_amplitude_df_fit, given_coefficients=given_coefficients)
+                second_calibration.to_csv(regression_results_dir + f'/secondary_site_terms_calibration_{nearby_channel_number}chan.csv', index=False)
 
-            temp_df_P = pd.DataFrame(columns=['combined_channel_id', 'site_term_P'])
-            temp_df_S = pd.DataFrame(columns=['combined_channel_id', 'site_term_S'])
+                temp_df_P = pd.DataFrame(columns=['combined_channel_id', 'site_term_P'])
+                temp_df_S = pd.DataFrame(columns=['combined_channel_id', 'site_term_S'])
+            except:
+                print('Bad data splitting, skip this time')
+                good_proportion.append(np.nan)
+                continue
 
             try:
                 site_term_P = regP.params[:]
@@ -461,14 +467,12 @@ for num_fit_events in range(2, 31):
 
 good_proportion_all = np.array(good_proportion_all)
 num_fit_events = np.arange(2, 31)
-np.savez(results_output_dir + f'/good_proportion_{i_test}.npz', num_fit_events=num_fit_events, good_proportion_all=good_proportion_all)
+np.savez(results_output_dir + f'/robustness_test/good_proportion_{i_test}.npz', num_fit_events=num_fit_events, good_proportion_all=good_proportion_all)
 
 
 #%% Compare site term
-
-
 colors = plt.cm.viridis(np.linspace(0,1,50))
-channel_space = 5/1e3
+channel_space = 10/1e3
 num_fit_events = 10
 site_term_std_list = []
 for num_fit_events in range(2, 31):
@@ -482,13 +486,16 @@ for num_fit_events in range(2, 31):
         channel_all = np.arange(0, 10000)
         site_term_channel_all = np.zeros((50, 10000))*np.nan
         for i_test in range(50):
-            site_term_df = pd.read_csv(results_output_dir + f'/{num_fit_events}_for_fitting/{i_test}th_test/site_terms_{i_test}th_test.csv')
-            # gca.plot(site_term_df.channel_id, site_term_df.site_term_P, '-', label=f'{combined_channel_number} channels')#, Cond.# {regP.condition_number:.2f}')
-            gca.plot(site_term_df.channel_id*channel_space, site_term_df.site_term_S + site_term_df.diff_peak_S, '.', color=colors[i_test], zorder=-i_test, alpha=1, linewidth=1)#, Cond.# {regS.condition_number:.2f}')
-            #gca.plot(site_term_df.channel_id*channel_space, site_term_df.site_term_S, '--', color=colors[i_test], zorder=-i_test, alpha=0.9, linewidth=1)#, Cond.# {regS.condition_number:.2f}')
-            
-            site_term_channel_all[i_test, site_term_df.channel_id.astype('int')] = site_term_df.site_term_S.array
-    
+            try:
+                site_term_df = pd.read_csv(results_output_dir + f'/robustness_test/{num_fit_events}_for_fitting/{i_test}th_test/site_terms_{i_test}th_test.csv')
+                
+                # gca.plot(site_term_df.channel_id, site_term_df.site_term_P, '-', label=f'{combined_channel_number} channels')#, Cond.# {regP.condition_number:.2f}')
+                gca.plot(site_term_df.channel_id*channel_space, site_term_df.site_term_S + site_term_df.diff_peak_S, '.', color=colors[i_test], zorder=-i_test, alpha=1, linewidth=1)#, Cond.# {regS.condition_number:.2f}')
+                #gca.plot(site_term_df.channel_id*channel_space, site_term_df.site_term_S, '--', color=colors[i_test], zorder=-i_test, alpha=0.9, linewidth=1)#, Cond.# {regS.condition_number:.2f}')
+                
+                site_term_channel_all[i_test, site_term_df.channel_id.astype('int')] = np.array(site_term_df.site_term_S + site_term_df.diff_peak_S)
+            except:
+                continue
     site_term_mean = np.nanmean(site_term_channel_all, axis=0)
     site_term_std_list.append(np.nanmean(np.nanstd(site_term_channel_all, axis=0)))
 
@@ -499,12 +506,12 @@ for num_fit_events in range(2, 31):
     gca.set_xlabel('Distance (km)')
     gca.grid()
 
-    gca.set_xticklabels(np.arange(0, 10000, 1000))
-    gca.set_ylim(-1.5, 0.5)
+    #gca.set_xticklabels(np.arange(0, 10000, 1000))
+    gca.set_ylim(-2.5, 1)
     gca.set_title(f'{num_fit_events} events for site term calibration')
     # gca.legend(loc=3, fontsize=14)
 
-    plt.savefig(results_output_dir + f'/site_terms_variation_with_event_number/site_terms_{num_fit_events}_events_to_fit.png', bbox_inches='tight')
+    plt.savefig(results_output_dir + f'/robustness_test/site_terms_variation_with_event_number/site_terms_{num_fit_events}_events_to_fit.png', bbox_inches='tight')
 
 #%% show site term std variation
 fig, gca = plt.subplots(figsize=(10, 6))
@@ -514,14 +521,26 @@ gca.legend(loc=1)
 gca.set_xlim(0, 32)
 gca.set_xlabel('Number of events for calibration')
 gca.set_ylabel('Site term STD')
-plt.savefig(results_output_dir + f'/site_terms_variation_with_event_number/site_term_STD_variation.png', bbox_inches='tight')
-plt.savefig(results_output_dir + f'/site_terms_variation_with_event_number/site_term_STD_variation.pdf', bbox_inches='tight')
+plt.savefig(results_output_dir + f'/robustness_test/site_terms_variation_with_event_number/site_term_STD_variation.png', bbox_inches='tight')
+plt.savefig(results_output_dir + f'/robustness_test/site_terms_variation_with_event_number/site_term_STD_variation.pdf', bbox_inches='tight')
 
 #%% show how well the magnitude is estimated
+tempx = np.load(results_output_dir + f'/robustness_test/good_proportion_49.npz', allow_pickle=True)
+good_proportion_all = tempx['good_proportion_all']
+num_fit_events = tempx['num_fit_events']
+
+mean_percentage = np.zeros(len(good_proportion_all))
+
 fig, gca = plt.subplots(figsize=(10, 6))
-gca.plot(range(2, 31), 100*good_proportion_all, 'k.', alpha=0.6)
+for ii in range(len(good_proportion_all)):
+    percentage_temp = 100*np.array(good_proportion_all[ii])
+    percentage_temp = np.reshape(percentage_temp, [1, -1])
+
+    gca.plot(num_fit_events[ii], percentage_temp, 'k.', alpha=0.6)
+    mean_percentage[ii] = np.mean(percentage_temp)
+
 gca.plot(np.nan, np.nan, 'k.', alpha=0.6, label='each random test')
-gca.plot(range(2, 31), 100*np.mean(good_proportion_all, axis=1), '-r', linewidth=5, label='Mean')
+gca.plot(range(2, 31), mean_percentage, '-r', linewidth=5, label='Mean')
 gca.grid()
 gca.legend(loc=4)
 gca.set_xlim(0, 32)

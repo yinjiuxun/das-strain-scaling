@@ -308,9 +308,11 @@ plt.savefig(regression_results_dir + '/compare_site_terms.png', bbox_inches='tig
 # Specify the file names
 results_output_dir = '/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RM'
 
+weighted = '_weighted'
 # directory to store the fitted results:
-regression_results_dir = results_output_dir + '/regression_results_smf_weighted_100_channel_at_least'
-# %% Compare the regression parameters and site terms
+regression_results_dir = results_output_dir + f'/regression_results_smf{weighted}_100_channel_at_least'
+# %% 
+# Combine site terms
 title_plot = ['Ridgecrest P', 'Ridgecrest S', 'Long Valley North P', 'Long Valley North S', 'Long Valley South P', 'Long Valley South S']
 
 combined_channel_number_list = [10, 20, 50, 100, -1] # -1 means the constant model
@@ -355,14 +357,18 @@ for i_model, combined_channel_number in enumerate(combined_channel_number_list):
 
 # # select the site terms in different regions
 # site_term_df_RC = site_term_df[site_term_df.region_site.str.contains('ridgecrest')]
-# %%
-show_calibrated = True
+# %% 
+# Compare the regression parameters and site terms
+show_calibrated = False#False # show the site terms with or without secondary calibration
 fig, ax = plt.subplots(4, 2, figsize=(16, 16))
 plt.subplots_adjust(wspace=0.2, hspace=0.3)
 title_plot = ['Ridgecrest P', 'Ridgecrest S', 'Long Valley North P', 'Long Valley North S', 'Long Valley South P', 'Long Valley South S']
 region_labels = ['ridgecrest', 'mammothN', 'mammothS']
 channel_spacing = [8e-3, 10e-3, 10e-3]
 label_lists = ['10 channels','20 channels','50 channels','100 channels','constant']
+# specify the ylim of figures...
+region_y_minP, region_y_maxP = [0.5, -1, -0.5], [1.5, 1.5, 1.5]
+region_y_minS, region_y_maxS = [0.2, -1.2, -1, -1.5], [1, 1.2, 1, 0]
 combined_channel_number_list = [10, 20, 50, 100, -1] # -1 means the constant model
 for i_model, combined_channel_number in enumerate(combined_channel_number_list):
     site_term_df0 = pd.read_csv(regression_results_dir + f'/site_terms_{combined_channel_number}chan.csv')
@@ -390,11 +396,13 @@ for i_model, combined_channel_number in enumerate(combined_channel_number_list):
         else:
             gca.plot(site_term_df_now.channel_id*channel_spacing[i_region], site_term_df_now.site_term_P, label=label_lists[i_model])
         gca.set_title(title_plot[i_region * 2])
+        gca.set_ylim(region_y_minP[i_region], region_y_maxP[i_region])
         #gca.grid()
 
         gca = ax[i_region, 1]
         gca.plot(site_term_df_now.channel_id*channel_spacing[i_region], site_term_df_now.site_term_S)
         gca.set_title(title_plot[i_region * 2 + 1])
+        gca.set_ylim(region_y_minS[i_region], region_y_maxS[i_region])
         
         #gca.grid()
         #gca.sharey(ax[i_region, 0])
@@ -403,15 +411,19 @@ gca = ax[3, 0]
 fig.delaxes(gca)
 
 # add Sanriku
-sanriku_regression_results_dir = '/kuafu/yinjx/Sanriku/peak_ampliutde_scaling_results_strain_rate/regression_results_smf_weighted_100_channel_at_least'
+sanriku_regression_results_dir = f'/kuafu/yinjx/Sanriku/peak_ampliutde_scaling_results_strain_rate/regression_results_smf{weighted}_all_coefficients_drop_4130_100_channel_at_least'
 combined_channel_number_list=[10, 20, 50, 100]
 
 gca = ax[3, 1]
 for i_model, combined_channel_number in enumerate(combined_channel_number_list):
     site_term_df = pd.read_csv(sanriku_regression_results_dir + f'/site_terms_{combined_channel_number}chan.csv')
-    gca.plot(site_term_df.channel_id*5/1e3, site_term_df.site_term_S + site_term_df.diff_peak_S, '-')
+    if show_calibrated:
+        gca.plot(site_term_df.channel_id*5/1e3, site_term_df.site_term_S + site_term_df.diff_peak_S, '-')
+    else:
+        gca.plot(site_term_df.channel_id*5/1e3, site_term_df.site_term_S, '-')
 #gca.grid()
 gca.set_title('Sanriku S')
+gca.set_ylim(region_y_minS[3], region_y_maxS[3])
 
 ax[i_region, 0].legend(bbox_to_anchor=(0.8, -0.4), loc=1)
 
@@ -428,8 +440,12 @@ for i_ax, gca in enumerate(ax.flatten()):
         gca.annotate(f'({letter_list[k]})', xy=(-0.1, 1.1), xycoords=gca.transAxes, fontsize=20)
         k+=1
 
-plt.savefig(results_output_dir + '/compare_site_terms.pdf', bbox_inches='tight')
-plt.savefig(results_output_dir + '/compare_site_terms.png', bbox_inches='tight')
+if show_calibrated:
+    plt.savefig(results_output_dir + f'/compare_site_terms{weighted}.pdf', bbox_inches='tight')
+    plt.savefig(results_output_dir + f'/compare_site_terms{weighted}.png', bbox_inches='tight')
+else:
+    plt.savefig(results_output_dir + f'/compare_site_terms{weighted}_uncalibrated.pdf', bbox_inches='tight')
+    plt.savefig(results_output_dir + f'/compare_site_terms{weighted}_uncalibrated.png', bbox_inches='tight')    
 # %%
 # show channel numbers
 fig, ax = plt.subplots(2, 1, figsize=(16, 8), squeeze=False, sharex=True)
@@ -466,3 +482,38 @@ for i_model, combined_channel_number in enumerate(combined_channel_number_list):
 gca.set_xlim(550, 650)
 
 # %%
+# list mean site terms
+site_term_df0 = pd.read_csv(regression_results_dir + f'/site_terms_100chan.csv')
+site_term_df0 = site_term_df0.sort_values(by=['channel_id'])
+second_calibration =pd.read_csv(regression_results_dir + f'/secondary_site_terms_calibration_100chan.csv')
+# to obtain the site term calibration
+site_term_df_calibrated = pd.merge(site_term_df0, second_calibration, on=['region_site', 'channel_id'])
+
+if show_calibrated:
+    site_term_df = site_term_df_calibrated
+    site_term_df.site_term_P = site_term_df.site_term_P + site_term_df.diff_peak_P
+    site_term_df.site_term_S = site_term_df.site_term_S + site_term_df.diff_peak_S
+else:
+    site_term_df = site_term_df0
+    
+for i_region, region_label in enumerate(region_labels):
+    site_term_df_now = site_term_df[site_term_df.region_site.str.contains(region_label)]
+
+    mean_site_term_P = np.nanmean(site_term_df_now.site_term_P)
+    mean_site_term_S = np.nanmean(site_term_df_now.site_term_S)
+    print(region_label)
+    print(f'site term mean P {mean_site_term_P}')
+    print(f'site term mean S {mean_site_term_S}')
+
+
+# add Sanriku
+sanriku_regression_results_dir = f'/kuafu/yinjx/Sanriku/peak_ampliutde_scaling_results_strain_rate/regression_results_smf{weighted}_all_coefficients_drop_4130_100_channel_at_least'
+combined_channel_number_list=[10, 20, 50, 100]
+
+for i_model, combined_channel_number in enumerate(combined_channel_number_list):
+    site_term_df = pd.read_csv(sanriku_regression_results_dir + f'/site_terms_100chan.csv')
+    mean_site_term_S = np.nanmean(site_term_df.site_term_S)
+print('Sanriku')
+print(f'site term mean S {mean_site_term_S}')
+# %%
+
