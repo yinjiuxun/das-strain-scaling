@@ -322,9 +322,9 @@ plt.savefig(combined_results_output_dir + '/time_variation_selected_earthquakes.
 
 
 #%% Calculate the possible clipping lines
-a_M_P = 0.4724
-b_D_P = -1.4700
-K_RC_P, K_LV_S_P, K_LV_N_P = 0.9639, 0.5562, 0.6237 
+a_M_P = 0.508
+b_D_P = -1.617
+K_RC_P, K_LV_S_P, K_LV_N_P = 1.1382, 0.7182, 0.8322
 M_clipping = np.arange(0, 9)
 # P clipping
 D_clipping_RC_P = -M_clipping*a_M_P/b_D_P + (2.06-K_RC_P)/b_D_P
@@ -332,9 +332,9 @@ D_clipping_LV_N_P = -M_clipping*a_M_P/b_D_P + (1.54-K_LV_N_P)/b_D_P
 D_clipping_LV_S_P = -M_clipping*a_M_P/b_D_P + (1.30-K_LV_S_P)/b_D_P
 
 # S clipping
-a_M_S = 0.5405
-b_D_S = -1.1561
-K_RC_S, K_LV_S_S, K_LV_N_S, K_Sanriku_S = 0.6010, 0.2249, 0.3733, -0.3658 
+a_M_S = 0.591
+b_D_S = -1.302
+K_RC_S, K_LV_S_S, K_LV_N_S, K_Sanriku_S = 0.618, 0.321, 0.487, -0.682
 
 D_clipping_RC_S = -M_clipping*a_M_S/b_D_S + (2.06-K_RC_S)/b_D_S
 D_clipping_LV_N_S = -M_clipping*a_M_S/b_D_S + (1.54-K_LV_N_S)/b_D_S
