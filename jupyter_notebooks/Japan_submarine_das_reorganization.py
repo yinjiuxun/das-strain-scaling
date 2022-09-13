@@ -20,7 +20,7 @@ Ncores = psutil.cpu_count(logical = False) # Maximum number of cores that can be
 
 import warnings
 
-from utility_functions import *
+from ..utility_functions import *
 from obspy.geodetics import locations2degrees
 
 # Plotting
@@ -32,7 +32,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 params = { 
     'image.interpolation': 'nearest',
     'image.cmap': 'gray',
-    'savefig.dpi': 300,  # to adjust notebook inline plot size
+    'savefig.dpi': 100,  # to adjust notebook inline plot size
     'axes.labelsize': 18, # fontsize for x and y labels (was 10)
     'axes.titlesize': 18,
     'font.size': 18,
