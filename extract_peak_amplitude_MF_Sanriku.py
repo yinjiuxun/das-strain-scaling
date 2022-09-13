@@ -2,15 +2,11 @@
 # Import modules
 import pandas as pd
 #from sep_util import read_file
-import utm
+
 import numpy as np
-import h5py
-import dateutil
-import time
+
 import tqdm
-import obspy
-import datetime
-import os
+
 import glob
 import psutil 
 Ncores = psutil.cpu_count(logical = False) # Maximum number of cores that can be employed
@@ -18,19 +14,21 @@ from scipy.signal import butter, filtfilt
 
 import warnings
 
-from utility_functions import *
+import obspy
 from obspy.geodetics import locations2degrees
 
 # Plotting
 import matplotlib
 import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
-from mpl_toolkits.axes_grid1 import make_axes_locatable
+# load modules
+from utility.processing import calculate_SNR
+from utility.loading import load_event_data, load_phasenet_pick
+from utility.general import *
 # %matplotlib inline
 params = { 
     'image.interpolation': 'nearest',
     'image.cmap': 'gray',
-    'savefig.dpi': 300,  # to adjust notebook inline plot size
+    'savefig.dpi': 100,  # to adjust notebook inline plot size
     'axes.labelsize': 18, # fontsize for x and y labels (was 10)
     'axes.titlesize': 18,
     'font.size': 18,
@@ -89,29 +87,6 @@ def extract_maximum_amplitude(time_list, data_matrix, t1, t2):
     max_amplitude = np.nanmax(data_matrix_mask, axis=0)
     
     return max_amplitude, max_time_ref1, max_time_ref2
-
-
-# calculate the SNR given the P arrival time
-def calculate_SNR(time_list, data_matrix, twin_noise, twin_signal):
-    '''calculate the SNR given the noise and signal time window list [begin, end] for each channel'''
-    time_list = time_list[:, np.newaxis]
-
-    noise_index = (time_list < twin_noise[1]) & (time_list >= twin_noise[0]) # noise index
-    signal_index = (time_list <= twin_signal[1]) & (time_list >= twin_signal[0]) # signal index
-
-    noise_matrix = data_matrix.copy()
-    signal_matrix = data_matrix.copy()
-    noise_matrix[~noise_index] = np.nan
-    signal_matrix[~signal_index] = np.nan
-
-    noise_power = np.nanmean(noise_matrix ** 2, axis=0)
-    signal_power = np.nanmean(signal_matrix ** 2, axis=0)
-
-    snr = 10 * np.log10(signal_power / noise_power)
-    return snr
-
-def load_matched_filter_pick():
-    pass
 
 # %%
 def extract_peak_amplitude_Sanriku(peak_amplitude_dir, data_path, pick_path, catalog, das_info, i_eq):
