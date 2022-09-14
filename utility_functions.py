@@ -73,8 +73,10 @@ def load_event_data(data_path, eq_id):
 def load_phase_pick(pick_path, eq_id, das_time, channel, time_range=None, include_nan=False):
     picks = pd.read_csv(pick_path + f'/{eq_id}.csv')
 
-    picks_P = picks[picks.phase_type == 'P']
-    picks_S = picks[picks.phase_type == 'S']
+    picks_P = picks[picks.phase_type == 'P'].drop_duplicates(subset=['channel_index'], keep='first')
+    picks_S = picks[picks.phase_type == 'S'].drop_duplicates(subset=['channel_index'], keep='first')
+
+
     # Adding restriction on the time
     if time_range is not None:
         dt = das_time[1] - das_time[0]
@@ -85,12 +87,18 @@ def load_phase_pick(pick_path, eq_id, das_time, channel, time_range=None, includ
         picks_S = picks_S[(picks_S.phase_type == 'S') & 
                             (picks_S.phase_index <= time_range[3]/dt) & 
                             (picks_S.phase_index >= time_range[2]/dt)]
-    
+
     if include_nan:
         picks_P_time = np.ones(channel.shape) * np.nan
         picks_S_time = np.ones(channel.shape) * np.nan
-        picks_P_time[picks_P.channel_index] = das_time[picks_P.phase_index]
-        picks_S_time[picks_S.channel_index] = das_time[picks_S.phase_index]
+        ii_p = channel.isin(picks_P.channel_index.unique())#picks_P.channel_index.isin(channel)
+        ii_s = channel.isin(picks_S.channel_index.unique())#picks_S.channel_index.isin(channel)
+
+        ii_p_picks = picks_P.channel_index.isin(channel)
+        ii_s_picks = picks_S.channel_index.isin(channel)
+
+        picks_P_time[ii_p] = das_time[picks_P.phase_index[ii_p_picks]]
+        picks_S_time[ii_s] = das_time[picks_S.phase_index[ii_s_picks]]
         channel_P, channel_S = channel, channel
 
     else:
