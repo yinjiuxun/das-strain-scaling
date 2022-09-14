@@ -30,15 +30,16 @@ def combined_channels(DAS_index, peak_amplitude_df, nearby_channel_number):
     return peak_amplitude_df
 
 # load peak amplitude dataframe and add region label
-def load_and_add_region(peak_file, region_label, snr_threshold, magnitude_threshold=None):
+def load_and_add_region(peak_file, region_label, snr_threshold=None, magnitude_threshold=None):
     peak_amplitude_df = pd.read_csv(peak_file)
     peak_amplitude_df['region'] = region_label # add the region label
     DAS_index = peak_amplitude_df.channel_id.unique().astype('int')
     #peak_amplitude_df = peak_amplitude_df.dropna()
 
-    peak_amplitude_df = peak_amplitude_df[(peak_amplitude_df.snrP >= snr_threshold) | (peak_amplitude_df.snrS >= snr_threshold)]
+    if snr_threshold:
+        peak_amplitude_df = peak_amplitude_df[(peak_amplitude_df.snrP >= snr_threshold) | (peak_amplitude_df.snrS >= snr_threshold)]
 
-    if magnitude_threshold is not None:
+    if magnitude_threshold:
         peak_amplitude_df = peak_amplitude_df[(peak_amplitude_df.magnitude >= magnitude_threshold[0]) & (peak_amplitude_df.magnitude <= magnitude_threshold[1])]
         
     return peak_amplitude_df,DAS_index
@@ -64,12 +65,24 @@ def filter_by_channel_number(peak_amplitude_df, min_channel):
 
     return peak_amplitude_df[peak_amplitude_df['event_id'].isin(event_id)]
 
+# filter events given magnitude, snr, min_channel
+def filter_event(peak_amplitude_df, M_threshold=None, snr_threshold=None, min_channel=None):
+    if M_threshold:
+        peak_amplitude_df = peak_amplitude_df[(peak_amplitude_df.magnitude >= M_threshold[0]) & (peak_amplitude_df.magnitude <= M_threshold[1])]
+    
+    if snr_threshold:
+        peak_amplitude_df = peak_amplitude_df[(peak_amplitude_df.snrP >=snr_threshold) | (peak_amplitude_df.snrS >=snr_threshold)]
+    
+    if min_channel:
+        peak_amplitude_df = filter_by_channel_number(peak_amplitude_df, min_channel)
+        
+    return peak_amplitude_df
 
 # split P and S data from regression separately.
 def split_P_S_dataframe(peak_amplitude_df, snr_threshold=None):
     # use P and S separately to do the regression
-    peak_amplitude_df_P = peak_amplitude_df[['event_id', 'peak_P', 'magnitude', 'distance_in_km', 'region_site', 'snrP']]
-    peak_amplitude_df_S = peak_amplitude_df[['event_id', 'peak_S', 'magnitude', 'distance_in_km', 'region_site', 'snrS']]
+    peak_amplitude_df_P = peak_amplitude_df[['event_id', 'channel_id', 'peak_P', 'peak_S', 'magnitude', 'distance_in_km', 'region_site', 'snrP', 'region']]
+    peak_amplitude_df_S = peak_amplitude_df[['event_id', 'channel_id', 'peak_P', 'peak_S', 'magnitude', 'distance_in_km', 'region_site', 'snrS', 'region']]
 
     # Remove some extreme data outliers before fitting
     peak_amplitude_df_P = peak_amplitude_df_P.dropna()
@@ -85,3 +98,34 @@ def split_P_S_dataframe(peak_amplitude_df, snr_threshold=None):
         peak_amplitude_df_S = peak_amplitude_df_S[peak_amplitude_df_S.snrS >=snr_threshold]
 
     return peak_amplitude_df_P, peak_amplitude_df_S
+
+
+def combined_regions_for_regression(peak_file_list, region_list, combined_channel_number_list, results_output_dir, 
+                                    snr_threshold=None, magnitude_threshold=None, apply_calibrated_distance=True):
+    """Preprocess the data file: combining different channels etc."""
+    peak_data_list = []
+    das_index_list = []
+
+    for i_region, peak_df in enumerate(peak_file_list):
+        peak_amplitude_df, DAS_index = load_and_add_region(peak_df, region_label=region_list[i_region], 
+                                                            snr_threshold=snr_threshold, magnitude_threshold=magnitude_threshold)
+        peak_data_list.append(peak_amplitude_df)
+        das_index_list.append(DAS_index)
+
+    for nearby_channel_number in combined_channel_number_list:
+        for ii, peak_data in enumerate(peak_data_list): # combine nearby channels for all the prepared data
+            peak_data = combined_channels(das_index_list[ii], peak_data, nearby_channel_number)
+
+        # Combined data from different regions
+        peak_amplitude_df = pd.concat(peak_data_list, axis=0)
+        peak_amplitude_df = add_event_label(peak_amplitude_df)
+
+        if apply_calibrated_distance: # if true, use the depth-calibrated distance to do regression
+            peak_amplitude_df['distance_in_km'] = peak_amplitude_df['calibrated_distance_in_km']
+        
+        # Aggregate the columns of region and combined_channel_id to form the regional site terms
+        peak_amplitude_df['combined_channel_id']= peak_amplitude_df['combined_channel_id'].astype('str')
+        peak_amplitude_df['region_site'] = peak_amplitude_df[['region', 'combined_channel_id']].agg('-'.join, axis=1)
+
+        # Store the processed DataFrame
+        peak_amplitude_df.to_csv(results_output_dir + f'/peak_amplitude_region_site_{nearby_channel_number}.csv', index=False)
