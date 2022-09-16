@@ -14,7 +14,6 @@ from utility.regression import store_regression_results, fit_regression_iteratio
 snr_threshold = 10
 min_channel = 100 # do regression only on events recorded by at least 100 channels
 M_threshold = [0, 10]
-combined_channel_number_list = [-1]#[-1, 100, 50, 20, 10]#[10, 20, 50, 100, -1] # -1 means the constant model
 
 # result directory
 results_output_dir = '/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RM'
