@@ -1,6 +1,13 @@
 import numpy as np
 import pandas as pd
 
+# combined data to a DataFrame for comparison
+def get_comparison_df(data, columns):
+    peak_comparison_df = pd.DataFrame(columns=columns)
+    for i in range(len(data)):
+        peak_comparison_df[columns[i]] = data[i]
+    return peak_comparison_df
+
 # calculate the SNR given the P arrival time
 def calculate_SNR(time_list, data_matrix, twin_noise, twin_signal):
     '''calculate the SNR given the noise and signal time window list [begin, end] for each channel'''
@@ -66,7 +73,7 @@ def filter_by_channel_number(peak_amplitude_df, min_channel):
     return peak_amplitude_df[peak_amplitude_df['event_id'].isin(event_id)]
 
 # filter events given magnitude, snr, min_channel
-def filter_event(peak_amplitude_df, M_threshold=None, snr_threshold=None, min_channel=None):
+def filter_event(peak_amplitude_df, M_threshold=None, snr_threshold=None, min_channel=None, remove_zero=True):
     if M_threshold:
         peak_amplitude_df = peak_amplitude_df[(peak_amplitude_df.magnitude >= M_threshold[0]) & (peak_amplitude_df.magnitude <= M_threshold[1])]
     
@@ -76,6 +83,10 @@ def filter_event(peak_amplitude_df, M_threshold=None, snr_threshold=None, min_ch
     if min_channel:
         peak_amplitude_df = filter_by_channel_number(peak_amplitude_df, min_channel)
         
+    if remove_zero:
+        peak_amplitude_df = peak_amplitude_df.drop(index=peak_amplitude_df[peak_amplitude_df.peak_P<=0].index)
+        peak_amplitude_df = peak_amplitude_df.drop(index=peak_amplitude_df[peak_amplitude_df.peak_S<=0].index)
+    
     return peak_amplitude_df
 
 # split P and S data from regression separately.
