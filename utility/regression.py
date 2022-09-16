@@ -252,4 +252,14 @@ def fit_regression_iteration(peak_amplitude_df, weighted='wls', M_threshold=[0, 
     
     return regP, regS, site_term_df
 
-# %%
+
+def predict_strain(peak_amplitude_df, regX, site_term_df, type):
+    """Given data, regression results and site term DataFrame, predict the strain rate"""
+    peak_amplitude_df_temp = pd.merge(peak_amplitude_df, site_term_df, how='outer', left_on=['channel_id', 'region'], right_on=['channel_id', 'region'])
+    if type.lower() == 'p':
+        peak_predicted = 10**(regX.predict(peak_amplitude_df_temp) + peak_amplitude_df_temp.site_term_P)
+    elif type.lower() == 's':
+        peak_predicted = 10**(regX.predict(peak_amplitude_df_temp) + peak_amplitude_df_temp.site_term_S)
+    else:
+        raise TypeError("type must be 'P' or 'S' !")
+    return peak_predicted, peak_amplitude_df_temp
