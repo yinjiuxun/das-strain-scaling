@@ -265,10 +265,10 @@ for ii_region in [4]:#[0, 1, 2, 3]:
 event_folder_list = ['/kuafu/EventData/Ridgecrest', '/kuafu/EventData/Mammoth_north', 
                      '/kuafu/EventData/Mammoth_south', '/kuafu/EventData/Sanriku_ERI',
                      '/kuafu/EventData/LA_Google']
-peak_amplitude_dir_list = ['/kuafu/yinjx/Ridgecrest/Ridgecrest_scaling/peak_amplitude_events_nan', 
+peak_amplitude_dir_list = ['/kuafu/yinjx/Ridgecrest/Ridgecrest_scaling/peak_amplitude_events', 
                            '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/North/peak_amplitude_events', 
                            '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/South/peak_amplitude_events',
-                           '/kuafu/yinjx/Sanriku/peak_ampliutde_scaling_results_strain_rate/peak_amplitude_events_ML',
+                           '/kuafu/yinjx/Sanriku/peak_ampliutde_scaling_results_strain_rate/peak_amplitude_events_ML',# try ML picking
                            '/kuafu/yinjx/LA_Google/peak_ampliutde_scaling_results_strain_rate/peak_amplitude_events']
 
 for ii_region in [4]:#[0, 1, 2]:
@@ -283,4 +283,48 @@ for ii_region in [4]:#[0, 1, 2]:
     temp_df.snrS[ii] = temp_df.snrP[ii] + temp_df.snrS[ii]
 
     temp_df.to_csv(peak_amplitude_dir + '/peak_amplitude.csv', index=False)
+# %%
+# Calibrate distance to hypocentral distance
+das_pick_file_folder_list = ['/kuafu/yinjx/Ridgecrest/Ridgecrest_scaling/peak_amplitude_events',
+                            '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/South/peak_amplitude_events',
+                            '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/North/peak_amplitude_events',
+                            '/kuafu/yinjx/Sanriku/peak_ampliutde_scaling_results_strain_rate/peak_amplitude_events',
+                            '/kuafu/yinjx/LA_Google/peak_ampliutde_scaling_results_strain_rate/peak_amplitude_events']
+
+catalog_file_list = ['/kuafu/EventData/Ridgecrest/catalog.csv',
+                '/kuafu/EventData/Mammoth_south/catalog.csv',
+                '/kuafu/EventData/Mammoth_north/catalog.csv',
+                '/kuafu/EventData/Sanriku_ERI/catalog.csv',
+                '/kuafu/EventData/LA_Google/catalog.csv']
+
+region_list = ['ridgecrest', 'mammothS', 'mammothN', 'Sanriku', 'LA-Google']
+
+das_pick_file_name = 'peak_amplitude.csv'
+
+for ii in [4]:#range(4):
+    das_pick_file_folder = das_pick_file_folder_list[ii]
+    catalog_file = catalog_file_list[ii]
+    print(f'=========== Working on {das_pick_file_folder} ===============')
+
+    peak_amplitude_df = pd.read_csv(das_pick_file_folder + '/' + das_pick_file_name)
+    catalog = pd.read_csv(catalog_file)
+
+    # combine the two dataframe to include the event depth information
+    catalog_depth = catalog.loc[:, ['event_id', 'depth_km']]
+    peak_amplitude_df = pd.merge(peak_amplitude_df, catalog_depth, on="event_id")
+    peak_amplitude_df['calibrated_distance_in_km'] = np.sqrt(peak_amplitude_df.depth_km**2 + peak_amplitude_df.distance_in_km**2)
+    
+
+    if ii==3:
+        temp1 = np.array([0, 1, 25, 2, 3, 26])
+        temp2 = np.arange(4, 25)
+    else:
+        temp1 = np.array([0, 1, 24, 2, 3, 25])
+        temp2 = np.arange(4, 24)
+    
+    reorder_index = np.concatenate((temp1, temp2), axis=0)
+    peak_amplitude_df = peak_amplitude_df.iloc[:, reorder_index]
+    peak_amplitude_df['region'] = region_list[ii]
+
+    peak_amplitude_df.to_csv(das_pick_file_folder + '/calibrated_' + das_pick_file_name, index=False)
 # %%
