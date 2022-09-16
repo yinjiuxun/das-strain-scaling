@@ -66,10 +66,10 @@ def secondary_site_calibration(regP, regS, peak_amplitude_df):
     #weighted_all = np.nansum(10**peak_amplitude_df.magnitude)
     peak_amplitude_df_temp.diff_peak_P = (-y_P_predict + np.log10(peak_amplitude_df.peak_P))#*10**peak_amplitude_df.magnitude/weighted_all
     peak_amplitude_df_temp.diff_peak_S = (-y_S_predict + np.log10(peak_amplitude_df.peak_S))#*10**peak_amplitude_df.magnitude/weighted_all
-    peak_amplitude_df_temp.region_site = peak_amplitude_df_temp.region + '-' + peak_amplitude_df.combined_channel_id.astype('str')
+    #peak_amplitude_df_temp.region_site = peak_amplitude_df_temp.region + '-' + peak_amplitude_df.combined_channel_id.astype('str')
 
     second_calibration = peak_amplitude_df_temp.groupby(['channel_id', 'region'], as_index=False).mean()
-    temp_df = peak_amplitude_df_temp[['region_site', 'channel_id', 'region']].drop_duplicates(subset=['channel_id', 'region_site'])
+    temp_df = peak_amplitude_df_temp[['channel_id', 'region']].drop_duplicates(subset=['channel_id', 'region'])
     second_calibration = pd.merge(second_calibration, temp_df, how='inner', left_on=['channel_id', 'region'], right_on=['channel_id', 'region'])
     second_calibration = second_calibration.drop(columns=['magnitude'])
     return second_calibration
@@ -112,6 +112,15 @@ def extract_site_terms(regP, regS, peak_amplitude_df):
 
     return site_term_df
 
+def initialize_site_term(regP, regS, peak_amplitude_df):
+    """Funciton used to initialize the site terms dataframe with constant site term"""
+    site_term_df = peak_amplitude_df.groupby(['region','channel_id']).size().reset_index().drop(columns=0)
+    site_term_df['site_term_P'] = 0
+    site_term_df['site_term_S'] = 0
+    for region_i in site_term_df.region.unique():
+        site_term_df.site_term_P[site_term_df[site_term_df.region == region_i].index] = regP.params[f'C(region)[{region_i}]']
+        site_term_df.site_term_S[site_term_df[site_term_df.region == region_i].index] = regS.params[f'C(region)[{region_i}]']
+    return site_term_df
 
 def fit_regression_iteration(peak_amplitude_df, weighted='wls', M_threshold=[0, 10], snr_threshold=10, min_channel=100, n_iter=50, rms_epsilon=0.2, show_figure=False):
     """Funciton to iteratively fit for the scaling coefficients"""
@@ -131,22 +140,22 @@ def fit_regression_iteration(peak_amplitude_df, weighted='wls', M_threshold=[0, 
     if weighted == 'wls':
         # Weighted Linear Square (WLS)
         # Linear regression with weight, the weight is 10**(magnitude/2)
-        regP = smf.wls(formula='np.log10(peak_P) ~ magnitude + np.log10(distance_in_km) + C(region_site) - 1', 
+        regP = smf.wls(formula='np.log10(peak_P) ~ magnitude + np.log10(distance_in_km) + C(region) - 1', 
                     data=peak_amplitude_df_P0, weights = (10**peak_amplitude_df_P0.magnitude)).fit()
-        regS = smf.wls(formula='np.log10(peak_S) ~ magnitude + np.log10(distance_in_km) + C(region_site) - 1', 
+        regS = smf.wls(formula='np.log10(peak_S) ~ magnitude + np.log10(distance_in_km) + C(region) - 1', 
                     data=peak_amplitude_df_S0, weights = (10**peak_amplitude_df_S0.magnitude)).fit() 
     elif weighted == 'ols':
         # Weighted Linear Square (WLS)
         # Linear regression with weight, the weight is 10**(magnitude/2)
         # Initial regression:
-        regP = smf.ols(formula='np.log10(peak_P) ~ magnitude + np.log10(distance_in_km) + C(region_site) - 1', 
+        regP = smf.ols(formula='np.log10(peak_P) ~ magnitude + np.log10(distance_in_km) + C(region) - 1', 
                     data=peak_amplitude_df_P0).fit()
-        regS = smf.ols(formula='np.log10(peak_S) ~ magnitude + np.log10(distance_in_km) + C(region_site) - 1', 
+        regS = smf.ols(formula='np.log10(peak_S) ~ magnitude + np.log10(distance_in_km) + C(region) - 1', 
                     data=peak_amplitude_df_S0).fit() 
     else:
         raise TypeError(f'"{weighted}" is not defined, only "ols" or "wls"!')
 
-    site_term_df = extract_site_terms(regP, regS, peak_amplitude_df)
+    site_term_df = initialize_site_term(regP, regS, peak_amplitude_df)
 
     # interation begin
     second_calibration = secondary_site_calibration(regP, regS, peak_amplitude_df)
@@ -156,10 +165,12 @@ def fit_regression_iteration(peak_amplitude_df, weighted='wls', M_threshold=[0, 
     if show_figure:
         fig, ax= plt.subplots(2,2, figsize=(10, 10))
         ax = ax.flatten()
-        colors = plt.cm.jet(np.linspace(0, 1, n_iter+1))
+        colors = plt.cm.jet(np.linspace(0, 1, n_iter+5))
 
     # initialize iteration parameters
     fitting_rms = []
+    fitting_rms_P = []
+    fitting_rms_S = []
     i_iter = 0
     fitting_rms_diff = 1e20 # to record the improvement of rms
 
@@ -199,10 +210,14 @@ def fit_regression_iteration(peak_amplitude_df, weighted='wls', M_threshold=[0, 
             raise TypeError(f'"{weighted}" is not defined, only "ols" or "wls"!')
 
         # record the misfit
-        fitting_rms_iter = np.nanmean((np.log10(peak_amplitude_df_P.peak_P) - regP.predict(peak_amplitude_df_P))**2)**0.5
+        fitting_rms_iter_P = np.nanmean((np.log10(peak_amplitude_df_P.peak_P) - regP.predict(peak_amplitude_df_P))**2)**0.5
+        fitting_rms_iter_S = np.nanmean((np.log10(peak_amplitude_df_S.peak_S) - regS.predict(peak_amplitude_df_S))**2)**0.5
+        fitting_rms_iter = (fitting_rms_iter_P + fitting_rms_iter_S)/2
         if i_iter > 1:
             fitting_rms_diff = abs((fitting_rms_iter - fitting_rms[-1])/fitting_rms[-1] * 100)
         fitting_rms.append(fitting_rms_iter)
+        fitting_rms_P.append(fitting_rms_iter_P)
+        fitting_rms_S.append(fitting_rms_iter_S)
 
         print([regP.params])
         print(f'================={i_iter} iter ---- fitting rms: {fitting_rms_iter}=================')
@@ -213,7 +228,7 @@ def fit_regression_iteration(peak_amplitude_df, weighted='wls', M_threshold=[0, 
         second_calibration_S = secondary_site_calibration(regP, regS, peak_amplitude_df_S)
         second_calibration_S.diff_peak_S = second_calibration_S.diff_peak_S 
 
-        second_calibration_diff = pd.merge(second_calibration[['channel_id', 'region', 'region_site']], second_calibration_P[['channel_id', 'region', 'diff_peak_P']],
+        second_calibration_diff = pd.merge(second_calibration[['channel_id', 'region']], second_calibration_P[['channel_id', 'region', 'diff_peak_P']],
                             how='outer', left_on=['channel_id', 'region'], right_on=['channel_id', 'region'])
         second_calibration_diff = pd.merge(second_calibration_diff, second_calibration_S[['channel_id', 'region', 'diff_peak_S']],
                             how='outer', left_on=['channel_id', 'region'], right_on=['channel_id', 'region'])
@@ -228,8 +243,13 @@ def fit_regression_iteration(peak_amplitude_df, weighted='wls', M_threshold=[0, 
         ax[3].set_title('Fitting coefficients')
 
         fig, ax = plt.subplots()
-        ax.plot(np.arange(1, len(fitting_rms)+1), fitting_rms, '-o')
+        ax.plot(np.arange(1, len(fitting_rms)+1), fitting_rms, '-ko', label='averaged')
+        ax.plot(np.arange(1, len(fitting_rms_P)+1), fitting_rms_P, '-ro', label='P')
+        ax.plot(np.arange(1, len(fitting_rms_S)+1), fitting_rms_S, '-bo', label='S')
+        ax.legend()
         ax.set_xlabel('Iterations')
         ax.set_ylabel('Fitting RMS')
     
     return regP, regS, site_term_df
+
+# %%
