@@ -112,6 +112,21 @@ def extract_site_terms(regP, regS, peak_amplitude_df):
 
     return site_term_df
 
+def site_term_avg(site_term, site_term_key, peak_key, weights=False):
+    if weights:
+        # calculate weight normal
+        weight_normal = site_term[['channel_id', 'weight', 'event_id']]
+        weight_normal = weight_normal.groupby('channel_id').sum().reset_index()
+        # calculate site term
+        site_term[site_term_key] = site_term[peak_key]*site_term['weight']
+        site_term = site_term.groupby('channel_id').sum().reset_index() 
+        site_term[site_term_key] = site_term[site_term_key] / weight_normal['weight']
+        return site_term[['channel_id', site_term_key]]
+    else:
+        site_term = site_term.groupby('channel_id').mean().reset_index()
+        site_term = site_term.rename(columns={peak_key: site_term_key})
+        return site_term[['channel_id', site_term_key]]
+        
 def initialize_site_term(regP, regS, peak_amplitude_df):
     """Funciton used to initialize the site terms dataframe with constant site term"""
     site_term_df = peak_amplitude_df.groupby(['region','channel_id']).size().reset_index().drop(columns=0)
@@ -174,8 +189,11 @@ def fit_regression_iteration(peak_amplitude_df, weighted='wls', M_threshold=[0, 
     i_iter = 0
     fitting_rms_diff = 1e20 # to record the improvement of rms
 
+    # to store the results in the previous iteration
     # for i_iter in range(n_iter):
     while (i_iter <= n_iter) and (fitting_rms_diff >= rms_epsilon):
+        if i_iter >= 1:
+            regP0, regS0, site_term_df0 = regP, regS, site_term_df
         i_iter+=1
         # update site term
         site_term_df = pd.concat([site_term_df, second_calibration]).groupby(['channel_id', 'region']).sum(min_count=1).reset_index()
@@ -214,13 +232,17 @@ def fit_regression_iteration(peak_amplitude_df, weighted='wls', M_threshold=[0, 
         fitting_rms_iter_S = np.nanmean((np.log10(peak_amplitude_df_S.peak_S) - regS.predict(peak_amplitude_df_S))**2)**0.5
         fitting_rms_iter = (fitting_rms_iter_P + fitting_rms_iter_S)/2
         if i_iter > 1:
-            fitting_rms_diff = abs((fitting_rms_iter - fitting_rms[-1])/fitting_rms[-1] * 100)
+            fitting_rms_diff = -((fitting_rms_iter - fitting_rms[-1])/fitting_rms[-1] * 100)
         fitting_rms.append(fitting_rms_iter)
         fitting_rms_P.append(fitting_rms_iter_P)
         fitting_rms_S.append(fitting_rms_iter_S)
 
-        print([regP.params])
+        # print information about the regression
         print(f'================={i_iter} iter ---- fitting rms: {fitting_rms_iter}=================')
+        print('======= P parameters ======')
+        print([regP.params])
+        print('======= S parameters ======')
+        print([regS.params])
 
         # Update site terms
         second_calibration_P = secondary_site_calibration(regP, regS, peak_amplitude_df_P)
@@ -250,16 +272,85 @@ def fit_regression_iteration(peak_amplitude_df, weighted='wls', M_threshold=[0, 
         ax.set_xlabel('Iterations')
         ax.set_ylabel('Fitting RMS')
     
-    return regP, regS, site_term_df
+    return regP0, regS0, site_term_df0
 
 
-def predict_strain(peak_amplitude_df, regX, site_term_df, type):
+def fit_regression_transfer(peak_amplitude_df, regX, wavetype, weighted, M_threshold=[0, 10], snr_threshold=10, min_channel=100):
+    if M_threshold:
+        peak_amplitude_df = peak_amplitude_df[(peak_amplitude_df.magnitude >= M_threshold[0]) & (peak_amplitude_df.magnitude <= M_threshold[1])]
+
+    # use P and S separately to do the regression
+    peak_amplitude_df_P, peak_amplitude_df_S = split_P_S_dataframe(peak_amplitude_df, snr_threshold)
+
+    if min_channel: # only keep events with available channels > min_channel
+        peak_amplitude_df_P0 = filter_by_channel_number(peak_amplitude_df_P, min_channel)
+        peak_amplitude_df_S0 = filter_by_channel_number(peak_amplitude_df_S, min_channel)
+
+    site_term = peak_amplitude_df_P0.copy()
+
+    # remove the contribution from fixed coefficients contribution
+    mag_coef, dist_coef = regX.params['magnitude'], regX.params['np.log10(distance_in_km)']
+    if wavetype.lower() == 'p':
+        peak_key = 'peak_P'
+        site_term_key = 'site_term_P'
+    elif wavetype.lower() == 's':
+        peak_key = 'peak_S'
+        site_term_key = 'site_term_S'
+    else:
+        raise TypeError("wavetype must be 'P' or 'S' !")
+
+    site_term[peak_key] = np.log10(site_term[peak_key] / 10**(site_term.magnitude * mag_coef) / site_term.distance_in_km**dist_coef)
+    site_term['weight'] = 10**(site_term.magnitude/2) 
+
+    if weighted == 'wls': # TODO: apply weighted average
+        site_term = site_term_avg(site_term, site_term_key, peak_key, weights=True)
+    elif weighted == 'ols':
+        site_term = site_term_avg(site_term, site_term_key, peak_key, weights=False)
+    else:
+        raise TypeError('weighted must be "wls" or "ols"!')
+
+    return site_term
+
+
+def predict_strain(peak_amplitude_df, regX, site_term_df, wavetype):
     """Given data, regression results and site term DataFrame, predict the strain rate"""
     peak_amplitude_df_temp = pd.merge(peak_amplitude_df, site_term_df, how='outer', left_on=['channel_id', 'region'], right_on=['channel_id', 'region'])
-    if type.lower() == 'p':
+    if wavetype.lower() == 'p':
         peak_predicted = 10**(regX.predict(peak_amplitude_df_temp) + peak_amplitude_df_temp.site_term_P)
-    elif type.lower() == 's':
+    elif wavetype.lower() == 's':
         peak_predicted = 10**(regX.predict(peak_amplitude_df_temp) + peak_amplitude_df_temp.site_term_S)
     else:
-        raise TypeError("type must be 'P' or 'S' !")
+        raise TypeError("wavetype must be 'P' or 'S' !")
     return peak_predicted, peak_amplitude_df_temp
+
+def predict_magnitude(peak_amplitude_df, regX, site_term_df, wavetype):
+    """Given data, regression results and site term DataFrame, predict the magnitude"""
+    peak_amplitude_df_temp = pd.merge(peak_amplitude_df, site_term_df, how='outer', left_on=['channel_id', 'region'], right_on=['channel_id', 'region'])
+    if wavetype.lower() == 'p':
+        predicted_magnitude = (np.log10(peak_amplitude_df_temp.peak_P) - peak_amplitude_df_temp.site_term_P  \
+                    - regX.params['np.log10(distance_in_km)']*np.log10(peak_amplitude_df_temp.distance_in_km)) \
+                    / regX.params['magnitude']
+    elif wavetype.lower() == 's':
+        predicted_magnitude = (np.log10(peak_amplitude_df_temp.peak_S) - peak_amplitude_df_temp.site_term_S  \
+                    - regX.params['np.log10(distance_in_km)']*np.log10(peak_amplitude_df_temp.distance_in_km)) \
+                    / regX.params['magnitude']
+    else:
+        raise TypeError("wavetype must be 'P' or 'S' !")
+
+    
+    return predicted_magnitude, peak_amplitude_df_temp
+
+def get_mean_magnitude(peak_amplitude_df, M_predict):
+    """Average the predicted magnitude for all available channels to obtain a final estimation"""
+    temp_df = peak_amplitude_df[['event_id', 'magnitude']].copy()
+    temp_df['predicted_M'] = M_predict
+    temp_df = temp_df.groupby(temp_df['event_id']).aggregate(np.nanmedian)
+
+    temp_df2 = peak_amplitude_df[['event_id', 'magnitude']].copy()
+    temp_df2['predicted_M_std'] = M_predict
+    temp_df2 = temp_df2.groupby(temp_df2['event_id']).aggregate(np.nanstd)
+    
+    temp_df = pd.concat([temp_df, temp_df2['predicted_M_std']], axis=1)
+
+    return temp_df
+# %%
