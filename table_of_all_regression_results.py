@@ -24,21 +24,20 @@ params = {
     'savefig.facecolor': 'white'
 }
 #%%
-results_output_dir_list = ['/home/yinjx/kuafu/Ridgecrest/Ridgecrest_scaling/peak_amplitude_scaling_results_strain_rate',
+results_output_dir_list = ['/kuafu/yinjx/Ridgecrest/Ridgecrest_scaling/peak_amplitude_scaling_results_strain_rate',
                       '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/North',
                       '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/South',
-                      '/kuafu/yinjx/Sanriku/peak_ampliutde_scaling_results_strain_rate',
-                      '/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RM']
-region_list = ['Ridgecrest', 'Long-Valley N', 'Long-Valley S', 'Sanriku', 'combined']
-regression_dir_list = ['regression_results_smf_100_channel_at_least', 'regression_results_smf_weighted_100_channel_at_least'] # 'regression_results_smf_M4'
+                      '/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RM',
+                      '/kuafu/yinjx/Sanriku/peak_ampliutde_scaling_results_strain_rate'
+                      ]
+region_list = ['Ridgecrest', 'Long-Valley N', 'Long-Valley S', 'combined', 'Sanriku']
+regression_dir_list = ['iter_regression_results_smf_100_channel_at_least', 'iter_regression_results_smf_weighted_100_channel_at_least'] # 'regression_results_smf_M4'
 output_label = ['unweighted', 'weighted']
-nearby_channel_numbers = [-1, 10, 20, 50, 100]
-
 
 
 
                                    
-all_results_pd_weighted = pd.DataFrame(columns={'region', 'site-term smoothing', 
+all_results_pd_weighted = pd.DataFrame(columns={'region', 
                                        'mag coef. (P)', 'dist coef. (P)', 'mag coef. uncertainty (P)', 'dist coef. uncertainty (P)',
                                        'mag coef. (S)', 'dist coef. (S)', 'mag coef. uncertainty (S)', 'dist coef. uncertainty (S)'})
 
@@ -51,59 +50,50 @@ i_row = 0 # used to assign values
 
 ii_weight = 1 # 0 for unweight, 1 for weighted
 for ii_weight in [0, 1]:
-    all_results_pd = pd.DataFrame(columns=['region', 'site-term smoothing', 
+    all_results_pd = pd.DataFrame(columns=['region',
                                        'mag coef. (P)', 'dist coef. (P)', 'mag coef. uncertainty (P)', 'dist coef. uncertainty (P)',
                                        'mag coef. (S)', 'dist coef. (S)', 'mag coef. uncertainty (S)', 'dist coef. uncertainty (S)'])
                                        
-    for ii_region, results_output_dir in enumerate(results_output_dir_list):
-    # ii_region = 0 
-    # results_output_dir = results_output_dir_list[ii_region]
-        for nearby_channel_number in nearby_channel_numbers:
-        #nearby_channel_number = nearby_channel_numbers[0]
-        # for regression_dir in regression_dir_list:
-            
-            regression_dir = regression_dir_list[ii_weight]
+    for ii_region, results_output_dir in enumerate(results_output_dir_list[:4]):
+        regression_dir = regression_dir_list[ii_weight]
 
-            if region_list[ii_region] != 'Sanriku':
-                regP = sm.load(results_output_dir + '/' + regression_dir + f"/P_regression_combined_site_terms_{nearby_channel_number}chan.pickle")
-                regS = sm.load(results_output_dir + '/' + regression_dir + f"/S_regression_combined_site_terms_{nearby_channel_number}chan.pickle")
-            elif nearby_channel_number == -1:
-                i_row += 1
-                continue
+        if region_list[ii_region] != 'Sanriku':
+            regP = sm.load(results_output_dir + '/' + regression_dir + "/P_regression_combined_site_terms_iter.pickle")
+            regS = sm.load(results_output_dir + '/' + regression_dir + "/S_regression_combined_site_terms_iter.pickle")
+        else:
+            if ii_weight==0:
+                regression_dir = 'regression_results_smf_all_coefficients_drop_4130_100_channel_at_least'
             else:
-                if ii_weight==0:
-                    regression_dir = 'regression_results_smf_all_coefficients_drop_4130_100_channel_at_least'
-                else:
-                    regression_dir = 'regression_results_smf_weighted_all_coefficients_drop_4130_100_channel_at_least'
+                regression_dir = 'regression_results_smf_weighted_all_coefficients_drop_4130_100_channel_at_least'
 
-                regS = sm.load(results_output_dir + '/' + regression_dir + f"/S_regression_combined_site_terms_{nearby_channel_number}chan.pickle")
-            
-            all_results_pd.at[i_row, 'region'] = region_list[ii_region]
-            all_results_pd.at[i_row, 'site-term smoothing'] = nearby_channel_number
-            if region_list[ii_region] == 'Sanriku':
-                all_results_pd.at[i_row, 'mag coef. (P)'] = np.nan
-                all_results_pd.at[i_row, 'dist coef. (P)'] = np.nan
-                all_results_pd.at[i_row, 'mag coef. uncertainty (P)'] = np.nan
-                all_results_pd.at[i_row, 'dist coef. uncertainty (P)'] = np.nan
-            else:
-                all_results_pd.at[i_row, 'mag coef. (P)'] = regP.params['magnitude']
-                all_results_pd.at[i_row, 'dist coef. (P)'] = regP.params['np.log10(distance_in_km)']
-                all_results_pd.at[i_row, 'mag coef. uncertainty (P)'] = uncertainty_from_covariance(regP.cov_params(), 'magnitude')
-                all_results_pd.at[i_row, 'dist coef. uncertainty (P)'] = uncertainty_from_covariance(regP.cov_params(), 'np.log10(distance_in_km)')
+            regS = sm.load(results_output_dir + '/' + regression_dir + f"/S_regression_combined_site_terms_{nearby_channel_number}chan.pickle")
+        
+        all_results_pd.at[i_row, 'region'] = region_list[ii_region]
 
-            all_results_pd.at[i_row, 'mag coef. (S)'] = regS.params['magnitude']
-            all_results_pd.at[i_row, 'dist coef. (S)'] = regS.params['np.log10(distance_in_km)']
-            all_results_pd.at[i_row, 'mag coef. uncertainty (S)'] = uncertainty_from_covariance(regS.cov_params(), 'magnitude')
-            all_results_pd.at[i_row, 'dist coef. uncertainty (S)'] = uncertainty_from_covariance(regS.cov_params(), 'np.log10(distance_in_km)')
+        if region_list[ii_region] == 'Sanriku':
+            all_results_pd.at[i_row, 'mag coef. (P)'] = np.nan
+            all_results_pd.at[i_row, 'dist coef. (P)'] = np.nan
+            all_results_pd.at[i_row, 'mag coef. uncertainty (P)'] = np.nan
+            all_results_pd.at[i_row, 'dist coef. uncertainty (P)'] = np.nan
+        else:
+            all_results_pd.at[i_row, 'mag coef. (P)'] = regP.params['magnitude']
+            all_results_pd.at[i_row, 'dist coef. (P)'] = regP.params['np.log10(distance_in_km)']
+            all_results_pd.at[i_row, 'mag coef. uncertainty (P)'] = uncertainty_from_covariance(regP.cov_params(), 'magnitude')
+            all_results_pd.at[i_row, 'dist coef. uncertainty (P)'] = uncertainty_from_covariance(regP.cov_params(), 'np.log10(distance_in_km)')
 
-            i_row += 1
+        all_results_pd.at[i_row, 'mag coef. (S)'] = regS.params['magnitude']
+        all_results_pd.at[i_row, 'dist coef. (S)'] = regS.params['np.log10(distance_in_km)']
+        all_results_pd.at[i_row, 'mag coef. uncertainty (S)'] = uncertainty_from_covariance(regS.cov_params(), 'magnitude')
+        all_results_pd.at[i_row, 'dist coef. uncertainty (S)'] = uncertainty_from_covariance(regS.cov_params(), 'np.log10(distance_in_km)')
 
-    for ii_column in range(2, 10):
+        i_row += 1
+
+    for ii_column in range(2, 9):
         all_results_pd[all_results_pd.columns[ii_column]] = pd.to_numeric(all_results_pd[all_results_pd.columns[ii_column]])
 
     # 
     all_results_pd.iloc[:, 2:] = all_results_pd.iloc[:, 2:].astype('float')
-    all_results_pd.to_csv(f'/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RMS/all_coefficients_{output_label[ii_weight]}.csv', 
+    all_results_pd.to_csv(f'/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RM/all_coefficients_{output_label[ii_weight]}_iter.csv', 
                         index=False, float_format='%.4f')
 # %%
 all_results_pd_unweighted = pd.read_csv('/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RMS/all_coefficients_unweighted.csv')
