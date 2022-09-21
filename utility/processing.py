@@ -89,6 +89,13 @@ def filter_event(peak_amplitude_df, M_threshold=None, snr_threshold=None, min_ch
     
     return peak_amplitude_df
 
+# remove some extremely large outlier values 
+def remove_outliers(peak_amplitude_df, outlier_value=None):
+    if outlier_value:
+        peak_amplitude_df[peak_amplitude_df.peak_P >= outlier_value] = np.nan
+        peak_amplitude_df[peak_amplitude_df.peak_S >= outlier_value] = np.nan
+    return peak_amplitude_df
+
 # split P and S data from regression separately.
 def split_P_S_dataframe(peak_amplitude_df, snr_threshold=None):
     # use P and S separately to do the regression
