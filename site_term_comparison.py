@@ -1,5 +1,4 @@
 #%% import modules
-from calendar import c
 import os
 import pandas as pd
 #from sep_util import read_file
@@ -8,9 +7,170 @@ import statsmodels.formula.api as smf
 import statsmodels.api as sm
 import pandas as pd
 
-# import the plotting functions
-from plotting_functions import *
-from utility_functions import *
+import matplotlib
+import matplotlib.pyplot as plt
+
+# set plotting parameters 
+params = {
+    'image.interpolation': 'nearest',
+    'image.cmap': 'gray',
+    'savefig.dpi': 100,  # to adjust notebook inline plot size
+    'axes.labelsize': 18, # fontsize for x and y labels (was 10)
+    'axes.titlesize': 18,
+    'font.size': 18,
+    'legend.fontsize': 18,
+    'xtick.labelsize': 18,
+    'ytick.labelsize': 18,
+    'text.usetex':False,
+    'axes.facecolor': 'white',
+    'savefig.facecolor': 'white'
+}
+matplotlib.rcParams.update(params)
+
+from utility.plotting import add_annotate
+#%%
+# some parameters
+snr_threshold = 10
+min_channel = 100 # do regression only on events recorded by at least 100 channels
+M_threshold = [0, 10]
+
+results_output_dir_list = []
+dx_list = []
+
+# # Set result directory
+# multiple arrays
+results_output_dir = '/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RM'
+region_list = ['ridgecrest', 'mammothN', 'mammothS']
+region_text = ['Ridgecrest', 'Long Valley (N)', 'Long Valley (S)']
+site_term_list = ['P', 'S']
+dx_list = [8, 10, 10] # Ridgecrest, Mammoth N, Mammoth S
+
+
+regression_results_dir = results_output_dir + f'/iter_regression_results_smf_weighted_{min_channel}_channel_at_least'
+site_term_df = pd.read_csv(regression_results_dir + '/site_terms_iter.csv')
+
+
+fig, ax = plt.subplots(3, 2, figsize=(14, 14), )
+for i_region in range(len(region_list)):
+    region_key, region_dx = region_list[i_region], dx_list[i_region]
+
+    for i_wavetype, wavetype in enumerate(site_term_list):
+        temp = site_term_df[site_term_df.region == region_key]
+        gca = ax[i_region, i_wavetype]
+        gca.plot(temp.channel_id*region_dx/1e3, temp[f'site_term_{wavetype.upper()}'])
+        gca.set_title(f'{region_text[i_region]}, site term of {wavetype.upper()} wave')
+
+        if i_region == 2:
+            gca.set_xlabel('Distance to IU (km)')
+
+        if i_wavetype == 0:
+            gca.set_ylabel('Site term in log10')
+
+ax = add_annotate(ax)
+plt.subplots_adjust(wspace=0.2, hspace=0.3)
+
+# %%
+# single arrays
+results_output_dir_list = []
+region_key_list = []
+
+# Ridgecrest
+results_output_dir = '/kuafu/yinjx/Ridgecrest/Ridgecrest_scaling/peak_amplitude_scaling_results_strain_rate'
+region_dx = 8
+region_key = 'ridgecrest'
+region_text = 'Ridgecrest'
+results_output_dir_list.append(results_output_dir)
+
+# Long Valley N
+results_output_dir = '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/North'
+region_dx = 10
+region_key = 'mammothN'
+region_text = 'Long Valley (N)'
+results_output_dir_list.append(results_output_dir)
+
+# Long Valley S
+results_output_dir = '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/South'
+region_dx = 10
+region_key = 'mammothS'
+region_text = 'Long Valley (S)'
+results_output_dir_list.append(results_output_dir)
+
+# # LAX 
+# results_output_dir = '/kuafu/yinjx/LA_Google/peak_ampliutde_scaling_results_strain_rate'
+# region_dx = 10
+# region_key = 'LA-Google'
+# region_text = 'LA-Google'
+
+#%%
+regression_results_dir = results_output_dir + f'/iter_regression_results_smf_weighted_{min_channel}_channel_at_least'
+site_term_df = pd.read_csv(regression_results_dir + '/site_terms_iter.csv')
+
+site_term_list = ['P', 'S']
+fig, ax = plt.subplots(1, 2, figsize=(14, 4.5))
+
+for i_wavetype, wavetype in enumerate(site_term_list):
+    temp = site_term_df[site_term_df.region == region_key]
+    gca = ax[i_wavetype]
+    gca.plot(temp.channel_id*region_dx/1e3, temp[f'site_term_{wavetype.upper()}'])
+    gca.set_title(f'{region_text}, site term of {wavetype.upper()} wave')
+    gca.set_xlabel('Distance to IU (km)')
+ax[0].set_ylabel('Site term in log10')
+
+ax = add_annotate(ax)
+plt.subplots_adjust(wspace=0.2, hspace=0.3)
+
+
+
+#%%
+# some parameters
+snr_threshold = 10
+min_channel = 100 # do regression only on events recorded by at least 100 channels
+M_threshold = [0, 10]
+
+# # Set result directory
+# multiple arrays
+results_output_dir = '/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RM'
+region_list = ['ridgecrest', 'mammothN', 'mammothS']
+region_text = ['Ridgecrest', 'Long Valley (N)', 'Long Valley (S)']
+site_term_list = ['P', 'S']
+dx_list = [8, 10, 10] # Ridgecrest, Mammoth N, Mammoth S
+
+
+regression_results_dir = results_output_dir + f'/iter_regression_results_smf_weighted_{min_channel}_channel_at_least'
+site_term_df = pd.read_csv(regression_results_dir + '/site_terms_iter.csv')
+
+
+fig, ax = plt.subplots(3, 2, figsize=(14, 14), )
+for i_region in range(len(region_list)):
+    region_key, region_dx = region_list[i_region], dx_list[i_region]
+
+    # load results from single
+    regression_results_single = results_output_dir_list[i_region] + f'/iter_regression_results_smf_weighted_{min_channel}_channel_at_least'
+    site_term_df_single = pd.read_csv(regression_results_single + '/site_terms_iter.csv')
+
+    for i_wavetype, wavetype in enumerate(site_term_list):
+        temp = site_term_df[site_term_df.region == region_key]
+        gca = ax[i_region, i_wavetype]
+        gca.plot(temp.channel_id*region_dx/1e3, temp[f'site_term_{wavetype.upper()}'])
+        gca.plot(site_term_df_single.channel_id*region_dx/1e3, site_term_df_single[f'site_term_{wavetype.upper()}'])
+        
+        gca.set_title(f'{region_text[i_region]}, site term of {wavetype.upper()} wave')
+
+        if i_region == 2:
+            gca.set_xlabel('Distance to IU (km)')
+
+        if i_wavetype == 0:
+            gca.set_ylabel('Site term in log10')
+
+ax = add_annotate(ax)
+plt.subplots_adjust(wspace=0.2, hspace=0.3)
+
+
+
+
+
+#%% The Following will be removed soon!
+
 
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 # ==============================  Ridgecrest data ========================================
