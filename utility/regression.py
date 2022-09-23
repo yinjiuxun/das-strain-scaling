@@ -344,13 +344,17 @@ def get_mean_magnitude(peak_amplitude_df, M_predict):
     """Average the predicted magnitude for all available channels to obtain a final estimation"""
     temp_df = peak_amplitude_df[['event_id', 'magnitude']].copy()
     temp_df['predicted_M'] = M_predict
-    temp_df = temp_df.groupby(temp_df['event_id']).aggregate(np.nanmedian)
 
-    temp_df2 = peak_amplitude_df[['event_id', 'magnitude']].copy()
-    temp_df2['predicted_M_std'] = M_predict
-    temp_df2 = temp_df2.groupby(temp_df2['event_id']).aggregate(np.nanstd)
-    
-    temp_df = pd.concat([temp_df, temp_df2['predicted_M_std']], axis=1)
+    if len(M_predict[~M_predict.isna()]) == 0:
+        temp_df['predicted_M_std'] = M_predict
 
-    return temp_df
+    else:
+        temp_df = temp_df.groupby(temp_df['event_id']).aggregate(np.nanmedian)
+
+        temp_df2 = peak_amplitude_df[['event_id', 'magnitude']].copy()
+        temp_df2['predicted_M_std'] = M_predict
+        temp_df2 = temp_df2.groupby(temp_df2['event_id']).aggregate(np.nanstd)
+        temp_df = pd.concat([temp_df, temp_df2['predicted_M_std']], axis=1)
+
+    return temp_df.reset_index()
 # %%

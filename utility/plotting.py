@@ -43,7 +43,7 @@ def plot_prediction_vs_measure_seaborn(peak_comparison_df, phase, bins=40, vmin=
     cax = g.figure.add_axes([.65, .2, .02, .2])
 
 # Add the joint and marginal histogram plots 03012d
-    g.plot_joint(sns.histplot, discrete=(False, False), bins=(bins*2,bins), cmap="light:#4D4D9C", vmin=vmin, vmax=vmax, cbar=True, cbar_ax=cax, cbar_kws={'label': 'counts'})
+    g.plot_joint(sns.histplot, discrete=(False, False), bins=(bins,bins), cmap="light:#4D4D9C", vmin=vmin, vmax=vmax, cbar=True, cbar_ax=cax, cbar_kws={'label': 'counts'})
     g.plot_marginals(sns.histplot, element="step", bins=bins, color="#4D4D9C")
 
     if 'xlim' in kwargs.keys():
@@ -64,9 +64,15 @@ def plot_magnitude_seaborn(df_magnitude, **kwargs): # TODO: think about the kwar
     # Create an inset legend for the histogram colorbar
     cax = g.figure.add_axes([.65, .2, .02, .2])
 
+    vmin, vmax = None, None
+    if 'vmin' in kwargs.keys():
+        vmin = kwargs['vmin']
+    if 'vmax' in kwargs.keys():
+        vmax = kwargs['vmax']
+
     # Add the joint and marginal histogram plots 03012d
     g.plot_joint(
-    sns.histplot, discrete=(False, False), bins=(20, 20),
+    sns.histplot, discrete=(False, False), bins=(20, 20), vmax=vmax, vmin=vmin,
     cmap="dark:#fcd9bb_r", pmax=.7, cbar=True, cbar_ax=cax, cbar_kws={'label':'counts', 'spacing': 'proportional'})
     g.plot_marginals(sns.histplot, element="step", color="#c4a589") # light:#9C4D4D
 
