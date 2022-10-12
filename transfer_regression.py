@@ -31,15 +31,13 @@ def transfer_fitting(regP_pre, regS_pre, peak_amplitude_df_fit, weighted):
 
     # combine P and S
     site_term_df = pd.merge(site_term_P, site_term_S, on='channel_id', how='outer')
-    site_term_df['region'] = region_text
+    site_term_df['region'] = peak_amplitude_df_fit.region.unique()[0]
     site_term_df = site_term_df.iloc[:, [0, 3, 1, 2]]
     return site_term_df
 
 #%%
 # some parameters
-snr_threshold_transfer = 5
 min_channel = 100 # do regression only on events recorded by at least 100 channels
-M_threshold = [0, 10]
 
 weighted = 'wls' # 'ols' or 'wls'
 if weighted == 'ols':
@@ -94,8 +92,15 @@ regS_pre = sm.load(regS_pre_path)
 #%%
 # TODO: systematically test the fittig events
 results_output_dir = '/kuafu/yinjx/LA_Google/peak_ampliutde_scaling_results_strain_rate'
-region_text = 'LA-Google'
+snr_threshold_transfer = 10
+M_threshold = [2, 10]
+
+# results_output_dir = '/kuafu/yinjx/Sanriku/peak_ampliutde_scaling_results_strain_rate'
+# snr_threshold_transfer = 5
+# M_threshold = [2, 10]
+
 peak_amplitude_df = pd.read_csv(results_output_dir + '/peak_amplitude_events/calibrated_peak_amplitude.csv')
+peak_amplitude_df['distance_in_km'] = peak_amplitude_df['calibrated_distance_in_km']
 peak_amplitude_df = filter_event(peak_amplitude_df, snr_threshold=snr_threshold_transfer, min_channel=min_channel)
 event_id_all =  peak_amplitude_df.event_id.unique()
 
