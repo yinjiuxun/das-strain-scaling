@@ -16,7 +16,6 @@ from utility.plotting import plot_prediction_vs_measure_seaborn
 #%%
 # some parameters
 min_channel = 100 # do regression only on events recorded by at least 100 channels
-M_threshold = [0, 10]
 weighted = 'wls' # 'ols' or 'wls'
 if weighted == 'ols':
     weight_text = '' 
@@ -25,109 +24,148 @@ elif weighted == 'wls':
 else:
     raise
 
+random_test = True # whether to run the random test for transfered scaling
+
 results_output_dir_list = []
 regression_results_dir_list = []
 peak_file_name_list = []
 result_label_list = []
 snr_threshold_list = []
 vmax_list = []
+M_threshold_list = []
 
 #%% # Set result directory
-# ================== multiple arrays ================== 
-results_output_dir = '/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RM'
-peak_file_name = '/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RM/peak_amplitude_multiple_arrays.csv'
-result_label = 'iter'
-regression_results_dir = results_output_dir + f'/{result_label}_regression_results_smf{weight_text}_{min_channel}_channel_at_least'
-snr_threshold = 10
-vmax=10000
+if not random_test:
+    # ================== multiple arrays ================== 
+    results_output_dir = '/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RM'
+    peak_file_name = '/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RM/peak_amplitude_multiple_arrays.csv'
+    result_label = 'iter'
+    regression_results_dir = results_output_dir + f'/{result_label}_regression_results_smf{weight_text}_{min_channel}_channel_at_least'
+    snr_threshold = 10
+    M_threshold = [2, 10]
+    vmax=10000
 
-results_output_dir_list.append(results_output_dir)
-regression_results_dir_list.append(regression_results_dir)
-peak_file_name_list.append(peak_file_name)
-result_label_list.append(result_label)
-snr_threshold_list.append(snr_threshold)
-vmax_list.append(vmax)
+    results_output_dir_list.append(results_output_dir)
+    regression_results_dir_list.append(regression_results_dir)
+    peak_file_name_list.append(peak_file_name)
+    result_label_list.append(result_label)
+    snr_threshold_list.append(snr_threshold)
+    vmax_list.append(vmax)
+    M_threshold_list.append(M_threshold)
 
-# single arrays
-#  ================== Ridgecrest ================== 
-results_output_dir = '/kuafu/yinjx/Ridgecrest/Ridgecrest_scaling/peak_amplitude_scaling_results_strain_rate'
-peak_file_name = '/kuafu/yinjx/Ridgecrest/Ridgecrest_scaling/peak_amplitude_scaling_results_strain_rate/peak_amplitude_events/calibrated_peak_amplitude.csv'
-result_label = 'iter'
-regression_results_dir = results_output_dir + f'/{result_label}_regression_results_smf{weight_text}_{min_channel}_channel_at_least'
-snr_threshold = 10
-vmax=10000
+    # single arrays
+    #  ================== Ridgecrest ================== 
+    results_output_dir = '/kuafu/yinjx/Ridgecrest/Ridgecrest_scaling/peak_amplitude_scaling_results_strain_rate'
+    peak_file_name = '/kuafu/yinjx/Ridgecrest/Ridgecrest_scaling/peak_amplitude_scaling_results_strain_rate/peak_amplitude_events/calibrated_peak_amplitude.csv'
+    result_label = 'iter'
+    regression_results_dir = results_output_dir + f'/{result_label}_regression_results_smf{weight_text}_{min_channel}_channel_at_least'
+    snr_threshold = 10
+    M_threshold = [2, 10]
+    vmax=20000
 
-results_output_dir_list.append(results_output_dir)
-regression_results_dir_list.append(regression_results_dir)
-peak_file_name_list.append(peak_file_name)
-result_label_list.append(result_label)
-snr_threshold_list.append(snr_threshold)
-vmax_list.append(vmax)
+    results_output_dir_list.append(results_output_dir)
+    regression_results_dir_list.append(regression_results_dir)
+    peak_file_name_list.append(peak_file_name)
+    result_label_list.append(result_label)
+    snr_threshold_list.append(snr_threshold)
+    vmax_list.append(vmax)
+    M_threshold_list.append(M_threshold)
 
-#  ================== Long Valley N ================== 
-results_output_dir = '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/North'
-peak_file_name = '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/North/peak_amplitude_events/calibrated_peak_amplitude.csv'
-result_label = 'iter'
-regression_results_dir = results_output_dir + f'/{result_label}_regression_results_smf{weight_text}_{min_channel}_channel_at_least'
-snr_threshold = 10
-vmax=10000
+    #  ================== Long Valley N ================== 
+    results_output_dir = '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/North'
+    peak_file_name = '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/North/peak_amplitude_events/calibrated_peak_amplitude.csv'
+    result_label = 'iter'
+    regression_results_dir = results_output_dir + f'/{result_label}_regression_results_smf{weight_text}_{min_channel}_channel_at_least'
+    snr_threshold = 10
+    M_threshold = [2, 10]
+    vmax=10000
 
-results_output_dir_list.append(results_output_dir)
-regression_results_dir_list.append(regression_results_dir)
-peak_file_name_list.append(peak_file_name)
-result_label_list.append(result_label)
-snr_threshold_list.append(snr_threshold)
-vmax_list.append(vmax)
+    results_output_dir_list.append(results_output_dir)
+    regression_results_dir_list.append(regression_results_dir)
+    peak_file_name_list.append(peak_file_name)
+    result_label_list.append(result_label)
+    snr_threshold_list.append(snr_threshold)
+    vmax_list.append(vmax)
+    M_threshold_list.append(M_threshold)
 
-#  ================== Long Valley S ================== 
-results_output_dir = '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/South'
-peak_file_name = '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/South/peak_amplitude_events/calibrated_peak_amplitude.csv'
-result_label = 'iter'
-regression_results_dir = results_output_dir + f'/{result_label}_regression_results_smf{weight_text}_{min_channel}_channel_at_least'
-snr_threshold = 10
-vmax=10000
+    #  ================== Long Valley S ================== 
+    results_output_dir = '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/South'
+    peak_file_name = '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/South/peak_amplitude_events/calibrated_peak_amplitude.csv'
+    result_label = 'iter'
+    regression_results_dir = results_output_dir + f'/{result_label}_regression_results_smf{weight_text}_{min_channel}_channel_at_least'
+    snr_threshold = 10
+    M_threshold = [2, 10]
+    vmax=10000
 
-results_output_dir_list.append(results_output_dir)
-regression_results_dir_list.append(regression_results_dir)
-peak_file_name_list.append(peak_file_name)
-result_label_list.append(result_label)
-snr_threshold_list.append(snr_threshold)
-vmax_list.append(vmax)
+    results_output_dir_list.append(results_output_dir)
+    regression_results_dir_list.append(regression_results_dir)
+    peak_file_name_list.append(peak_file_name)
+    result_label_list.append(result_label)
+    snr_threshold_list.append(snr_threshold)
+    vmax_list.append(vmax)
+    M_threshold_list.append(M_threshold)
 
-#  ================== LAX transfered ================== 
-results_output_dir = '/kuafu/yinjx/LA_Google/peak_ampliutde_scaling_results_strain_rate'
-peak_file_name = '/kuafu/yinjx/LA_Google/peak_ampliutde_scaling_results_strain_rate/peak_amplitude_events/calibrated_peak_amplitude.csv'
-result_label = 'transfer'
-regression_results_dir = results_output_dir + f'/{result_label}_regression_results_smf{weight_text}_{min_channel}_channel_at_least'
-snr_threshold = 5
-vmax=50
+    #  ================== LAX fittd ================== 
+    results_output_dir = '/kuafu/yinjx/LA_Google/peak_ampliutde_scaling_results_strain_rate'
+    peak_file_name = '/kuafu/yinjx/LA_Google/peak_ampliutde_scaling_results_strain_rate/peak_amplitude_events/calibrated_peak_amplitude.csv'
+    result_label = 'iter'
+    regression_results_dir = results_output_dir + f'/{result_label}_regression_results_smf{weight_text}_{min_channel}_channel_at_least'
+    snr_threshold = 10
+    M_threshold = [2, 10]
+    vmax=1000
 
-results_output_dir_list.append(results_output_dir)
-regression_results_dir_list.append(regression_results_dir)
-peak_file_name_list.append(peak_file_name)
-result_label_list.append(result_label)
-snr_threshold_list.append(snr_threshold)
-vmax_list.append(vmax)
+    results_output_dir_list.append(results_output_dir)
+    regression_results_dir_list.append(regression_results_dir)
+    peak_file_name_list.append(peak_file_name)
+    result_label_list.append(result_label)
+    snr_threshold_list.append(snr_threshold)
+    vmax_list.append(vmax)
+    M_threshold_list.append(M_threshold)
 
-#  ================== LAX transfered test ================== 
-N_event_fit_list = [10]
-N_test = 5
-for N_event_fit in N_event_fit_list:
-    for i_test in range(N_test):
+else:
+    # #  ================== LAX transfered test ================== 
+    # N_event_fit_list = range(2, 30)
+    # N_test = 50
+    # for N_event_fit in N_event_fit_list:
+    #     for i_test in range(N_test):
 
-        results_output_dir = '/kuafu/yinjx/LA_Google/peak_ampliutde_scaling_results_strain_rate'
-        peak_file_name = '/kuafu/yinjx/LA_Google/peak_ampliutde_scaling_results_strain_rate/peak_amplitude_events/calibrated_peak_amplitude.csv'
-        result_label = 'transfer'
-        regression_results_dir = results_output_dir + f'/transfer_regression_test_smf{weight_text}_{min_channel}_channel_at_least//{N_event_fit}_fit_events_{i_test}th_test'
-        snr_threshold = 5
-        vmax = 50
+    #         results_output_dir = '/kuafu/yinjx/LA_Google/peak_ampliutde_scaling_results_strain_rate'
+    #         peak_file_name = '/kuafu/yinjx/LA_Google/peak_ampliutde_scaling_results_strain_rate/peak_amplitude_events/calibrated_peak_amplitude.csv'
+    #         result_label = 'transfer'
+    #         regression_results_dir = results_output_dir + f'/transfer_regression_test_smf{weight_text}_{min_channel}_channel_at_least/{N_event_fit}_fit_events_{i_test}th_test'
+    #         snr_threshold = 10
+    #         vmax = 50
+    #         M_threshold = [2, 10]
 
-        results_output_dir_list.append(results_output_dir)
-        regression_results_dir_list.append(regression_results_dir)
-        peak_file_name_list.append(peak_file_name)
-        result_label_list.append(result_label)
-        snr_threshold_list.append(snr_threshold)
-        vmax_list.append(vmax)
+    #         results_output_dir_list.append(results_output_dir)
+    #         regression_results_dir_list.append(regression_results_dir)
+    #         peak_file_name_list.append(peak_file_name)
+    #         result_label_list.append(result_label)
+    #         snr_threshold_list.append(snr_threshold)
+    #         vmax_list.append(vmax)
+    #         M_threshold_list.append(M_threshold)
+
+    # #  ================== Sanriku transfered test ================== 
+    N_event_fit_list = range(2, 30)
+    N_test = 50
+    for N_event_fit in N_event_fit_list:
+        for i_test in range(N_test):
+
+            results_output_dir = '/kuafu/yinjx/Sanriku/peak_ampliutde_scaling_results_strain_rate'
+            peak_file_name = '/kuafu/yinjx/Sanriku/peak_ampliutde_scaling_results_strain_rate/peak_amplitude_events/calibrated_peak_amplitude.csv'
+            result_label = 'transfer'
+            regression_results_dir = results_output_dir + f'/transfer_regression_test_smf{weight_text}_{min_channel}_channel_at_least/{N_event_fit}_fit_events_{i_test}th_test'
+            snr_threshold = 5
+            vmax = 50
+            M_threshold = [1, 10] 
+
+            results_output_dir_list.append(results_output_dir)
+            regression_results_dir_list.append(regression_results_dir)
+            peak_file_name_list.append(peak_file_name)
+            result_label_list.append(result_label)
+            snr_threshold_list.append(snr_threshold)
+            vmax_list.append(vmax)
+            M_threshold_list.append(M_threshold)
 
 
 #%%
@@ -142,6 +180,8 @@ for ii in range(len(peak_file_name_list)):
 
     # load results
     peak_amplitude_df = pd.read_csv(peak_file_name)
+    peak_amplitude_df['distance_in_km'] = peak_amplitude_df['calibrated_distance_in_km']
+
     peak_amplitude_df = filter_event(peak_amplitude_df, M_threshold=M_threshold, snr_threshold=snr_threshold, min_channel=min_channel)
 
     regP = sm.load(regression_results_dir + f"/P_regression_combined_site_terms_{result_label}.pickle")
@@ -193,7 +233,7 @@ for ii in range(len(peak_file_name_list)):
             print('No valid P wave regression results, skip ...')
             pass
 
-    
+    plt.close('all')
     
 
 

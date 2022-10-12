@@ -7,8 +7,13 @@ import statsmodels.formula.api as smf
 import statsmodels.api as sm
 import pandas as pd
 
+from utility.general import mkdir
+
 import matplotlib
 import matplotlib.pyplot as plt
+
+from utility.processing import filter_event
+from utility.processing import filter_event
 
 # set plotting parameters 
 params = {
@@ -29,10 +34,14 @@ matplotlib.rcParams.update(params)
 
 from utility.plotting import add_annotate
 #%%
+# plot site terms from all-region regression
 # some parameters
 snr_threshold = 10
 min_channel = 100 # do regression only on events recorded by at least 100 channels
 M_threshold = [0, 10]
+
+region_y_minP, region_y_maxP = [0, -1, -1], [1.5, 1.5, 1.5]
+region_y_minS, region_y_maxS = [0, -1, -1, -1.5], [1.5, 1.5, 1.5, 0]
 
 results_output_dir_list = []
 dx_list = []
@@ -50,15 +59,22 @@ regression_results_dir = results_output_dir + f'/iter_regression_results_smf_wei
 site_term_df = pd.read_csv(regression_results_dir + '/site_terms_iter.csv')
 
 
-fig, ax = plt.subplots(3, 2, figsize=(14, 14), )
+fig, ax = plt.subplots(3, 2, figsize=(16, 12), )
 for i_region in range(len(region_list)):
     region_key, region_dx = region_list[i_region], dx_list[i_region]
 
     for i_wavetype, wavetype in enumerate(site_term_list):
         temp = site_term_df[site_term_df.region == region_key]
         gca = ax[i_region, i_wavetype]
-        gca.plot(temp.channel_id*region_dx/1e3, temp[f'site_term_{wavetype.upper()}'])
+        gca.plot(temp.channel_id*region_dx/1e3, temp[f'site_term_{wavetype.upper()}'], '-k')
         gca.set_title(f'{region_text[i_region]}, site term of {wavetype.upper()} wave')
+
+        if i_wavetype == 0:
+            gca.set_ylim(region_y_minP[i_region], region_y_maxP[i_region])
+        elif i_wavetype == 1:
+            gca.set_ylim(region_y_minS[i_region], region_y_maxS[i_region])
+        else:
+            raise
 
         if i_region == 2:
             gca.set_xlabel('Distance to IU (km)')
@@ -68,18 +84,26 @@ for i_region in range(len(region_list)):
 
 ax = add_annotate(ax)
 plt.subplots_adjust(wspace=0.2, hspace=0.3)
+mkdir(regression_results_dir + '/figures')
+plt.savefig(regression_results_dir + '/figures/site_terms.png', bbox_inches='tight')
 
 # %%
 # single arrays
 results_output_dir_list = []
 region_key_list = []
+region_text_list = []
+region_dx_list = []
 
+#%%
 # Ridgecrest
 results_output_dir = '/kuafu/yinjx/Ridgecrest/Ridgecrest_scaling/peak_amplitude_scaling_results_strain_rate'
 region_dx = 8
 region_key = 'ridgecrest'
 region_text = 'Ridgecrest'
 results_output_dir_list.append(results_output_dir)
+region_key_list.append(region_key)
+region_text_list.append(region_text)
+region_dx_list.append(region_dx)
 
 # Long Valley N
 results_output_dir = '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/North'
@@ -87,6 +111,9 @@ region_dx = 10
 region_key = 'mammothN'
 region_text = 'Long Valley (N)'
 results_output_dir_list.append(results_output_dir)
+region_key_list.append(region_key)
+region_text_list.append(region_text)
+region_dx_list.append(region_dx)
 
 # Long Valley S
 results_output_dir = '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/South'
@@ -94,31 +121,78 @@ region_dx = 10
 region_key = 'mammothS'
 region_text = 'Long Valley (S)'
 results_output_dir_list.append(results_output_dir)
+region_key_list.append(region_key)
+region_text_list.append(region_text)
+region_dx_list.append(region_dx)
 
-# # LAX 
-# results_output_dir = '/kuafu/yinjx/LA_Google/peak_ampliutde_scaling_results_strain_rate'
-# region_dx = 10
-# region_key = 'LA-Google'
-# region_text = 'LA-Google'
+# LAX 
+results_output_dir = '/kuafu/yinjx/LA_Google/peak_ampliutde_scaling_results_strain_rate'
+region_dx = 10
+region_key = 'LA-Google'
+region_text = 'LA-Google'
+results_output_dir_list.append(results_output_dir)
+region_key_list.append(region_key)
+region_text_list.append(region_text)
+region_dx_list.append(region_dx)
 
 #%%
-regression_results_dir = results_output_dir + f'/iter_regression_results_smf_weighted_{min_channel}_channel_at_least'
-site_term_df = pd.read_csv(regression_results_dir + '/site_terms_iter.csv')
+weighted = 'wls' # 'ols' or 'wls'
+if weighted == 'ols':
+    weight_text = '' 
+elif weighted == 'wls':
+    weight_text = '_weighted' 
+else:
+    raise
 
-site_term_list = ['P', 'S']
-fig, ax = plt.subplots(1, 2, figsize=(14, 4.5))
+for i_region, results_output_dir in enumerate(results_output_dir_list):
+    print(results_output_dir)
+    region_key = region_key_list[i_region]
+    region_text = region_text_list[i_region]
+    region_dx = region_dx_list[i_region]
 
-for i_wavetype, wavetype in enumerate(site_term_list):
-    temp = site_term_df[site_term_df.region == region_key]
-    gca = ax[i_wavetype]
-    gca.plot(temp.channel_id*region_dx/1e3, temp[f'site_term_{wavetype.upper()}'])
-    gca.set_title(f'{region_text}, site term of {wavetype.upper()} wave')
-    gca.set_xlabel('Distance to IU (km)')
-ax[0].set_ylabel('Site term in log10')
 
-ax = add_annotate(ax)
-plt.subplots_adjust(wspace=0.2, hspace=0.3)
+    regression_results_dir = results_output_dir + f'/iter_regression_results_smf{weight_text}_{min_channel}_channel_at_least'
+    site_term_df = pd.read_csv(regression_results_dir + '/site_terms_iter.csv')
 
+    # load the peak amplitude file
+    peak_amplitude_file = results_output_dir + '/peak_amplitude_events/calibrated_peak_amplitude.csv'
+    peak_amplitude_df_fit = pd.read_csv(peak_amplitude_file)
+
+    site_term_list = ['P', 'S']
+    fig, ax = plt.subplots(2, 2, figsize=(14, 9), sharex=True)
+
+    for i_wavetype, wavetype in enumerate(site_term_list):
+        temp = site_term_df[site_term_df.region == region_key]
+
+        
+        peak_amplitude_df_temp = filter_event(peak_amplitude_df_fit, M_threshold, snr_threshold, min_channel)
+        peak_amplitude_df_temp = peak_amplitude_df_temp[~peak_amplitude_df_temp[f'peak_{wavetype.upper()}'].isna()]
+        
+        gca = ax[0, i_wavetype]
+        gca.hist(peak_amplitude_df_temp.channel_id*region_dx/1e3, range=(0.5*region_dx/1e3, (peak_amplitude_df_temp.channel_id.max()+0.5)*region_dx/1e3), bins=int(peak_amplitude_df_temp.channel_id.max()))
+
+        gca = ax[1, i_wavetype]
+        gca.plot(temp.channel_id*region_dx/1e3, temp[f'site_term_{wavetype.upper()}'])
+        gca.set_title(f'{region_text}, site term of {wavetype.upper()} wave')
+        gca.set_xlabel('Distance to IU (km)')
+
+    ax[0, 0].set_ylabel('Number of measurements')
+    if region_text == 'LA-Google':
+        ax[0, 0].set_yticks(range(0, 100, 5))
+        ax[0, 0].set_ylim(0, 15)
+    ax[1, 0].set_ylabel('Site term in log10')
+
+    ax = add_annotate(ax)
+    plt.subplots_adjust(wspace=0.2, hspace=0.3)
+
+    mkdir(regression_results_dir + '/figures')
+    plt.savefig(regression_results_dir + '/figures/site_terms.png', bbox_inches='tight')
+
+
+
+
+
+#%% The Following will be removed soon!
 
 
 #%%
@@ -136,7 +210,7 @@ site_term_list = ['P', 'S']
 dx_list = [8, 10, 10] # Ridgecrest, Mammoth N, Mammoth S
 
 
-regression_results_dir = results_output_dir + f'/iter_regression_results_smf_weighted_{min_channel}_channel_at_least'
+regression_results_dir = results_output_dir + f'/iter_regression_results_smf{weight_text}_{min_channel}_channel_at_least'
 site_term_df = pd.read_csv(regression_results_dir + '/site_terms_iter.csv')
 
 
@@ -145,7 +219,7 @@ for i_region in range(len(region_list)):
     region_key, region_dx = region_list[i_region], dx_list[i_region]
 
     # load results from single
-    regression_results_single = results_output_dir_list[i_region] + f'/iter_regression_results_smf_weighted_{min_channel}_channel_at_least'
+    regression_results_single = results_output_dir_list[i_region] + f'/iter_regression_results_smf{weight_text}_{min_channel}_channel_at_least'
     site_term_df_single = pd.read_csv(regression_results_single + '/site_terms_iter.csv')
 
     for i_wavetype, wavetype in enumerate(site_term_list):
@@ -169,7 +243,7 @@ plt.subplots_adjust(wspace=0.2, hspace=0.3)
 
 
 
-#%% The Following will be removed soon!
+
 
 
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
@@ -519,15 +593,15 @@ for i_model, combined_channel_number in enumerate(combined_channel_number_list):
 # site_term_df_RC = site_term_df[site_term_df.region_site.str.contains('ridgecrest')]
 # %% 
 # Compare the regression parameters and site terms
-show_calibrated = False#False # show the site terms with or without secondary calibration
-fig, ax = plt.subplots(4, 2, figsize=(16, 16))
+show_calibrated = True#False # show the site terms with or without secondary calibration
+fig, ax = plt.subplots(4, 2, figsize=(16, 17))
 plt.subplots_adjust(wspace=0.2, hspace=0.3)
 title_plot = ['Ridgecrest P', 'Ridgecrest S', 'Long Valley North P', 'Long Valley North S', 'Long Valley South P', 'Long Valley South S']
 region_labels = ['ridgecrest', 'mammothN', 'mammothS']
 channel_spacing = [8e-3, 10e-3, 10e-3]
 label_lists = ['10 channels','20 channels','50 channels','100 channels','constant']
 # specify the ylim of figures...
-region_y_minP, region_y_maxP = [0.5, -1, -0.5], [1.5, 1.5, 1.5]
+region_y_minP, region_y_maxP = [0, -1, -1], [1.5, 1.5, 1.5]
 region_y_minS, region_y_maxS = [0.2, -1.2, -1, -1.5], [1, 1.2, 1, 0]
 combined_channel_number_list = [10, 20, 50, 100, -1] # -1 means the constant model
 for i_model, combined_channel_number in enumerate(combined_channel_number_list):
