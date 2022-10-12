@@ -103,11 +103,11 @@ def split_P_S_dataframe(peak_amplitude_df, snr_threshold=None):
     peak_amplitude_df_S = peak_amplitude_df[['event_id', 'channel_id', 'peak_P', 'peak_S', 'magnitude', 'distance_in_km', 'snrS', 'region']]
 
     # Remove some extreme data outliers before fitting
-    peak_amplitude_df_P = peak_amplitude_df_P.dropna()
+    peak_amplitude_df_P = peak_amplitude_df_P.dropna(subset=['peak_P'])
     peak_amplitude_df_P = peak_amplitude_df_P[peak_amplitude_df_P.peak_P>0]
     peak_amplitude_df_P = peak_amplitude_df_P.drop(peak_amplitude_df_P[(peak_amplitude_df_P.peak_P > 1e3)].index)
 
-    peak_amplitude_df_S = peak_amplitude_df_S.dropna()
+    peak_amplitude_df_S = peak_amplitude_df_S.dropna(subset=['peak_S'])
     peak_amplitude_df_S = peak_amplitude_df_S[peak_amplitude_df_S.peak_S>0]
     peak_amplitude_df_S = peak_amplitude_df_S.drop(peak_amplitude_df_S[(peak_amplitude_df_S.peak_S > 1e3)].index)
 
