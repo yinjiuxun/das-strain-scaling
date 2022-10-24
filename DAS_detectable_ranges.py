@@ -207,7 +207,6 @@ peak_amplitude_df_temp = pd.concat((peak_amplitude_df_temp, peak_amplitude_df_sa
 
 
 # plot the M-D distribution for each region
-peak_amplitude_df_temp = peak_amplitude_df_all.iloc[::1, :]
 peak_amplitude_df_temp['log10(distance)'] = np.log10(peak_amplitude_df_temp.distance_in_km.astype('float'))
 # peak_amplitude_df_temp['log10(distance)'] = np.log10(peak_amplitude_df_temp.distance_in_km.astype('float'))
 peak_amplitude_df_temp['log10(peak_P)'] = np.log10(peak_amplitude_df_temp.peak_P.astype('float'))
@@ -243,7 +242,7 @@ for ii_region, region_key in enumerate(region_keys):
 
     if region_key == 'ridgecrest':
         temp_clip = peak_amplitude_df_current[peak_amplitude_df_current.event_id.isin([38548295.0, 39462536.0])]
-        gca.plot(temp_clip.magnitude-0.05, temp_clip['log10(distance)'], 'r.')
+        gca.plot(temp_clip.magnitude-0.05, temp_clip['log10(distance)'], 'rx')
     if (region_key == 'mammothN') or (region_key == 'mammothS'):
         temp_clip = peak_amplitude_df_current[peak_amplitude_df_current.event_id.astype('int').isin([73584926])]
         gca.plot(temp_clip.magnitude-0.05, temp_clip['log10(distance)'], 'rx')

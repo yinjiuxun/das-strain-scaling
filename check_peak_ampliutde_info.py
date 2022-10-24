@@ -49,13 +49,14 @@ event_folder_list = ['/kuafu/EventData/Ridgecrest', '/kuafu/EventData/Mammoth_no
                      '/kuafu/EventData/Mammoth_south', '/kuafu/EventData/Sanriku_ERI']
 
 region_label = ['ridgecrest', 'mammothN', 'mammothS', 'sanriku']
+region_legend_text = ['Ridgecrest', 'Long Valley N', 'Long Valley S', 'Sanriku'] 
 
 snr_threshold = 10
 min_channel = 100
 magnitude_threshold = [2, 10]
 
 snr_threshold_Sanriku = 5
-#%% Combined all data TODO: WORKING ON HERE
+#%% Combined all data 
 peak_amplitude_df_all = pd.read_csv(combined_results_output_dir + '/peak_amplitude_multiple_arrays.csv')
 peak_amplitude_df_sanriku = pd.read_csv(sanriku_results_output_dir + '/peak_amplitude_events/calibrated_peak_amplitude.csv')
 peak_amplitude_df_sanriku = filter_event(peak_amplitude_df_sanriku, snr_threshold=snr_threshold_Sanriku, M_threshold=magnitude_threshold, min_channel=100)
@@ -191,10 +192,6 @@ with fig.inset(position="jBL+w4.3c/7.5c+o0.1c", box="+gwhite+p1p"):
 fig.show()
 fig.savefig(combined_results_output_dir + '/map_of_earthquakes_CA_GMT.png')
 
-
-
-
-
 #%%
 # =========================  Plot Sanriku in Japan with PyGMT ==============================
 gmt_region = [140, 145, 35, 42]
@@ -283,7 +280,6 @@ plt.subplots_adjust(hspace=0.2, wspace=0.25)
 g.add_legend()
 g._legend.set_bbox_to_anchor((0.3, 0.9))
 
-
 # show the Sanriku data
 peak_amplitude_df_Sanriku = peak_amplitude_df_temp[peak_amplitude_df_temp.region == 'sanriku']
 g.axes[1,0].plot(peak_amplitude_df_Sanriku.magnitude, np.log10(peak_amplitude_df_Sanriku.distance_in_km), '.', markersize=1, color='#DA8EC0', alpha=0.3)
@@ -366,7 +362,10 @@ g = sns.histplot(ax=gca, data=peak_amplitude_df_temp[['magnitude','log10(peak_P)
                  hue='region', palette='Set2', alpha=0.3, pmax=0.5, cbar=False, bins=bins, legend=True)
 gca.set_ylim(-2.5, 2.5)
 g.get_legend().set_bbox_to_anchor((3.5, 2.5))
-
+# update the legend text
+L = g.get_legend()
+for i_L in range(len(L.get_texts())):
+    L.get_texts()[i_L].set_text(region_legend_text[i_L])
 
 gca = ax[1, 1]
 g = sns.histplot(ax=gca, data=peak_amplitude_df_temp[['log10(distance)','log10(peak_P)', 'region']], x='log10(distance)', y='log10(peak_P)',
@@ -437,3 +436,5 @@ plt.savefig(f'/kuafu/yinjx/Sanriku/peak_ampliutde_scaling_results_strain_rate/da
 
 
 
+
+# %%
