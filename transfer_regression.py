@@ -90,22 +90,22 @@ regS_pre = sm.load(regS_pre_path)
 # shutil.copyfile(regS_pre_path, regression_results_dir + '/S_regression_combined_site_terms_transfer.pickle')
 
 #%%
-# TODO: systematically test the fittig events
-results_output_dir = '/kuafu/yinjx/LA_Google/peak_ampliutde_scaling_results_strain_rate'
-snr_threshold_transfer = 10
-M_threshold = [2, 10]
-
-# results_output_dir = '/kuafu/yinjx/Sanriku/peak_ampliutde_scaling_results_strain_rate'
-# snr_threshold_transfer = 5
+# systematically test the fittig events
+# results_output_dir = '/kuafu/yinjx/LA_Google/peak_ampliutde_scaling_results_strain_rate'
+# snr_threshold_transfer = 10
 # M_threshold = [2, 10]
+
+results_output_dir = '/kuafu/yinjx/Sanriku/peak_ampliutde_scaling_results_strain_rate'
+snr_threshold_transfer = 5
+M_threshold = [2, 10]
 
 peak_amplitude_df = pd.read_csv(results_output_dir + '/peak_amplitude_events/calibrated_peak_amplitude.csv')
 peak_amplitude_df['distance_in_km'] = peak_amplitude_df['calibrated_distance_in_km']
-peak_amplitude_df = filter_event(peak_amplitude_df, snr_threshold=snr_threshold_transfer, min_channel=min_channel)
+peak_amplitude_df = filter_event(peak_amplitude_df, snr_threshold=snr_threshold_transfer, min_channel=min_channel, M_threshold=M_threshold)
 event_id_all =  peak_amplitude_df.event_id.unique()
 
 random.seed(212)
-N_event_fit_list = range(2, 30)
+N_event_fit_list = range(10, 30)
 N_test = 50
 
 for N_event_fit in N_event_fit_list:

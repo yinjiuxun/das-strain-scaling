@@ -46,7 +46,8 @@ region_y_minS, region_y_maxS = [0, -1, -1, -1.5], [1.5, 1.5, 1.5, 0]
 results_output_dir_list = []
 dx_list = []
 
-# # Set result directory
+#%%
+#  # Set result directory
 # multiple arrays
 results_output_dir = '/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RM'
 region_list = ['ridgecrest', 'mammothN', 'mammothS']
@@ -94,7 +95,6 @@ region_key_list = []
 region_text_list = []
 region_dx_list = []
 
-#%%
 # Ridgecrest
 results_output_dir = '/kuafu/yinjx/Ridgecrest/Ridgecrest_scaling/peak_amplitude_scaling_results_strain_rate'
 region_dx = 8
@@ -125,6 +125,16 @@ region_key_list.append(region_key)
 region_text_list.append(region_text)
 region_dx_list.append(region_dx)
 
+# Sanriku 
+results_output_dir = '/kuafu/yinjx/Sanriku/peak_ampliutde_scaling_results_strain_rate'
+region_dx = 5
+region_key = 'sanriku'
+region_text = 'Sanriku'
+results_output_dir_list.append(results_output_dir)
+region_key_list.append(region_key)
+region_text_list.append(region_text)
+region_dx_list.append(region_dx)
+
 # LAX 
 results_output_dir = '/kuafu/yinjx/LA_Google/peak_ampliutde_scaling_results_strain_rate'
 region_dx = 10
@@ -134,6 +144,10 @@ results_output_dir_list.append(results_output_dir)
 region_key_list.append(region_key)
 region_text_list.append(region_text)
 region_dx_list.append(region_dx)
+
+# some special locations along the cable
+bridge_section = np.arange(1940, 1954)*region_dx/1e3
+metro_section = np.concatenate([range(4050, 4201), range(4250, 4351), range(4450, 4651)]) * region_dx/1e3
 
 #%%
 weighted = 'wls' # 'ols' or 'wls'
@@ -169,24 +183,144 @@ for i_region, results_output_dir in enumerate(results_output_dir_list):
         peak_amplitude_df_temp = peak_amplitude_df_temp[~peak_amplitude_df_temp[f'peak_{wavetype.upper()}'].isna()]
         
         gca = ax[0, i_wavetype]
-        gca.hist(peak_amplitude_df_temp.channel_id*region_dx/1e3, range=(0.5*region_dx/1e3, (peak_amplitude_df_temp.channel_id.max()+0.5)*region_dx/1e3), bins=int(peak_amplitude_df_temp.channel_id.max()))
-
+        try:
+            gca.hist(peak_amplitude_df_temp.channel_id*region_dx/1e3, range=(0.5*region_dx/1e3, (peak_amplitude_df_temp.channel_id.max()+0.5)*region_dx/1e3), bins=int(peak_amplitude_df_temp.channel_id.max()), color='k')
+        except:
+            print(f"No {wavetype}, skip...")
+        gca.set_ylabel('Number of measurements')
+        
         gca = ax[1, i_wavetype]
-        gca.plot(temp.channel_id*region_dx/1e3, temp[f'site_term_{wavetype.upper()}'])
+        try:
+            #gca.plot(temp.channel_id*region_dx/1e3, temp[f'site_term_{wavetype.upper()}'], 'k.')
+            gca.scatter(temp.channel_id*region_dx/1e3, temp[f'site_term_{wavetype.upper()}'],s=1, c=temp[f'site_term_{wavetype.upper()}'], cmap='viridis')
+        except:
+            print(f"No {wavetype}, skip...")
+
+        # if region_text == 'LA-Google':
+        #     gca.vlines(x=bridge_section[[0, -1]], ymin=np.nanmin(temp[f'site_term_{wavetype.upper()}']), ymax=np.nanmax(temp[f'site_term_{wavetype.upper()}']), color='blue', label='Bridge')
+        #     gca.vlines(x=metro_section[[0, -1]], ymin=np.nanmin(temp[f'site_term_{wavetype.upper()}']), ymax=np.nanmax(temp[f'site_term_{wavetype.upper()}']), color='red', label='Metro')
+
+        # gca.set_xlim(metro_section[0]-0.5, metro_section[-1]+0.5)
         gca.set_title(f'{region_text}, site term of {wavetype.upper()} wave')
         gca.set_xlabel('Distance to IU (km)')
+        
+        gca.set_ylabel('Site term in log10')
 
-    ax[0, 0].set_ylabel('Number of measurements')
+
     if region_text == 'LA-Google':
         ax[0, 0].set_yticks(range(0, 100, 5))
         ax[0, 0].set_ylim(0, 15)
-    ax[1, 0].set_ylabel('Site term in log10')
 
     ax = add_annotate(ax)
     plt.subplots_adjust(wspace=0.2, hspace=0.3)
-
     mkdir(regression_results_dir + '/figures')
     plt.savefig(regression_results_dir + '/figures/site_terms.png', bbox_inches='tight')
+
+
+#%% 
+# Compare the site terms from multi arrays and single arrays
+#  # Set result directory
+# multiple arrays
+results_output_dir_multi = '/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RM'
+region_list = ['ridgecrest', 'mammothN', 'mammothS']
+region_text = ['Ridgecrest', 'Long Valley (N)', 'Long Valley (S)']
+site_term_list = ['P', 'S']
+dx_list = [8, 10, 10] # Ridgecrest, Mammoth N, Mammoth S
+region_y_minP, region_y_maxP = [0, -1, -1], [1.5, 1.5, 1.5]
+region_y_minS, region_y_maxS = [0, -1, -1, -1.5], [1.5, 1.5, 1.5, 0]
+
+# single arrays
+results_output_dir_list = []
+region_key_list = []
+region_text_list = []
+region_dx_list = []
+
+# Ridgecrest
+results_output_dir = '/kuafu/yinjx/Ridgecrest/Ridgecrest_scaling/peak_amplitude_scaling_results_strain_rate'
+region_dx = 8
+region_key = 'ridgecrest'
+region_text = 'Ridgecrest'
+results_output_dir_list.append(results_output_dir)
+region_key_list.append(region_key)
+region_text_list.append(region_text)
+region_dx_list.append(region_dx)
+
+# Long Valley N
+results_output_dir = '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/North'
+region_dx = 10
+region_key = 'mammothN'
+region_text = 'Long Valley (N)'
+results_output_dir_list.append(results_output_dir)
+region_key_list.append(region_key)
+region_text_list.append(region_text)
+region_dx_list.append(region_dx)
+
+# Long Valley S
+results_output_dir = '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/South'
+region_dx = 10
+region_key = 'mammothS'
+region_text = 'Long Valley (S)'
+results_output_dir_list.append(results_output_dir)
+region_key_list.append(region_key)
+region_text_list.append(region_text)
+region_dx_list.append(region_dx)
+
+
+# Show comparison
+regression_results_dir_multi = results_output_dir_multi + f'/iter_regression_results_smf_weighted_{min_channel}_channel_at_least'
+site_term_df_multi = pd.read_csv(regression_results_dir_multi + '/site_terms_iter.csv')
+
+fig, ax = plt.subplots(3, 2, figsize=(16, 12), )
+for i_region, results_output_dir_single in enumerate(results_output_dir_list):
+    region_key, region_dx = region_list[i_region], dx_list[i_region]
+
+    regression_results_dir_single = results_output_dir_single + f'/iter_regression_results_smf{weight_text}_{min_channel}_channel_at_least'
+    site_term_df_single = pd.read_csv(regression_results_dir_single + '/site_terms_iter.csv')
+
+    for i_wavetype, wavetype in enumerate(site_term_list):
+        temp_multi = site_term_df_multi[site_term_df_multi.region == region_key]
+        temp_single = site_term_df_single[site_term_df_single.region == region_key]
+
+        gca = ax[i_region, i_wavetype]
+        gca.plot(temp_multi.channel_id*region_dx/1e3, temp_multi[f'site_term_{wavetype.upper()}'], '-k', label='all arrays')
+        gca.plot(temp_single.channel_id*region_dx/1e3, temp_single[f'site_term_{wavetype.upper()}'], '-r', label='single array')
+
+        gca.set_title(f'{region_text_list[i_region]}, site term of {wavetype.upper()} wave')
+
+        if i_wavetype == 0:
+            gca.set_ylim(region_y_minP[i_region], region_y_maxP[i_region])
+        elif i_wavetype == 1:
+            gca.set_ylim(region_y_minS[i_region], region_y_maxS[i_region])
+        else:
+            raise
+
+        if i_region == 2:
+            gca.set_xlabel('Distance to IU (km)')
+
+        if i_wavetype == 0:
+            gca.set_ylabel('Site term in log10')
+
+        if (i_wavetype == 0) and (i_region ==0):
+            gca.legend()
+
+ax = add_annotate(ax)
+plt.subplots_adjust(wspace=0.2, hspace=0.3)
+mkdir(regression_results_dir + '/figures')
+plt.savefig(regression_results_dir_multi + '/figures/site_terms_compare.png', bbox_inches='tight')
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -221,7 +355,7 @@ for i_region in range(len(region_list)):
     # load results from single
     regression_results_single = results_output_dir_list[i_region] + f'/iter_regression_results_smf{weight_text}_{min_channel}_channel_at_least'
     site_term_df_single = pd.read_csv(regression_results_single + '/site_terms_iter.csv')
-
+    
     for i_wavetype, wavetype in enumerate(site_term_list):
         temp = site_term_df[site_term_df.region == region_key]
         gca = ax[i_region, i_wavetype]
@@ -238,7 +372,7 @@ for i_region in range(len(region_list)):
 
 ax = add_annotate(ax)
 plt.subplots_adjust(wspace=0.2, hspace=0.3)
-
+plt.savefig(regression_results_dir + '/figures/site_terms.png', bbox_inches='tight')
 
 
 

@@ -16,7 +16,7 @@ from utility.plotting import plot_magnitude_seaborn
 # some parameters
 min_channel = 100 # do regression only on events recorded by at least 100 channels
 M_threshold = [2, 10]
-weighted = 'ols' # 'ols' or 'wls'
+weighted = 'wls' # 'ols' or 'wls'
 if weighted == 'ols':
     weight_text = '' 
 elif weighted == 'wls':
@@ -32,6 +32,8 @@ peak_file_name_list = []
 result_label_list = []
 M_threshold_list = []
 snr_threshold_list = []
+vmax_list = []
+region_text_list = []
 
 #%% # Set result directory
 if not random_test:
@@ -42,6 +44,8 @@ if not random_test:
     regression_results_dir = results_output_dir + f'/{result_label}_regression_results_smf{weight_text}_{min_channel}_channel_at_least'
     snr_threshold = 10
     M_threshold = [2, 10]
+    vmax = [120, 180] # for P and S
+    region_text = 'California arrays'
 
     M_threshold_list.append(M_threshold)
     results_output_dir_list.append(results_output_dir)
@@ -49,6 +53,8 @@ if not random_test:
     peak_file_name_list.append(peak_file_name)
     result_label_list.append(result_label)
     snr_threshold_list.append(snr_threshold)
+    vmax_list.append(vmax)
+    region_text_list.append(region_text)
 
     # single arrays
     #  ================== Ridgecrest ================== 
@@ -58,6 +64,8 @@ if not random_test:
     regression_results_dir = results_output_dir + f'/{result_label}_regression_results_smf{weight_text}_{min_channel}_channel_at_least'
     snr_threshold = 10
     M_threshold = [2, 10]
+    vmax = [70, 100] # for P and S
+    region_text = 'Ridgecrest'
 
     M_threshold_list.append(M_threshold)
     results_output_dir_list.append(results_output_dir)
@@ -65,6 +73,8 @@ if not random_test:
     peak_file_name_list.append(peak_file_name)
     result_label_list.append(result_label)
     snr_threshold_list.append(snr_threshold)
+    vmax_list.append(vmax)
+    region_text_list.append(region_text)
 
     #  ================== Long Valley N ================== 
     results_output_dir = '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/North'
@@ -73,6 +83,8 @@ if not random_test:
     regression_results_dir = results_output_dir + f'/{result_label}_regression_results_smf{weight_text}_{min_channel}_channel_at_least'
     snr_threshold = 10
     M_threshold = [2, 10]
+    vmax = [35, 50] # for P and S
+    region_text = 'Long Valley North'
 
     M_threshold_list.append(M_threshold)
     results_output_dir_list.append(results_output_dir)
@@ -80,6 +92,8 @@ if not random_test:
     peak_file_name_list.append(peak_file_name)
     result_label_list.append(result_label)
     snr_threshold_list.append(snr_threshold)
+    vmax_list.append(vmax)
+    region_text_list.append(region_text)
 
     #  ================== Long Valley S ================== 
     results_output_dir = '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/South'
@@ -88,6 +102,8 @@ if not random_test:
     regression_results_dir = results_output_dir + f'/{result_label}_regression_results_smf{weight_text}_{min_channel}_channel_at_least'
     snr_threshold = 10
     M_threshold = [2, 10]
+    vmax = [20, 30] # for P and S
+    region_text = 'Long Valley South'
 
     M_threshold_list.append(M_threshold)
     results_output_dir_list.append(results_output_dir)
@@ -95,6 +111,8 @@ if not random_test:
     peak_file_name_list.append(peak_file_name)
     result_label_list.append(result_label)
     snr_threshold_list.append(snr_threshold)
+    vmax_list.append(vmax)
+    region_text_list.append(region_text)
 
     #  ================== Sanriku fittd ================== 
     results_output_dir = '/kuafu/yinjx/Sanriku/peak_ampliutde_scaling_results_strain_rate'
@@ -103,6 +121,8 @@ if not random_test:
     regression_results_dir = results_output_dir + f'/{result_label}_regression_results_smf{weight_text}_{min_channel}_channel_at_least'
     snr_threshold = 5
     M_threshold = [2, 10]
+    vmax = [2, 2] # for P and S
+    region_text = 'Sanriku'
 
     M_threshold_list.append(M_threshold)
     results_output_dir_list.append(results_output_dir)
@@ -110,6 +130,8 @@ if not random_test:
     peak_file_name_list.append(peak_file_name)
     result_label_list.append(result_label)
     snr_threshold_list.append(snr_threshold)
+    vmax_list.append(vmax)
+    region_text_list.append(region_text)
 
     #  ================== LAX fittd ================== 
     results_output_dir = '/kuafu/yinjx/LA_Google/peak_ampliutde_scaling_results_strain_rate'
@@ -118,6 +140,8 @@ if not random_test:
     regression_results_dir = results_output_dir + f'/{result_label}_regression_results_smf{weight_text}_{min_channel}_channel_at_least'
     snr_threshold = 10
     M_threshold = [2, 10]
+    vmax = [2, 2] # for P and S
+    region_text = 'Los Angeles (LAX)'
 
     M_threshold_list.append(M_threshold)
     results_output_dir_list.append(results_output_dir)
@@ -125,37 +149,25 @@ if not random_test:
     peak_file_name_list.append(peak_file_name)
     result_label_list.append(result_label)
     snr_threshold_list.append(snr_threshold)
-
-    # #  ================== LAX transfered ================== 
-    # results_output_dir = '/kuafu/yinjx/LA_Google/peak_ampliutde_scaling_results_strain_rate'
-    # peak_file_name = '/kuafu/yinjx/LA_Google/peak_ampliutde_scaling_results_strain_rate/peak_amplitude_events/calibrated_peak_amplitude.csv'
-    # result_label = 'transfer'
-    # regression_results_dir = results_output_dir + f'/{result_label}_regression_results_smf{weight_text}_{min_channel}_channel_at_least'
-    # snr_threshold = 5
-    # M_threshold = [0, 10]
-
-    # M_threshold_list.append(M_threshold)
-    # results_output_dir_list.append(results_output_dir)
-    # regression_results_dir_list.append(regression_results_dir)
-    # peak_file_name_list.append(peak_file_name)
-    # result_label_list.append(result_label)
-    # snr_threshold_list.append(snr_threshold)
+    vmax_list.append(vmax)
+    region_text_list.append(region_text)
 
 else:
-
-    #  ================== LAX transfered test ================== 
-    N_event_fit_list = range(2, 30)
+    #  ================== Sanriku transfered test ================== 
+    N_event_fit_list = range(2, 10)
     N_test = 50
     for N_event_fit in N_event_fit_list:
         for i_test in range(N_test):
 
-            results_output_dir = '/kuafu/yinjx/LA_Google/peak_ampliutde_scaling_results_strain_rate'
-            peak_file_name = '/kuafu/yinjx/LA_Google/peak_ampliutde_scaling_results_strain_rate/peak_amplitude_events/calibrated_peak_amplitude.csv'
+            results_output_dir = '/kuafu/yinjx/Sanriku/peak_ampliutde_scaling_results_strain_rate'
+            peak_file_name = '/kuafu/yinjx/Sanriku/peak_ampliutde_scaling_results_strain_rate/peak_amplitude_events/calibrated_peak_amplitude.csv'
             result_label = 'transfer'
             regression_results_dir = results_output_dir + f'/transfer_regression_test_smf{weight_text}_{min_channel}_channel_at_least/{N_event_fit}_fit_events_{i_test}th_test'
-            snr_threshold = 10
+            snr_threshold = 5
             vmax = 50
-            M_threshold = [2, 10]
+            M_threshold = [0, 10]
+            vmax = [2, 2] # for P and S
+            region_text = 'Transfered scaling for Sanriku'
 
             M_threshold_list.append(M_threshold)
             results_output_dir_list.append(results_output_dir)
@@ -163,27 +175,34 @@ else:
             peak_file_name_list.append(peak_file_name)
             result_label_list.append(result_label)
             snr_threshold_list.append(snr_threshold)
+            vmax_list.append(vmax)
+            region_text_list.append(region_text) 
+            
+    #  ================== LAX transfered test ================== 
+    N_event_fit_list = range(2, 10)
+    N_test = 50
+    for N_event_fit in N_event_fit_list:
+        for i_test in range(20, N_test):
 
-    # #  ================== Sanriku transfered test ================== 
-    # N_event_fit_list = range(2, 30)
-    # N_test = 50
-    # for N_event_fit in N_event_fit_list:
-    #     for i_test in range(N_test):
+            results_output_dir = '/kuafu/yinjx/LA_Google/peak_ampliutde_scaling_results_strain_rate'
+            peak_file_name = '/kuafu/yinjx/LA_Google/peak_ampliutde_scaling_results_strain_rate/peak_amplitude_events/calibrated_peak_amplitude.csv'
+            result_label = 'transfer'
+            regression_results_dir = results_output_dir + f'/transfer_regression_test_smf{weight_text}_{min_channel}_channel_at_least/{N_event_fit}_fit_events_{i_test}th_test'
+            snr_threshold = 10
+            vmax = 50
+            M_threshold = [0, 10]
+            vmax = [2, 2] # for P and S
+            region_text = 'Transfered scaling for LAX'
 
-    #         results_output_dir = '/kuafu/yinjx/Sanriku/peak_ampliutde_scaling_results_strain_rate'
-    #         peak_file_name = '/kuafu/yinjx/Sanriku/peak_ampliutde_scaling_results_strain_rate/peak_amplitude_events/calibrated_peak_amplitude.csv'
-    #         result_label = 'transfer'
-    #         regression_results_dir = results_output_dir + f'/transfer_regression_test_smf{weight_text}_{min_channel}_channel_at_least/{N_event_fit}_fit_events_{i_test}th_test'
-    #         snr_threshold = 5
-    #         vmax = 50
-    #         M_threshold = [2, 10]
+            M_threshold_list.append(M_threshold)
+            results_output_dir_list.append(results_output_dir)
+            regression_results_dir_list.append(regression_results_dir)
+            peak_file_name_list.append(peak_file_name)
+            result_label_list.append(result_label)
+            snr_threshold_list.append(snr_threshold)
+            vmax_list.append(vmax)
+            region_text_list.append(region_text)
 
-    #         M_threshold_list.append(M_threshold)
-    #         results_output_dir_list.append(results_output_dir)
-    #         regression_results_dir_list.append(regression_results_dir)
-    #         peak_file_name_list.append(peak_file_name)
-    #         result_label_list.append(result_label)
-    #         snr_threshold_list.append(snr_threshold)
 
 
 #%%
@@ -194,6 +213,8 @@ for ii in range(len(peak_file_name_list)):
     result_label = result_label_list[ii]
     snr_threshold = snr_threshold_list[ii]
     M_threshold = M_threshold_list[ii]
+    vmax = vmax_list[ii]
+    region_text = region_text_list[ii]
     print(regression_results_dir)
 
     # load results
@@ -210,6 +231,7 @@ for ii in range(len(peak_file_name_list)):
         final_magnitude_P = get_mean_magnitude(peak_amplitude_df_temp, magnitude_P)
     except:
         print('No P regression results, skip...')
+        regP, magnitude_P, peak_amplitude_df_temp, final_magnitude_P = None, None, None, None
 
     try:
         regS = sm.load(regression_results_dir + f"/S_regression_combined_site_terms_{result_label}.pickle")
@@ -217,6 +239,7 @@ for ii in range(len(peak_file_name_list)):
         final_magnitude_S = get_mean_magnitude(peak_amplitude_df_temp, magnitude_S)
     except:
         print('No S regression results, skip...')
+        regS, magnitude_S, peak_amplitude_df_temp, final_magnitude_S = None, None, None, None
 
     # check the STD of magnitude estimation, if too large, discard
     # fig, ax = plt.subplots()
@@ -235,13 +258,15 @@ for ii in range(len(peak_file_name_list)):
 
     if result_label == 'iter': 
         try:
-            gP = plot_magnitude_seaborn(final_magnitude_P, xlim=xy_lim, ylim=xy_lim, height=height, space=space)
+            gP = plot_magnitude_seaborn(final_magnitude_P, xlim=xy_lim, ylim=xy_lim, vmax=vmax[0], height=height, space=space)
+            gP.ax_joint.text(0, 7, region_text + f', P wave\n{len(final_magnitude_P.dropna())} events')
             gP.savefig(fig_dir + f'/P_magnitude_prediction_rate_{result_label}_seaborn.png')
         except:
             print('No P regression results, skip...')
 
         try:
-            gS = plot_magnitude_seaborn(final_magnitude_S, xlim=xy_lim, ylim=xy_lim, height=height, space=space)
+            gS = plot_magnitude_seaborn(final_magnitude_S, xlim=xy_lim, ylim=xy_lim, vmax=vmax[1], height=height, space=space)
+            gS.ax_joint.text(0, 7, region_text + f', S wave\n{len(final_magnitude_S.dropna())} events')
             gS.savefig(fig_dir + f'/S_magnitude_prediction_rate_{result_label}_seaborn.png')
         except:
             print('No S regression results, skip...')    
@@ -255,8 +280,9 @@ for ii in range(len(peak_file_name_list)):
             final_magnitude_P_fit = final_magnitude_P[final_magnitude_P.event_id.isin(event_id_fit)]
             final_magnitude_P_predict = final_magnitude_P[final_magnitude_P.event_id.isin(event_id_predict)]
 
-            gP = plot_magnitude_seaborn(final_magnitude_P_predict, xlim=xy_lim, ylim=xy_lim, height=height, space=space)
+            gP = plot_magnitude_seaborn(final_magnitude_P_predict, xlim=xy_lim, ylim=xy_lim, vmax=vmax[0], height=height, space=space)
             gP.ax_joint.plot(final_magnitude_P_fit.magnitude, final_magnitude_P_fit.predicted_M, 'ro')
+            gP.ax_joint.text(-0.5, 7, region_text + f', P wave\n{len(final_magnitude_P_fit.dropna())} events to fit, {len(final_magnitude_P_predict.dropna())} events to predict', fontsize=16)
             gP.savefig(fig_dir + f'/P_magnitude_prediction_rate_{result_label}_seaborn.png')
         except:
             print('No valid P wave regression results, skip ...')
@@ -266,12 +292,13 @@ for ii in range(len(peak_file_name_list)):
             final_magnitude_S_fit = final_magnitude_S[final_magnitude_S.event_id.isin(event_id_fit)]
             final_magnitude_S_predict = final_magnitude_S[final_magnitude_S.event_id.isin(event_id_predict)]
 
-            gS = plot_magnitude_seaborn(final_magnitude_S_predict, xlim=xy_lim, ylim=xy_lim, height=height, space=space)
+            gS = plot_magnitude_seaborn(final_magnitude_S_predict, xlim=xy_lim, ylim=xy_lim, vmax=vmax[1], height=height, space=space)
             gS.ax_joint.plot(final_magnitude_S_fit.magnitude, final_magnitude_S_fit.predicted_M, 'ro')
+            gS.ax_joint.text(-0.5, 7, region_text + f', S wave\n{len(final_magnitude_S_fit.dropna())} events to fit, {len(final_magnitude_S_predict.dropna())} events to predict', fontsize=16)
             gS.savefig(fig_dir + f'/S_magnitude_prediction_rate_{result_label}_seaborn.png')
         except:
             print('No valid S wave regression results, skip ...')
             pass
 
-    plt.close('all')
+    #plt.close('all')
 # %%
