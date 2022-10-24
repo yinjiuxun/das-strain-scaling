@@ -1,6 +1,8 @@
 import matplotlib
 import matplotlib.pyplot as plt
 import seaborn as sns
+import numpy as np
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 
 # set plotting parameters 
 params = {
@@ -54,7 +56,7 @@ def plot_prediction_vs_measure_seaborn(peak_comparison_df, phase, bins=40, vmin=
     return g
 
 
-def plot_magnitude_seaborn(df_magnitude, **kwargs): # TODO: think about the kwargs setting for plotting control
+def plot_magnitude_seaborn(df_magnitude, vmin=None, vmax=None, **kwargs): # TODO: think about the kwargs setting for plotting control
     sns.set_theme(style="ticks", font_scale=2)
 
     g = sns.JointGrid(data=df_magnitude, x="magnitude", y="predicted_M", marginal_ticks=True,**kwargs)
@@ -64,11 +66,11 @@ def plot_magnitude_seaborn(df_magnitude, **kwargs): # TODO: think about the kwar
     # Create an inset legend for the histogram colorbar
     cax = g.figure.add_axes([.65, .2, .02, .2])
 
-    vmin, vmax = None, None
-    if 'vmin' in kwargs.keys():
-        vmin = kwargs['vmin']
-    if 'vmax' in kwargs.keys():
-        vmax = kwargs['vmax']
+    # vmin, vmax = None, None
+    # if 'vmin' in kwargs.keys():
+    #     vmin = kwargs['vmin']
+    # if 'vmax' in kwargs.keys():
+    #     vmax = kwargs['vmax']
 
     # Add the joint and marginal histogram plots 03012d
     g.plot_joint(
@@ -90,3 +92,41 @@ def plot_magnitude_seaborn(df_magnitude, **kwargs): # TODO: think about the kwar
         g.ax_joint.set_ylim(kwargs['ylim'])
 
     return g
+
+def plot_das_waveforms(strain_rate, das_time, gca, title=None, pclip=None, **kwargs):
+
+    if 'vmin' in kwargs.keys():
+        vmin = kwargs['vmin']
+
+    if 'vmax' in kwargs.keys():
+        vmax = kwargs['vmax']
+
+    if pclip:
+        clipVal = np.percentile(np.absolute(strain_rate), pclip)
+        vmin, vmax = -clipVal, clipVal
+
+    clb = gca.imshow(strain_rate, 
+                extent=[0, strain_rate.shape[1], das_time[-1],  das_time[0]],
+                aspect='auto', vmin=vmin, vmax=vmax, cmap=plt.get_cmap('seismic'), interpolation='none')
+
+    gca.set_ylabel('Time (s)')
+    gca.set_xlabel('channel number')
+    
+    if 'xmin' in kwargs.keys():
+        gca.set_xlim(xmin=kwargs['xmin'])
+    if 'xmax' in kwargs.keys():
+        gca.set_xlim(xmax=kwargs['xmax'])
+    if 'ymin' in kwargs.keys():
+        gca.set_ylim(ymin=kwargs['ymin'])
+    if 'ymax' in kwargs.keys():
+        gca.set_ylim(ymax=kwargs['ymax'])
+
+    axins1 = inset_axes(gca,
+                        width="2%",  # width = 50% of parent_bbox width
+                        height="70%",  # height : 5%
+                        loc='lower right')
+    if title:
+        gca.set_title(title, fontsize=20)
+
+    plt.colorbar(clb, cax=axins1, orientation="vertical", label='strain rate ($10^{-6}$/s)')
+    return gca

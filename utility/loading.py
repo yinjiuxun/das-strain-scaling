@@ -3,6 +3,20 @@ import numpy as np
 import dateutil
 import h5py
 
+# Functions to save event h5 files
+def save_rawevent_h5(fn, data, info):
+   """
+   """
+   info_copy = info.copy()
+   with h5py.File(fn, 'w') as fid:
+       fid.create_dataset('data', data=data)
+       for key in info.keys():
+           if isinstance(info[key], str):
+               #fid['data'].attrs.modify(key, np.string_(info_copy[key]))
+               fid['data'].attrs.modify(key, info_copy[key])
+           else:
+               fid['data'].attrs.modify(key, info_copy[key])
+
 def load_event_data(data_path, eq_id):
     with h5py.File(data_path + '/' + str(eq_id) + '.h5', 'r') as fid:
         data = fid['data'][:]
