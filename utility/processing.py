@@ -129,6 +129,15 @@ def combined_regions_for_regression(peak_file_list):
     peak_amplitude_df = pd.concat(peak_data_list, axis=0)
     return peak_amplitude_df
 
+def calculate_autocorrelation(x, symmetric=False):
+    x = x - np.nanmean(x)
+    acf = np.correlate(x, x, mode='full')
+    acf = acf/np.linalg.norm(x)**2
+    if symmetric:
+        return acf[len(x)-1:]
+    else:
+        return acf 
+
 # #===================== WILL REMOVE SOON =====================
 # def combined_regions_for_regression(peak_file_list, region_list, combined_channel_number_list, results_output_dir, 
 #                                     snr_threshold=None, magnitude_threshold=None, apply_calibrated_distance=True):

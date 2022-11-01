@@ -45,7 +45,7 @@ def plot_prediction_vs_measure_seaborn(peak_comparison_df, phase, bins=40, vmin=
     cax = g.figure.add_axes([.65, .2, .02, .2])
 
 # Add the joint and marginal histogram plots 03012d
-    g.plot_joint(sns.histplot, discrete=(False, False), bins=(bins,bins), cmap="light:#4D4D9C", vmin=vmin, vmax=vmax, cbar=True, cbar_ax=cax, cbar_kws={'label': 'counts'})
+    g.plot_joint(sns.histplot, discrete=(False, False), bins=(bins*2,bins), cmap="light:#4D4D9C", vmin=vmin, vmax=vmax, cbar=True, cbar_ax=cax, cbar_kws={'label': 'counts'})
     g.plot_marginals(sns.histplot, element="step", bins=bins, color="#4D4D9C")
 
     if 'xlim' in kwargs.keys():
@@ -130,3 +130,14 @@ def plot_das_waveforms(strain_rate, das_time, gca, title=None, pclip=None, **kwa
 
     plt.colorbar(clb, cax=axins1, orientation="vertical", label='strain rate ($10^{-6}$/s)')
     return gca
+
+def add_annotate(ax):
+    letter_list = [str(chr(k+97)) for k in range(0, 20)]
+    k=0
+    for i_ax, gca in enumerate(ax.flatten()):
+    #     gca.spines.right.set_visible(False)
+    #     gca.spines.top.set_visible(False)
+    # # add annotation
+        gca.annotate(f'({letter_list[k]})', xy=(-0.1, 1.1), xycoords=gca.transAxes)
+        k += 1
+    return ax
