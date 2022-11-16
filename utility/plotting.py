@@ -93,7 +93,7 @@ def plot_magnitude_seaborn(df_magnitude, vmin=None, vmax=None, **kwargs): # TODO
 
     return g
 
-def plot_das_waveforms(strain_rate, das_time, gca, title=None, pclip=None, **kwargs):
+def plot_das_waveforms(strain_rate, das_time, gca, channel_index=None, title=None, pclip=None, **kwargs):
 
     if 'vmin' in kwargs.keys():
         vmin = kwargs['vmin']
@@ -104,10 +104,16 @@ def plot_das_waveforms(strain_rate, das_time, gca, title=None, pclip=None, **kwa
     if pclip:
         clipVal = np.percentile(np.absolute(strain_rate), pclip)
         vmin, vmax = -clipVal, clipVal
-
-    clb = gca.imshow(strain_rate, 
+    
+    if channel_index is None:
+        clb = gca.imshow(strain_rate, 
                 extent=[0, strain_rate.shape[1], das_time[-1],  das_time[0]],
                 aspect='auto', vmin=vmin, vmax=vmax, cmap=plt.get_cmap('seismic'), interpolation='none')
+    else:
+        clb = gca.imshow(strain_rate, 
+                extent=[channel_index[0], channel_index[-1], das_time[-1],  das_time[0]],
+                aspect='auto', vmin=vmin, vmax=vmax, cmap=plt.get_cmap('seismic'), interpolation='none')
+
 
     gca.set_ylabel('Time (s)')
     gca.set_xlabel('channel number')
