@@ -680,3 +680,139 @@ plt.savefig(f'/kuafu/yinjx/Sanriku/peak_ampliutde_scaling_results_strain_rate/da
 
 
 # %%
+# Temporary use:
+# plot time variation of events
+time_list = [obspy.UTCDateTime(parser.parse(time)) for time in catalog_select_all.event_time]
+time_span = np.array([time-time_list[0] for time in time_list])
+time_span_days = time_span/3600/24
+
+fig, ax = plt.subplots(figsize=(10, 4))
+
+# Ridgecrest
+ii_RC = catalog_select_all['region'] == 'ridgecrest'
+ax.plot(time_span_days[ii_RC], catalog_select_all[ii_RC].magnitude, 'o', markersize=3, color='#7DC0A6')
+
+# LV
+ii_LV = (catalog_select_all['region'] == 'mammothN') | (catalog_select_all['region'] == 'mammothS')
+ax.plot(time_span_days[ii_LV], catalog_select_all[ii_LV].magnitude, 'o', markersize=3, color='#ED926B')
+
+# Sanriku
+# ii_sanriku = catalog_select_all['region'] == 'sanriku'
+# ax.plot(time_span_days[ii_sanriku], catalog_select_all[ii_sanriku].magnitude, 'o', color='#DA8EC0', markersize=3)
+# ax.text(100, 6.5, f'Sanriku EQs. ({len(time_span_days[ii_sanriku])}) \n2019/11/20-2019/12/01', color='#DA8EC0', fontsize=14)
+
+ax.hlines(y=1.4, xmin=0, xmax=696, color='#7DC0A6', label=f'Ridgecrest ({len(time_span_days[ii_RC])})', linewidth=2.5)
+ax.hlines(y=1.7, xmin=467, xmax=time_span_days.max(), color='#ED926B', label=f'Long Valley ({len(time_span_days[ii_LV])})', linewidth=2.5)
+ax.legend(loc=1,fontsize=13)
+ax.set_xlabel(f'Days from the {time_list[0].isoformat()[:10]}')
+ax.set_ylabel('magnitude')
+ax.set_ylim(ymin=1.1, ymax=7.9)
+ax.annotate(f'(a)', xy=(-0.1, 0.95), xycoords=ax.transAxes, fontsize=18)
+plt.savefig(figure_output_dir + '/time_variation_selected_earthquakes_CA.pdf', bbox_inches='tight')
+#TODO: (optional) change the x label to date time format
+# %%
+# =================================   New organization of data statistics (3 by 3) Contour plot =================================  
+# =================================   Merge events  =================================  
+levels = [0.05, 0.3, 0.6, 0.9]
+linewidths = [0.8, 1.5, 2.5, 3.5]
+thresh = 0.01
+
+bins = (10, 10)
+add_possible_clipping = False
+peak_amplitude_df_temp = peak_amplitude_df_all.iloc[::1, :]
+peak_amplitude_df_temp = peak_amplitude_df_temp.groupby(by=['event_id', 'region'], as_index=False).median()
+
+calibrated_distance = ''#'_calibrated_distance'
+peak_amplitude_df_temp['log10(distance)'] = np.log10(peak_amplitude_df_temp.distance_in_km.astype('float'))
+# peak_amplitude_df_temp['log10(distance)'] = np.log10(peak_amplitude_df_temp.distance_in_km.astype('float'))
+peak_amplitude_df_temp['log10(peak_P)'] = np.log10(peak_amplitude_df_temp.peak_P.astype('float'))
+peak_amplitude_df_temp['log10(peak_S)'] = np.log10(peak_amplitude_df_temp.peak_S.astype('float'))
+peak_amplitude_df_temp['P/S'] = peak_amplitude_df_temp.peak_P/peak_amplitude_df_temp.peak_S
+
+peak_amplitude_df_Sanriku = peak_amplitude_df_temp[peak_amplitude_df_temp.region == 'sanriku']
+peak_amplitude_df_others = peak_amplitude_df_temp[peak_amplitude_df_temp.region != 'sanriku']
+
+plt.close('all')
+fig, ax = plt.subplots(3, 3, figsize=(14, 14))
+gca = ax[0, 0]
+g = sns.kdeplot(ax=gca, data=peak_amplitude_df_others[['magnitude', 'region']], x='magnitude', color='k')
+g = sns.kdeplot(ax=gca, data=peak_amplitude_df_others[['magnitude', 'region']], x='magnitude', hue='region', palette='Set2', legend=False)
+gca.set_xlim(1, 6)
+
+gca = ax[0, 1]
+g = sns.kdeplot(ax=gca, data=peak_amplitude_df_others[['log10(distance)', 'region']], x='log10(distance)', color='k')
+g = sns.kdeplot(ax=gca, data=peak_amplitude_df_others[['log10(distance)', 'region']], x='log10(distance)', hue='region', palette='Set2', legend=False)
+gca.set_xlim(0, 3)
+
+gca = ax[1, 0]
+g = sns.kdeplot(ax=gca, data=peak_amplitude_df_others[['magnitude','log10(peak_P)', 'region']], x='magnitude', y='log10(peak_P)',
+                 hue='region', palette='Set2', alpha=1, cbar=False, legend=True, fill=False, levels=levels, thresh=thresh, linewidths=linewidths)
+gca.set_ylim(-2.5, 2.5)
+g.get_legend().set_bbox_to_anchor((3.5, 2.5))
+# update the legend text
+L = g.get_legend()
+for i_L in range(len(L.get_texts())):
+    L.get_texts()[i_L].set_text(region_legend_text[i_L])
+plt.setp(L.get_title(), fontsize='18') 
+
+gca = ax[1, 1]
+g = sns.kdeplot(ax=gca, data=peak_amplitude_df_others[['log10(distance)','log10(peak_P)', 'region']], x='log10(distance)', y='log10(peak_P)',
+                 hue='region', palette='Set2', alpha=1, cbar=False, legend=False, levels=levels, thresh=thresh, linewidths=linewidths)
+
+gca = ax[2, 0]
+g = sns.kdeplot(ax=gca, data=peak_amplitude_df_others[['magnitude','log10(peak_S)', 'region']], x='magnitude', y='log10(peak_S)',
+                 hue='region', palette='Set2', alpha=1, cbar=False, legend=False, levels=levels, thresh=thresh, linewidths=linewidths)
+# gca.plot(peak_amplitude_df_Sanriku.magnitude.astype('float'), np.log10(peak_amplitude_df_Sanriku.peak_S.astype('float')), 'o', markersize=3, color='#DA8EC0', alpha=1)
+gca.set_ylim(-2.5, 2.5)
+
+
+gca = ax[2, 1]
+g = sns.kdeplot(ax=gca, data=peak_amplitude_df_others[['log10(distance)','log10(peak_S)', 'region']], x='log10(distance)', y='log10(peak_S)',
+                 hue='region', palette='Set2', alpha=1, cbar=False, legend=False, levels=levels, thresh=thresh, linewidths=linewidths)
+# gca.plot(np.log10(peak_amplitude_df_Sanriku.distance_in_km.astype('float')), np.log10(peak_amplitude_df_Sanriku.peak_S.astype('float')), 'o', markersize=3, color='#DA8EC0', alpha=1)
+
+fig.delaxes(ax[0, 2])
+
+gca = ax[1, 2]
+g = sns.kdeplot(ax=gca, data=peak_amplitude_df_others[['log10(peak_P)', 'region']], x='log10(peak_P)', color='k')
+g = sns.kdeplot(ax=gca, data=peak_amplitude_df_others[['log10(peak_P)', 'region']], x='log10(peak_P)', hue='region', palette='Set2', legend=False)
+gca.set_xlim(-2.5, 2.5)
+
+gca = ax[2, 2]
+g = sns.kdeplot(ax=gca, data=peak_amplitude_df_others[['log10(peak_S)', 'region']], x='log10(peak_S)', color='k')
+g = sns.kdeplot(ax=gca, data=peak_amplitude_df_others[['log10(peak_S)', 'region']], x='log10(peak_S)', hue='region', palette='Set2', legend=False)
+
+# share x axis
+ax[1, 0].sharex(ax[0, 0])
+ax[2, 0].sharex(ax[0, 0])
+ax[1, 1].sharex(ax[0, 1])
+ax[2, 1].sharex(ax[0, 1])
+ax[2, 2].sharex(ax[1, 2])
+
+# share y axis
+ax[1, 1].sharey(ax[1, 0])
+ax[2, 1].sharey(ax[2, 0])
+ax[2, 2].sharey(ax[1, 2])
+
+# some final handling
+letter_list = [str(chr(k+97)) for k in range(0, 20)]
+k=0
+for i_ax, gca in enumerate(ax.flatten()):
+    gca.spines.right.set_visible(False)
+    gca.spines.top.set_visible(False)
+    # add annotation
+    if i_ax != 2:
+        gca.annotate(f'({letter_list[k]})', xy=(-0.3, 1.1), xycoords=gca.transAxes, fontsize=18)
+        k += 1
+    # remove some labels
+    if i_ax not in [0, 3, 6, 5, 8]:
+        gca.set_ylabel('')
+    if i_ax not in [5, 6, 7, 8]:
+        gca.set_xlabel('')
+
+plt.subplots_adjust(wspace=0.5, hspace=0.5)
+
+plt.savefig(figure_output_dir + f'/data_correlation{calibrated_distance}_3x3_contours_CA.png', bbox_inches='tight')
+plt.savefig(f'/kuafu/yinjx/Sanriku/peak_ampliutde_scaling_results_strain_rate/data_correlation{calibrated_distance}_3x3_contours_CA.png', bbox_inches='tight')
+
+# %%

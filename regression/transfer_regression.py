@@ -6,6 +6,7 @@ import numpy as np
 import shutil
 import statsmodels.api as sm
 import random
+import matplotlib.pyplot as plt
 
 import sys
 sys.path.append('../')
@@ -49,7 +50,7 @@ def transfer_fitting(regP_pre, regS_pre, peak_amplitude_df_fit, weighted):
 # some parameters
 min_channel = 100 # do regression only on events recorded by at least 100 channels
 
-weighted = 'wls' # 'ols' or 'wls'
+weighted = 'ols' # 'ols' or 'wls'
 if weighted == 'ols':
     weight_text = '' 
 elif weighted == 'wls':
@@ -77,16 +78,25 @@ regS_pre = sm.load(regS_pre_path)
 # M_threshold = [2, 10]
 # speficy_events = False
 
-results_output_dir = '/kuafu/yinjx/Arcata/peak_ampliutde_scaling_results_strain_rate'
+# # arcata
+# results_output_dir = '/kuafu/yinjx/Arcata/peak_ampliutde_scaling_results_strain_rate'
+# snr_threshold_transfer = 10
+# M_threshold = [2, 10]
+# speficy_events = True
+# # For specified fitting
+# #event_id_fit_P0 = [73736021, 73739276, 73747016, 73751651, 73757961, 73758756, 73747621] 
+# event_id_fit_P0 = [73736021, 73747016, 73747621] 
+# event_id_fit_S0 = [73736021, 73739276, 73747016, 73751651, 73757961, 73758756, 
+# 73735891, 73741131, 73747621, 73747806, 73748011, 73753546, 73739346] 
+
+# Curie
+results_output_dir = '/kuafu/yinjx/Curie/peak_amplitude_scaling_results_strain_rate'
 snr_threshold_transfer = 10
 M_threshold = [2, 10]
 speficy_events = True
-# For specified fitting
-#event_id_fit_P0 = [73736021, 73739276, 73747016, 73751651, 73757961, 73758756, 73747621] 
-event_id_fit_P0 = [73736021, 73747016, 73747621] 
-event_id_fit_S0 = [73736021, 73739276, 73747016, 73751651, 73757961, 73758756, 
-73735891, 73741131, 73747621, 73747806, 73748011, 73753546, 73739346] 
-
+event_id_fit_P0 = [9007]
+event_id_fit_S0 = [9007]
+event_id_predict0 = [9001]
 
 peak_amplitude_df = pd.read_csv(results_output_dir + '/peak_amplitude_events/calibrated_peak_amplitude.csv')
 peak_amplitude_df['distance_in_km'] = peak_amplitude_df['calibrated_distance_in_km']
@@ -108,7 +118,7 @@ if speficy_events:
 
     # make output directory and output results
     results_output_dir = results_output_dir
-    regression_results_dir = results_output_dir + f'/transfer_regression_specified_smf{weight_text}_{min_channel}_channel_at_least'
+    regression_results_dir = results_output_dir + f'/transfer_regression_specified_smf{weight_text}_{min_channel}_channel_at_least_9007'
     mkdir(regression_results_dir)
     
     site_term_df.to_csv(regression_results_dir + '/site_terms_transfer.csv', index=False)
@@ -753,4 +763,3 @@ else:
 # # also copy the regression results to the results directory
 # shutil.copyfile(regP_pre_path, regression_results_dir + '/P_regression_combined_site_terms_transfer.pickle')
 # shutil.copyfile(regS_pre_path, regression_results_dir + '/S_regression_combined_site_terms_transfer.pickle')
-s

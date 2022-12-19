@@ -45,10 +45,10 @@ matplotlib.rcParams.update(params)
 
 #%%
 #load event waveform to plot
-event_folder = '/kuafu/EventData/AlumRock5.1/MammothNorth'#'/kuafu/EventData/Ridgecrest' 
+event_folder = '/kuafu/EventData/Arcata_Spring2022'  #'/kuafu/EventData/AlumRock5.1/MammothNorth'#'/kuafu/EventData/Ridgecrest' 
 tt_dir = event_folder +  '/model_proc_tt/CVM3D' 
 catalog = pd.read_csv(event_folder + '/catalog.csv')
-DAS_info = pd.read_csv('/kuafu/EventData/Mammoth_north/das_info.csv')
+DAS_info = pd.read_csv('/kuafu/EventData/Arcata_Spring2022/das_info.csv')
 das_waveform_path = event_folder + '/data'
 
 
@@ -73,9 +73,18 @@ def append_list(test_event_id, given_range_P, given_range_S, ymin, ymax):
 
 given_range_P=None
 
-test_event_id, given_range_P, given_range_S, ymin, ymax = 73799091, None, None, 0, 90 
-tpshift, tsshift = -2, -5
-test_event_id_list, given_range_P_list, given_range_S_list, ymin_list, ymax_list = append_list(test_event_id, given_range_P, given_range_S, ymin, ymax)
+# #/kuafu/EventData/AlumRock5.1/MammothNorth
+# test_event_id, given_range_P, given_range_S, ymin, ymax = 73799091, None, None, 0, 90 
+# tpshift, tsshift = -2, -5
+# test_event_id_list, given_range_P_list, given_range_S_list, ymin_list, ymax_list = append_list(test_event_id, given_range_P, given_range_S, ymin, ymax)
+
+# Arcata events
+test_event_id_list = list(catalog.event_id)
+for ii in range(len(test_event_id_list)):
+    given_range_P_list.append(None)
+    given_range_S_list.append(None)
+    ymin_list.append(0)
+    ymax_list.append(90)
 
 #%%
 # plot waveform
@@ -91,8 +100,8 @@ def remove_ml_tt_outliers(ML_picking, das_dt, tdiff=10, given_range=None):
 
 
 for i_event in range(len(test_event_id_list)):
-    print(test_event_id)
     test_event_id = test_event_id_list[i_event]
+    print(test_event_id)
     given_range_P = given_range_P_list[i_event]
     given_range_S = given_range_S_list[i_event]
     ymin, ymax = ymin_list[i_event], ymax_list[i_event]
@@ -113,7 +122,7 @@ for i_event in range(len(test_event_id_list)):
 
     # load the ML phase picking
     try:
-        ML_picking_dir = event_folder + '/picks_phasenet_dasx'
+        ML_picking_dir = event_folder + '/picks_phasenet_das'
         tt_tp = np.zeros(shape=DAS_channel_num)*np.nan
         tt_ts = tt_tp.copy()
 

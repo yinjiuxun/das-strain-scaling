@@ -18,7 +18,7 @@ from utility.plotting import plot_magnitude_seaborn
 # some parameters
 min_channel = 100 # do regression only on events recorded by at least 100 channels
 M_threshold = [2, 10]
-weighted = 'wls' # 'ols' or 'wls'
+weighted = 'ols' # 'ols' or 'wls'
 if weighted == 'ols':
     weight_text = '' 
 elif weighted == 'wls':
@@ -219,6 +219,26 @@ else:
     vmax_list.append(vmax)
     region_text_list.append(region_text) 
 
+    #  ================== Curie transfered specified test ================== 
+    results_output_dir = '/kuafu/yinjx/Curie/peak_amplitude_scaling_results_strain_rate'
+    peak_file_name = '/kuafu/yinjx/Curie/peak_amplitude_scaling_results_strain_rate/peak_amplitude_events/calibrated_peak_amplitude.csv'
+    result_label = 'transfer'
+    regression_results_dir = results_output_dir + f'/transfer_regression_specified_smf{weight_text}_{min_channel}_channel_at_least_9007/'
+    snr_threshold = 5
+    vmax = 50
+    M_threshold = [2, 10]
+    vmax = [2, 2] # for P and S
+    region_text = 'Transfered scaling for Curie'
+
+    M_threshold_list.append(M_threshold)
+    results_output_dir_list.append(results_output_dir)
+    regression_results_dir_list.append(regression_results_dir)
+    peak_file_name_list.append(peak_file_name)
+    result_label_list.append(result_label)
+    snr_threshold_list.append(snr_threshold)
+    vmax_list.append(vmax)
+    region_text_list.append(region_text) 
+
     #  ================== Sanriku transfered test ================== 
     N_event_fit_list = range(2, 10)
     N_test = 50
@@ -357,7 +377,7 @@ for ii in range(len(peak_file_name_list)):
         temp = np.load(regression_results_dir + '/transfer_event_list.npz')
         event_id_fit_P = temp['event_id_fit_P']
         event_id_fit_S = temp['event_id_fit_S']
-        event_id_predict = temp['event_id_predict']
+        event_id_predict = temp['event_id_predict_P']
 
         try:
             final_magnitude_P_fit = final_magnitude_P[final_magnitude_P.event_id.isin(event_id_fit_P)]

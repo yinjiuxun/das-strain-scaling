@@ -189,6 +189,71 @@ plt.savefig('/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_R
 
 
 
+# %%
+# plot the weighted results only for presentation only
+import seaborn as sns
+
+custom_params = {"axes.spines.right": False, "axes.spines.top": False}
+sns.set_theme(style="ticks", rc=custom_params, font_scale=1.2)
+
+
+fig, ax = plt.subplots(2, 2, figsize=(12, 9))
+
+
+def plot_iter_results(ax, y_key, xtick_labels):
+    #ax.plot(iter_x, iter_results_pd_unweighted[y_key], 'rx', markersize=10, markeredgewidth=3, zorder=5, label='ols')
+    ax.plot(iter_x, iter_results_pd_weighted[y_key], 'rx', markersize=10, markeredgewidth=3, zorder=5, label='wls')
+    ax.set_xticks(range(len(xtick_labels)))
+    ax.set_xticklabels(labels=xtick_labels)
+    ax.grid()
+    return ax
+
+# For paper, only present Ridgecrest, Long Valley and Sanriku
+iter_results_pd_weighted = iter_results_pd_weighted.drop(index=iter_results_pd_weighted[iter_results_pd_weighted.region=='LAX-Google'].index)
+xtick_labels = ['RC', 'LV-N', 'LV-S', 'Sanriku', 'RC+LV']
+iter_x = [0.1, 1.1, 2.1, 4.1, 3.1]
+
+# P mag coef.
+gca = ax[0, 0]
+plot_iter_results(ax=gca, y_key='mag coef. (P)', xtick_labels=xtick_labels)
+gca.set_ylabel('mag coef. (P)')
+gca.set_ylim(0, 1)
+
+# S mag coef.
+gca = ax[0, 1]
+plot_iter_results(ax=gca, y_key='mag coef. (S)', xtick_labels=xtick_labels)
+gca.set_ylabel('mag coef. (S)')
+gca.set_ylim(0, 1)
+
+# P dist coef.
+gca = ax[1, 0]
+plot_iter_results(ax=gca, y_key='dist coef. (P)', xtick_labels=xtick_labels)
+gca.set_ylabel('dist coef. (P)')
+gca.set_ylim(-2, -1)
+
+# S dist coef.
+gca = ax[1, 1]
+gca = plot_iter_results(ax=gca, y_key='dist coef. (S)', xtick_labels=xtick_labels)
+gca.set_ylabel('dist coef. (S)')
+gca.set_ylim(-2, -1)
+
+# Adding the Barbour et al. (2021) results
+# TODO: label the line with the values
+barbour_2021_coefficents = [0.92, -1.45]
+PGA_coefficients_OLS = [0.583631, -1.793554]
+PGA_coefficients_WLS = [0.388142, -1.630351]
+
+letter_list = [str(chr(k+97)) for k in range(0, 20)]
+k=0
+for gca in ax.flatten():
+    if gca is not None:
+        gca.annotate(f'({letter_list[k]})', xy=(-0.2, 1.0), xycoords=gca.transAxes, fontsize=18)
+        k += 1
+
+
+plt.savefig('/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RM/coefficients_comparison_iter_presentation.png', bbox_inches='tight', dpi=200)
+plt.savefig('/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RM/coefficients_comparison_iter_presentation.pdf', bbox_inches='tight')
+
 
 # # %%
 # def plot_coefficients_seaborn(x_key, y_key, all_results_pd, ax, xlim=None, ylim=None):

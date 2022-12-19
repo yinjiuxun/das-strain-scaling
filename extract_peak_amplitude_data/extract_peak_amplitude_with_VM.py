@@ -197,8 +197,8 @@ def extract_peak_amplitude(event_folder, peak_amplitude_dir, ii_region, data_pat
 
 # %%
 # Setup the paths
-event_folder_list = ['/kuafu/EventData/Arcata_Spring2022']
-peak_amplitude_dir_list = ['/kuafu/yinjx/Arcata/peak_ampliutde_scaling_results_strain_rate/peak_amplitude_events']
+event_folder_list = ['/kuafu/EventData/Curie', '/kuafu/EventData/Arcata_Spring2022']
+peak_amplitude_dir_list = ['/kuafu/yinjx/Curie/peak_amplitude_scaling_results_strain_rate/peak_amplitude_events', '/kuafu/yinjx/Arcata/peak_ampliutde_scaling_results_strain_rate/peak_amplitude_events']
 
 # Extract the peak amplitude given the picking 
 for ii_region in [0]:#[0, 1, 2, 3]:
@@ -234,8 +234,8 @@ for ii_region in [0]:#[0, 1, 2, 3]:
 
 # %%
 # Combine all the individual peak amplitude files into one for regression
-event_folder_list = ['/kuafu/EventData/Arcata_Spring2022']
-peak_amplitude_dir_list = ['/kuafu/yinjx/Arcata/peak_ampliutde_scaling_results_strain_rate/peak_amplitude_events']
+event_folder_list = ['/kuafu/EventData/Curie', '/kuafu/EventData/Arcata_Spring2022']
+peak_amplitude_dir_list = ['/kuafu/yinjx/Curie/peak_amplitude_scaling_results_strain_rate/peak_amplitude_events', '/kuafu/yinjx/Arcata/peak_ampliutde_scaling_results_strain_rate/peak_amplitude_events']
 
 
 for ii_region in [0]:
@@ -252,11 +252,11 @@ for ii_region in [0]:
     temp_df.to_csv(peak_amplitude_dir + '/peak_amplitude.csv', index=False)
 # %%
 # Calibrate distance to hypocentral distance
-das_pick_file_folder_list = ['/kuafu/yinjx/Arcata/peak_ampliutde_scaling_results_strain_rate/peak_amplitude_events']
+das_pick_file_folder_list = ['/kuafu/yinjx/Curie/peak_amplitude_scaling_results_strain_rate/peak_amplitude_events', '/kuafu/yinjx/Arcata/peak_ampliutde_scaling_results_strain_rate/peak_amplitude_events']
 
-catalog_file_list = ['/kuafu/EventData/Arcata_Spring2022/catalog.csv']
+catalog_file_list = ['/kuafu/EventData/Curie/catalog.csv','/kuafu/EventData/Arcata_Spring2022/catalog.csv']
 
-region_list = ['arcata']
+region_list = ['curie', 'arcata']
 
 das_pick_file_name = 'peak_amplitude.csv'
 

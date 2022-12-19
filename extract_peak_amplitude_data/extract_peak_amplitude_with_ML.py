@@ -126,6 +126,14 @@ def extract_peak_amplitude(event_folder, peak_amplitude_dir, ii_region, data_pat
         min_P_1d = tt_1d.P_arrival.min()
         min_S_1d = tt_1d.S_arrival.min() 
         time_range = (min_P_1d-15, min_P_1d+15, min_S_1d-15, min_S_1d+15)#(25, 40, 25, 60) 
+    
+    if ii_region == 8:
+        das_time = das_time-30
+        tt_1d_path = event_folder + '/theoretical_arrival_time0'
+        tt_1d = pd.read_csv(tt_1d_path + f'/1D_tt_{event_now.event_id}.csv')
+        min_P_1d = tt_1d.P_arrival.min()+30
+        min_S_1d = tt_1d.S_arrival.min()+30 
+        time_range = (min_P_1d-15, min_P_1d+15, min_S_1d-15, min_S_1d+15)
     else:
         time_range = (30, 90, 30, 90)
 
@@ -225,7 +233,8 @@ def extract_peak_amplitude(event_folder, peak_amplitude_dir, ii_region, data_pat
 event_folder_list = ['/kuafu/EventData/Ridgecrest', '/kuafu/EventData/Mammoth_north', 
                      '/kuafu/EventData/Mammoth_south', '/kuafu/EventData/Sanriku_ERI',
                      '/kuafu/EventData/LA_Google', '/kuafu/EventData/Arcata_Spring2022',
-                     '/kuafu/EventData/Olancha_old', '/kuafu/EventData/Olancha_new']
+                     '/kuafu/EventData/Olancha_old', '/kuafu/EventData/Olancha_new',
+                     '/kuafu/EventData/Curie']
 peak_amplitude_dir_list = ['/kuafu/yinjx/Ridgecrest/Ridgecrest_scaling/peak_amplitude_events_nan', 
                            '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/North/peak_amplitude_events', 
                            '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/South/peak_amplitude_events',
@@ -233,10 +242,11 @@ peak_amplitude_dir_list = ['/kuafu/yinjx/Ridgecrest/Ridgecrest_scaling/peak_ampl
                            '/kuafu/yinjx/LA_Google/peak_ampliutde_scaling_results_strain_rate/peak_amplitude_events',
                            '/kuafu/yinjx/Arcata/peak_ampliutde_scaling_results_strain_rate/peak_amplitude_events',
                            '/kuafu/yinjx/Olancha/peak_ampliutde_scaling_results_strain_rate/Old/peak_amplitude_events',
-                           '/kuafu/yinjx/Olancha/peak_ampliutde_scaling_results_strain_rate/New/peak_amplitude_events']
+                           '/kuafu/yinjx/Olancha/peak_ampliutde_scaling_results_strain_rate/New/peak_amplitude_events',
+                           '/kuafu/yinjx/Curie/peak_amplitude_scaling_results_strain_rate/peak_amplitude_events']
 
 # Extract the peak amplitude given the picking 
-for ii_region in [6, 7]:#[0, 1, 2, 3]:
+for ii_region in [8]:#[0, 1, 2, 3]:
     event_folder, peak_amplitude_dir = event_folder_list[ii_region], peak_amplitude_dir_list[ii_region]
     mkdir(peak_amplitude_dir)
     mkdir(peak_amplitude_dir + '/figures')
@@ -244,6 +254,8 @@ for ii_region in [6, 7]:#[0, 1, 2, 3]:
 
     # Event waveform directory, phase picking directory
     data_path = event_folder + '/data'
+    if ii_region == 8:
+        data_path = event_folder + '/data_raw'
     pick_path = event_folder + '/picks_phasenet_das' # directory of ML phase picker
 
     # Load the catalog, filter events, load waveforms
@@ -259,9 +271,8 @@ for ii_region in [6, 7]:#[0, 1, 2, 3]:
     n_eq = catalog.shape[0]
 
     # Non-parallel version for testing purpose
-    # for i_eq in range(100):
-    # i_eq = 7110
-    # extract_peak_amplitude(event_folder, peak_amplitude_dir, ii_region, data_path, pick_path, catalog, das_info, P_window_list, S_window_list, snr_window, i_eq)
+    i_eq = 1
+    extract_peak_amplitude(event_folder, peak_amplitude_dir, ii_region, data_path, pick_path, catalog, das_info, P_window_list, S_window_list, snr_window, i_eq)
 
     # Parallel extracting peak amplitude
     with tqdm_joblib(tqdm(desc="File desampling", total=n_eq)) as progress_bar:
@@ -272,7 +283,8 @@ for ii_region in [6, 7]:#[0, 1, 2, 3]:
 event_folder_list = ['/kuafu/EventData/Ridgecrest', '/kuafu/EventData/Mammoth_north', 
                      '/kuafu/EventData/Mammoth_south', '/kuafu/EventData/Sanriku_ERI',
                      '/kuafu/EventData/LA_Google', '/kuafu/EventData/Arcata_Spring2022',
-                     '/kuafu/EventData/Olancha_old', '/kuafu/EventData/Olancha_new']
+                     '/kuafu/EventData/Olancha_old', '/kuafu/EventData/Olancha_new',
+                     '/kuafu/EventData/Curie']
 peak_amplitude_dir_list = ['/kuafu/yinjx/Ridgecrest/Ridgecrest_scaling/peak_amplitude_events_nan', 
                            '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/North/peak_amplitude_events', 
                            '/kuafu/yinjx/Mammoth/peak_ampliutde_scaling_results_strain_rate/South/peak_amplitude_events',
@@ -280,9 +292,10 @@ peak_amplitude_dir_list = ['/kuafu/yinjx/Ridgecrest/Ridgecrest_scaling/peak_ampl
                            '/kuafu/yinjx/LA_Google/peak_ampliutde_scaling_results_strain_rate/peak_amplitude_events',
                            '/kuafu/yinjx/Arcata/peak_ampliutde_scaling_results_strain_rate/peak_amplitude_events',
                            '/kuafu/yinjx/Olancha/peak_ampliutde_scaling_results_strain_rate/Old/peak_amplitude_events',
-                           '/kuafu/yinjx/Olancha/peak_ampliutde_scaling_results_strain_rate/New/peak_amplitude_events']
+                           '/kuafu/yinjx/Olancha/peak_ampliutde_scaling_results_strain_rate/New/peak_amplitude_events',
+                           '/kuafu/yinjx/Curie/peak_amplitude_scaling_results_strain_rate/peak_amplitude_events']
 
-for ii_region in [6, 7]:#[0, 1, 2]:
+for ii_region in [8]:#[0, 1, 2]:
     peak_amplitude_dir = peak_amplitude_dir_list[ii_region]
 
     print('='*10 + peak_amplitude_dir + '='*10)
@@ -303,7 +316,8 @@ das_pick_file_folder_list = ['/kuafu/yinjx/Ridgecrest/Ridgecrest_scaling/peak_am
                             '/kuafu/yinjx/LA_Google/peak_ampliutde_scaling_results_strain_rate/peak_amplitude_events',
                             '/kuafu/yinjx/Arcata/peak_ampliutde_scaling_results_strain_rate/peak_amplitude_events',
                             '/kuafu/yinjx/Olancha/peak_ampliutde_scaling_results_strain_rate/Old/peak_amplitude_events',
-                            '/kuafu/yinjx/Olancha/peak_ampliutde_scaling_results_strain_rate/New/peak_amplitude_events']
+                            '/kuafu/yinjx/Olancha/peak_ampliutde_scaling_results_strain_rate/New/peak_amplitude_events',
+                            '/kuafu/yinjx/Curie/peak_amplitude_scaling_results_strain_rate/peak_amplitude_events']
 
 catalog_file_list = ['/kuafu/EventData/Ridgecrest/catalog.csv',
                 '/kuafu/EventData/Mammoth_south/catalog.csv',
@@ -312,13 +326,14 @@ catalog_file_list = ['/kuafu/EventData/Ridgecrest/catalog.csv',
                 '/kuafu/EventData/LA_Google/catalog.csv',
                 '/kuafu/EventData/Arcata_Spring2022/catalog.csv',
                 '/kuafu/EventData/Olancha_old/catalog.csv', 
-                '/kuafu/EventData/Olancha_new/catalog.csv']
+                '/kuafu/EventData/Olancha_new/catalog.csv',
+                '/kuafu/EventData/Curie/catalog.csv']
 
-region_list = ['ridgecrest', 'mammothS', 'mammothN', 'Sanriku', 'LA-Google', 'arcata', 'olancha-old', 'olancha-new']
+region_list = ['ridgecrest', 'mammothS', 'mammothN', 'Sanriku', 'LA-Google', 'arcata', 'olancha-old', 'olancha-new', 'curie']
 
 das_pick_file_name = 'peak_amplitude.csv'
 
-for ii in [6, 7]:#range(4):
+for ii in [8]:#range(4):
     das_pick_file_folder = das_pick_file_folder_list[ii]
     catalog_file = catalog_file_list[ii]
     print(f'=========== Working on {das_pick_file_folder} ===============')

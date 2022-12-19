@@ -82,7 +82,7 @@ if not os.path.exists(travel_time_table_file):
     model = TauPyModel(model='iasp91')
 
     # distance list
-    distance_fit = np.linspace(0, 1, 100)
+    distance_fit = np.linspace(0, 2, 100)
     # depth list
     depth_fit = np.arange(0, 100, 1)
 

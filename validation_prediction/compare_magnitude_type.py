@@ -360,6 +360,7 @@ ax.hlines(xmin=0, xmax=8, y=[0], color='k')
 ax.hlines(xmin=0, xmax=8, y=[0.5, -0.5], color='k', linewidth=1, linestyle='--')
 ax.hlines(xmin=0, xmax=8, y=[1, -1], color='k', linewidth=0.5, linestyle='--')
 ax.set_xlim(0, 8)
+ax.set_ylim(-1.8, 1.8)
 ax.legend()
 
 # %%
