@@ -12,7 +12,7 @@ import sys
 import sys
 sys.path.append('../')
 from utility.general import mkdir
-from utility.loading import load_event_data
+from utility.loading import load_event_data, load_phasenet_pick
 from utility.processing import remove_outliers, filter_event
 from utility.plotting import plot_das_waveforms
 
@@ -45,15 +45,15 @@ matplotlib.rcParams.update(params)
 
 #%%
 #load event waveform to plot
-event_folder = '/kuafu/EventData/Arcata_Spring2022'  #'/kuafu/EventData/AlumRock5.1/MammothNorth'#'/kuafu/EventData/Ridgecrest' 
-tt_dir = event_folder +  '/model_proc_tt/CVM3D' 
+event_folder = '/kuafu/EventData/Curie'  #'/kuafu/EventData/AlumRock5.1/MammothNorth'#'/kuafu/EventData/Ridgecrest' 
+tt_dir = event_folder +  '/theoretical_arrival_time0' 
 catalog = pd.read_csv(event_folder + '/catalog.csv')
-DAS_info = pd.read_csv('/kuafu/EventData/Arcata_Spring2022/das_info.csv')
-das_waveform_path = event_folder + '/data'
+DAS_info = pd.read_csv('/kuafu/EventData/Curie/das_info.csv')
+das_waveform_path = event_folder + '/data_raw'
 
 
 DAS_channel_num = DAS_info.shape[0]
-DAS_index = DAS_info['index']
+DAS_index = DAS_info['index'][::2]
 DAS_lon = DAS_info.longitude
 DAS_lat = DAS_info.latitude
 
@@ -78,16 +78,28 @@ given_range_P=None
 # tpshift, tsshift = -2, -5
 # test_event_id_list, given_range_P_list, given_range_S_list, ymin_list, ymax_list = append_list(test_event_id, given_range_P, given_range_S, ymin, ymax)
 
-# Arcata events
+# Curie events
 test_event_id_list = list(catalog.event_id)
 for ii in range(len(test_event_id_list)):
     given_range_P_list.append(None)
     given_range_S_list.append(None)
-    ymin_list.append(0)
-    ymax_list.append(90)
-
+    if ii == 1:
+        ymin_list.append(5)
+        ymax_list.append(30)
+    elif ii == 6:
+        ymin_list.append(0)
+        ymax_list.append(25)
+    elif ii == 7:
+        ymin_list.append(15)
+        ymax_list.append(60)
+    else:
+        ymin_list.append(0)
+        ymax_list.append(60)
 #%%
 # plot waveform
+time_drift = {'9000':12.5, '9001':12.5, '9002':np.nan, '9003':np.nan, '9004':9, '9005':8.5, '9006':9, '9007':9}
+
+
 # load the travel time and process
 def remove_ml_tt_outliers(ML_picking, das_dt, tdiff=10, given_range=None):
     temp = ML_picking.drop(index=ML_picking[abs(ML_picking.phase_index - ML_picking.phase_index.median())*das_dt >= tdiff].index)
@@ -99,7 +111,7 @@ def remove_ml_tt_outliers(ML_picking, das_dt, tdiff=10, given_range=None):
     return temp
 
 
-for i_event in range(len(test_event_id_list)):
+for i_event in [1, 6, 7]:#range(len(test_event_id_list)):
     test_event_id = test_event_id_list[i_event]
     print(test_event_id)
     given_range_P = given_range_P_list[i_event]
@@ -108,17 +120,20 @@ for i_event in range(len(test_event_id_list)):
 
 
     event_info = catalog[catalog.event_id == test_event_id]
-    strain_rate, info = load_event_data(das_waveform_path, test_event_id)
-    strain_rate = strain_rate[:, DAS_index]
-    das_dt = info['dt_s']
-    nt = strain_rate.shape[0]
-    das_time = np.arange(nt) * das_dt - 30
+    try:
+        strain_rate, info = load_event_data(das_waveform_path, test_event_id)
+        das_dt = info['dt_s']
+        nt = strain_rate.shape[0]
+        das_time = np.arange(nt) * das_dt-30
 
 
-    # plot some waveforms and picking
-    fig, gca = plt.subplots(figsize=(10, 6))
-    plot_das_waveforms(strain_rate, das_time, gca, title=f'{test_event_id}, M{event_info.iloc[0, :].magnitude}', pclip=95, ymin=ymin, ymax=ymax)
-
+        # plot some waveforms and picking
+        fig, gca = plt.subplots(figsize=(10, 4))
+        title_text = f'M{event_info.iloc[0, :].magnitude}, {event_info.iloc[0, :].place}'
+        plot_das_waveforms(strain_rate, das_time, gca, title=title_text, pclip=95, ymin=ymin, ymax=ymax)
+    except:
+        print(f'Event {test_event_id} data not found, skip...')
+        continue
 
     # load the ML phase picking
     try:
@@ -136,31 +151,38 @@ for i_event in range(len(test_event_id_list)):
 
         tt_tp[ML_picking_P.channel_index] = das_time[ML_picking_P.phase_index]
         tt_ts[ML_picking_S.channel_index] = das_time[ML_picking_S.phase_index]
-        gca.plot(tt_tp, '--k', linewidth=2, label='ML-picked P')
-        gca.plot(tt_ts, '-k', linewidth=2, label='ML-picked S')
+        gca.plot(tt_tp, '--k', linewidth=3, label='ML-picked P')
+        gca.plot(tt_ts, '-k', linewidth=3, label='ML-picked S')
     except:
         print('Cannot find the ML travel time, skip...')
 
     # also load the theoretical time
     try:
-        cvm_tt = pd.read_csv(tt_dir + f'/{test_event_id}.csv')
-        tt_tp_vm = np.array(cvm_tt.tp) + tpshift
-        tt_ts_vm = np.array(cvm_tt.ts) + tsshift
-        gca.plot(tt_tp_vm, '--g', linewidth=2, label=f"theoretical P with {tpshift} s' shift")
-        gca.plot(tt_ts_vm, '-g', linewidth=2, label=f"theoretical S with {tsshift} s' shift")
+        cvm_tt = pd.read_csv(tt_dir + f'/1D_tt_{test_event_id}.csv')
+        tt_tp_vm = np.array(cvm_tt.P_arrival)
+        tt_ts_vm = np.array(cvm_tt.S_arrival)
+        gca.plot(tt_tp_vm, '--g', linewidth=3, label=f"theoretical P")
+        gca.plot(tt_ts_vm, '-g', linewidth=3, label=f"theoretical S")
     except:
         print('Cannot find the theoretical travel time, skip...')
 
-    gca.legend()
+    gca.legend(loc=3, fontsize=10)
     gca.invert_yaxis()
-
     mkdir(event_folder + '/event_examples')
-    plt.savefig(event_folder + f'/event_examples/{test_event_id}.png', bbox_inches='tight')
+    plt.savefig(event_folder + f'/event_examples/{test_event_id}_ML_paper.png', bbox_inches='tight')
 
 
 
 
 
+# # shift the ML picking
+# ML_picking_shift = {'9001':34.5, '9006':4, '9007': 40.5}
+# for i_event in [1, 6, 7]:#range(len(test_event_id_list)):
+#     test_event_id = test_event_id_list[i_event]
+#     ML_picking_dir1 = event_folder + '/picks_phasenet_das_safe_copy'
+#     ML_picking_dir2 = event_folder + '/picks_phasenet_das'
+#     ML_picking = pd.read_csv(ML_picking_dir1 + f'/{test_event_id}.csv')
+#     ML_picking['phase_index'] = ML_picking['phase_index'] + int(ML_picking_shift[str(test_event_id)]/das_dt)
 
-
+#     ML_picking.to_csv(ML_picking_dir2 + f'/{test_event_id}.csv')
 # %%

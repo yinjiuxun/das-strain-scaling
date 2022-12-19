@@ -73,7 +73,10 @@ def filter_by_channel_number(peak_amplitude_df, min_channel):
     return peak_amplitude_df[peak_amplitude_df['event_id'].isin(event_id)]
 
 # filter events given magnitude, snr, min_channel
-def filter_event(peak_amplitude_df, M_threshold=None, snr_threshold=None, min_channel=None, remove_zero=True):
+def filter_event(peak_amplitude_df, M_threshold=None, snr_threshold=None, min_channel=None, remove_zero=True, channel_list=None):
+    if channel_list is not None: # only keep the channels in the list
+        peak_amplitude_df = peak_amplitude_df[peak_amplitude_df.channel_id.isin(channel_list)]
+    
     if M_threshold:
         peak_amplitude_df = peak_amplitude_df[(peak_amplitude_df.magnitude >= M_threshold[0]) & (peak_amplitude_df.magnitude <= M_threshold[1])]
     
@@ -92,8 +95,8 @@ def filter_event(peak_amplitude_df, M_threshold=None, snr_threshold=None, min_ch
 # remove some extremely large outlier values 
 def remove_outliers(peak_amplitude_df, outlier_value=None):
     if outlier_value:
-        peak_amplitude_df[peak_amplitude_df.peak_P >= outlier_value] = np.nan
-        peak_amplitude_df[peak_amplitude_df.peak_S >= outlier_value] = np.nan
+        peak_amplitude_df.peak_P[peak_amplitude_df.peak_P >= outlier_value] = np.nan
+        peak_amplitude_df.peak_S[peak_amplitude_df.peak_S >= outlier_value] = np.nan
     return peak_amplitude_df
 
 # split P and S data from regression separately.

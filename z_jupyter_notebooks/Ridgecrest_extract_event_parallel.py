@@ -227,12 +227,14 @@ def save_segmented_event_data(i_event, DAS_index, eq_num, eq_id, eq_lat, eq_lon,
     matplotlib.rcParams.update(params) # Set up the plotting parameters
     warnings.filterwarnings('ignore')
 
-    if os.path.exists(os.path.join(data_folder, str(eq_id[i_event])+'.h5')):
-        print(f'Event data {eq_id[i_event]} exists, skip...')
-        pass
-
-    else:
+    # if os.path.exists(os.path.join(data_folder, str(eq_id[i_event])+'.h5')):
+    #     print(f'Event data {eq_id[i_event]} exists, skip...')
+    #     pass
+    # else:
+    
+    if True:
         try:
+    
             das_path = '/kuafu/zshen/Ridgecrest_data/1hoursegy/total/'
             file_name = eq_das_files[i_event]
 

@@ -22,7 +22,7 @@ distance = np.insert(distance, 0, 0)/distance[-1]
 
 # Interpolation with slinear:
 interpolations_method = 'slinear'
-alpha = np.linspace(0, DAS_channel_num, DAS_channel_num)/DAS_channel_num
+alpha = np.linspace(DAS_channel_num, 0, DAS_channel_num)/DAS_channel_num
 
 interpolator =  interp1d(distance, points, kind=interpolations_method, axis=0)
 interpolated_points = interpolator(alpha)

@@ -488,7 +488,7 @@ def predict_magnitude(peak_amplitude_df, regX, site_term_df, wavetype):
     
     return predicted_magnitude, peak_amplitude_df_temp
 
-def get_mean_magnitude(peak_amplitude_df, M_predict):
+def get_mean_magnitude(peak_amplitude_df, M_predict, method='median'):
     """Average the predicted magnitude for all available channels to obtain a final estimation"""
     temp_df = peak_amplitude_df[['event_id', 'magnitude']].copy()
     temp_df['predicted_M'] = M_predict
@@ -497,7 +497,12 @@ def get_mean_magnitude(peak_amplitude_df, M_predict):
         temp_df['predicted_M_std'] = M_predict
 
     else:
-        temp_df = temp_df.groupby(temp_df['event_id']).aggregate(np.nanmedian)
+        if method == 'median':
+            temp_df = temp_df.groupby(temp_df['event_id']).aggregate(np.nanmedian)
+        elif method == 'mean':
+            temp_df = temp_df.groupby(temp_df['event_id']).aggregate(np.nanmean)
+        else:
+            raise NameError('method needs to be either mean or median!')
 
         temp_df2 = peak_amplitude_df[['event_id', 'magnitude']].copy()
         temp_df2['predicted_M_std'] = M_predict

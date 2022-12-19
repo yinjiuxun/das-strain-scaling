@@ -42,18 +42,15 @@ import pygmt
 
 
 #%% 
-# Combine all regions (Ridgecrest + Mammoth N and S)
 # Specify the file names
-combined_results_output_dir = '/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RM'
+combined_results_output_dir = '/kuafu/yinjx/Arcata/peak_ampliutde_scaling_results_strain_rate'
 figure_output_dir = combined_results_output_dir + '/data_figures'
 mkdir(figure_output_dir)
-sanriku_results_output_dir = '/kuafu/yinjx/Sanriku/peak_ampliutde_scaling_results_strain_rate'
 
-event_folder_list = ['/kuafu/EventData/Ridgecrest', '/kuafu/EventData/Mammoth_north', 
-                     '/kuafu/EventData/Mammoth_south', '/kuafu/EventData/Sanriku_ERI']
+event_folder_list = ['/kuafu/EventData/Arcata_Spring2022']
 
-region_label = ['ridgecrest', 'mammothN', 'mammothS', 'sanriku']
-region_legend_text = ['Ridgecrest', 'Long Valley N', 'Long Valley S', 'Sanriku'] 
+region_label = ['arcata']
+region_legend_text = ['Arcata'] 
 
 snr_threshold = 10
 min_channel = 100
@@ -62,10 +59,7 @@ magnitude_threshold = [2, 10]
 snr_threshold_Sanriku = 5
 #%% 
 # Combined all data 
-peak_amplitude_df_all = pd.read_csv(combined_results_output_dir + '/peak_amplitude_multiple_arrays.csv')
-peak_amplitude_df_sanriku = pd.read_csv(sanriku_results_output_dir + '/peak_amplitude_events/calibrated_peak_amplitude.csv')
-peak_amplitude_df_sanriku = filter_event(peak_amplitude_df_sanriku, snr_threshold=snr_threshold_Sanriku, M_threshold=magnitude_threshold, min_channel=100)
-peak_amplitude_df_all = pd.concat((peak_amplitude_df_all, peak_amplitude_df_sanriku), axis=0, ignore_index=True)
+peak_amplitude_df_all = pd.read_csv(combined_results_output_dir + '/peak_amplitude_events/calibrated_peak_amplitude.csv')
 
 # use the hypocentral distance instead of epicentral distance
 peak_amplitude_df_all['distance_in_km'] = peak_amplitude_df_all['calibrated_distance_in_km']
@@ -95,7 +89,8 @@ for i_region in range(len(event_folder_list)):
 
     catalog = pd.read_csv(catalog_file)
     # Find events in the pick file
-    catalog_select = catalog[catalog.event_id.isin(event_id_selected)]
+    catalog_select = catalog
+    # catalog_select = catalog[catalog.event_id.isin(event_id_selected)]
     catalog_select['region'] = region_label[i_region]
     catalog_select_all = pd.concat((catalog_select_all, catalog_select), axis=0, ignore_index=True)
 
@@ -104,45 +99,22 @@ DAS_index = DAS_info_all['index'].astype('int')
 DAS_lon = DAS_info_all.longitude
 DAS_lat = DAS_info_all.latitude
 
+# specified events
+specified_event_list = [73736021, 73739276, 73747016, 73751651, 73757961, 73758756, 
+73735891, 73741131, 73747621, 73747806, 73748011, 73753546, 73743421] #73739346, 
+
+
+catalog_select_all = catalog_select_all[catalog_select_all.event_id.isin(specified_event_list)]
+
 num_events = catalog_select_all.shape[0]
 event_lon = catalog_select_all.longitude
 event_lat = catalog_select_all.latitude
 event_id = catalog_select_all.event_id
 
-#%%
-# plot time variation of events
-time_list = [obspy.UTCDateTime(parser.parse(time)) for time in catalog_select_all.event_time]
-time_span = np.array([time-time_list[0] for time in time_list])
-time_span_days = time_span/3600/24
-
-fig, ax = plt.subplots(figsize=(10, 4))
-
-# Ridgecrest
-ii_RC = catalog_select_all['region'] == 'ridgecrest'
-ax.plot(time_span_days[ii_RC], catalog_select_all[ii_RC].magnitude, 'o', markersize=3, color='#7DC0A6')
-
-# LV
-ii_LV = (catalog_select_all['region'] == 'mammothN') | (catalog_select_all['region'] == 'mammothS')
-ax.plot(time_span_days[ii_LV], catalog_select_all[ii_LV].magnitude, 'o', markersize=3, color='#ED926B')
-
-# Sanriku
-ii_sanriku = catalog_select_all['region'] == 'sanriku'
-ax.plot(time_span_days[ii_sanriku], catalog_select_all[ii_sanriku].magnitude, 'o', color='#DA8EC0', markersize=3)
-ax.text(100, 6.5, f'Sanriku EQs. ({len(time_span_days[ii_sanriku])}) \n2019/11/20-2019/12/01', color='#DA8EC0', fontsize=14)
-
-ax.hlines(y=1.4, xmin=0, xmax=696, color='#7DC0A6', label=f'Ridgecrest ({len(time_span_days[ii_RC])})', linewidth=2.5)
-ax.hlines(y=1.7, xmin=467, xmax=time_span_days.max(), color='#ED926B', label=f'Long Valley ({len(time_span_days[ii_LV])})', linewidth=2.5)
-ax.legend(loc=1,fontsize=13)
-ax.set_xlabel(f'Days from the {time_list[0].isoformat()[:10]}')
-ax.set_ylabel('magnitude')
-ax.set_ylim(ymin=1.1, ymax=7.9)
-ax.annotate(f'(a)', xy=(-0.1, 0.95), xycoords=ax.transAxes)
-plt.savefig(figure_output_dir + '/time_variation_selected_earthquakes.pdf', bbox_inches='tight')
-#TODO: (optional) change the x label to date time format
 
 #%%
 # =========================  Plot both arrays in California with PyGMT ==============================
-gmt_region = [-120, -117, 35, 39]
+gmt_region = [-125.5, -123, 39.5, 41.5]
 
 projection = "M12c"
 grid = pygmt.datasets.load_earth_relief(resolution="03s", region=gmt_region)
@@ -157,103 +129,48 @@ pygmt.config(FORMAT_GEO_MAP="ddd.x", MAP_FRAME_TYPE="plain", FONT_ANNOT_PRIMARY=
 # --------------- plotting the original Data Elevation Model -----------
 fig.basemap(region=gmt_region, 
 projection=projection, 
-frame=['WSrt+t"(b) California, US"', "xa1.0", "ya1.0"]
+frame=['WSrt', "xa1.0", "ya1.0"] #'WSrt+t"Arcata DAS experiment"'
 )
-pygmt.makecpt(cmap="dem4", series=[-1000, 3000])
+pygmt.makecpt(cmap="geo", series=[-4000, 4000])
 fig.grdimage(
     grid=grid,
     projection=projection,
     cmap=True,
     shading='+a45+nt1',
-    transparency=40
+    transparency=35
 )
 
-fig.plot(x=catalog_select_all.longitude.astype('float'), y=catalog_select_all.latitude.astype('float'), style="c0.1c", color="black")
-fig.plot(x=DAS_info_all.longitude[::10].astype('float'), y=DAS_info_all.latitude[::10].astype('float'), style="c0.1c", color="blue")
-
-fig.text(text="Long Valley", x=-119.5, y=38)
-fig.text(text="Ridgecrest", x=-118, y=35.55)
-
-fig.text(text="(b)", x=-120.5, y=39.3)
-
-# Create an inset map
-with fig.inset(position="jBL+w4.3c/7.5c+o0.1c", box="+gwhite+p1p"):
-    fig.coast(
-        region=[-125, -115, 30, 45],
-        projection="J",
-        #land='gray',#
-        dcw="US+ggray+p0.2p",
-        #water='lightblue',
-        area_thresh=10000,
-        resolution='f',
-        borders=["1/0.5p,black", "2/0.25p,black"]
-    )
-    # Plot a rectangle ("r") in the inset map to show the area of the main
-    # figure. 
-    rectangle = [[gmt_region[0], gmt_region[2], gmt_region[1], gmt_region[3]]]
-    fig.plot(data=rectangle, style="r+s", pen="2p,red")
-
-fig.show()
-fig.savefig(figure_output_dir + '/map_of_earthquakes_CA_GMT.png')
-
-#%%
-# =========================  Plot Sanriku in Japan with PyGMT ==============================
-gmt_region = [140, 145, 35, 42]
-projection = "M12c"
-grid = pygmt.datasets.load_earth_relief(resolution="03s", region=gmt_region)
-
-# calculate the reflection of a light source projecting from west to east
-dgrid = pygmt.grdgradient(grid=grid, radiance=[270, 30])
-
-fig = pygmt.Figure()
-# define figure configuration
-pygmt.config(FORMAT_GEO_MAP="ddd.x", MAP_FRAME_TYPE="plain", FONT_ANNOT_PRIMARY=15, FONT_TITLE="20p,Helvetica,black")
-
-# --------------- plotting the original Data Elevation Model -----------
-fig.basemap(region=gmt_region, 
-projection=projection, 
-frame=['WSrt+t" (c) Sanriku, Japan"', "xa2.0", "ya2.0"]
-)
-
-pygmt.makecpt(cmap="geo", series=[-8000, 8000])
-fig.grdimage(
-    grid=grid,
-    projection=projection,
-    cmap=True,
-    shading='+a45+nt1',
-    transparency=30
-)
-
-fig.plot(x=catalog_select_all.longitude.astype('float'), y=catalog_select_all.latitude.astype('float'), style="c0.15c", color='blue')
 fig.plot(x=catalog_select_all.longitude.astype('float'), y=catalog_select_all.latitude.astype('float'), style="c0.2c", color="black")
+fig.plot(x=DAS_info_all.longitude[::10].astype('float'), y=DAS_info_all.latitude[::10].astype('float'), style="c0.05c", color="red")
+fig.text(text="Arcata array", x=-124, y=40.93, font="12p,Helvetica-Bold,red")
 
-# show the werid 4130 event
-# event_4130 = catalog_select_all[catalog_select_all.event_id == 4130]
-# fig.plot(x=event_4130.longitude.astype('float'), y=event_4130.latitude.astype('float'), style="c0.22c", color="red")
-# fig.text(text="4130", x=event_4130.longitude.astype('float')+0.15, y=event_4130.latitude.astype('float'),color="red")
 
-fig.plot(x=DAS_info_all.longitude[::10].astype('float'), y=DAS_info_all.latitude[::10].astype('float'), style="c0.1c", color="blue")
+# special_event = catalog_select_all[catalog_select_all.event_id == 73743421]
+# x_73743421 = special_event.longitude.astype('float') 
+# y_73743421 = special_event.latitude.astype('float')
+# fig.plot(x=x_73743421, y=y_73743421, style="c0.3c", color="blue")
+# fig.text(text=f"id {special_event.iloc[0, :].event_id}, M {special_event.iloc[0, :].magnitude}", x=x_73743421, y=y_73743421-0.1, font="12p,Helvetica-Bold,blue")
 
-fig.text(text="Sanriku", x=143, y=39.4)
-
-with fig.inset(position="jBL+w4.3c/5.0c+o0.1c", box="+gwhite+p1p"):
-    # Plot the Japan main land in the inset using coast. 
-    fig.coast(
-        region=[129, 146, 30, 46],
-        projection="U54S/?",
-        #land='gray',#
-        dcw="JP+ggray+p0.2p",
-        #water='lightblue',
-        area_thresh=10000,
-        resolution='f',
-        #borders=["1/0.5p,black", "2/0.25p,black"]
-    )
-    # Plot a rectangle ("r") in the inset map 
-    rectangle = [[gmt_region[0], gmt_region[2], gmt_region[1], gmt_region[3]]]
-    fig.plot(data=rectangle, style="r+s", pen="2p,red")
+# # Create an inset map
+# with fig.inset(position="jBL+w4.3c/7.5c+o0.1c", box="+gwhite+p1p"):
+#     fig.coast(
+#         region=[-125, -115, 30, 45],
+#         projection="J",
+#         #land='gray',#
+#         dcw="US+ggray+p0.2p",
+#         #water='lightblue',
+#         area_thresh=10000,
+#         resolution='f',
+#         borders=["1/0.5p,black", "2/0.25p,black"]
+#     )
+#     # Plot a rectangle ("r") in the inset map to show the area of the main
+#     # figure. 
+#     rectangle = [[gmt_region[0], gmt_region[2], gmt_region[1], gmt_region[3]]]
+#     fig.plot(data=rectangle, style="r+s", pen="2p,red")
 
 fig.show()
-fig.savefig(figure_output_dir + '/map_of_earthquakes_JP_GMT.png')
+fig.savefig(figure_output_dir + '/map_of_earthquakes_Arcata_GMT_0.png')
+
 
 
 # %%
@@ -358,7 +275,6 @@ for i_ax, gca in enumerate(ax.flatten()):
 plt.subplots_adjust(wspace=0.5, hspace=0.5)
 
 plt.savefig(figure_output_dir + f'/data_correlation{calibrated_distance}_3x3_contours.png', bbox_inches='tight')
-plt.savefig(f'/kuafu/yinjx/Sanriku/peak_ampliutde_scaling_results_strain_rate/data_correlation{calibrated_distance}_3x3_contours.png', bbox_inches='tight')
 
 # %%
 # =================================   New organization of data statistics (3 by 3) hist plot =================================  
@@ -493,7 +409,6 @@ for i_ax, gca in enumerate(ax.flatten()):
 plt.subplots_adjust(wspace=0.5, hspace=0.5)
 
 plt.savefig(figure_output_dir + f'/data_correlation{calibrated_distance}_3x3_hist.png', bbox_inches='tight')
-plt.savefig(f'/kuafu/yinjx/Sanriku/peak_ampliutde_scaling_results_strain_rate/data_correlation{calibrated_distance}_3x3_hist.png', bbox_inches='tight')
 
 #%% 
 #  =================================  plot data statistics (peak strain rate measurements) =================================  
@@ -678,141 +593,5 @@ plt.savefig(f'/kuafu/yinjx/Sanriku/peak_ampliutde_scaling_results_strain_rate/da
 
 
 
-
-# %%
-# Temporary use:
-# plot time variation of events
-time_list = [obspy.UTCDateTime(parser.parse(time)) for time in catalog_select_all.event_time]
-time_span = np.array([time-time_list[0] for time in time_list])
-time_span_days = time_span/3600/24
-
-fig, ax = plt.subplots(figsize=(10, 4))
-
-# Ridgecrest
-ii_RC = catalog_select_all['region'] == 'ridgecrest'
-ax.plot(time_span_days[ii_RC], catalog_select_all[ii_RC].magnitude, 'o', markersize=3, color='#7DC0A6')
-
-# LV
-ii_LV = (catalog_select_all['region'] == 'mammothN') | (catalog_select_all['region'] == 'mammothS')
-ax.plot(time_span_days[ii_LV], catalog_select_all[ii_LV].magnitude, 'o', markersize=3, color='#ED926B')
-
-# Sanriku
-# ii_sanriku = catalog_select_all['region'] == 'sanriku'
-# ax.plot(time_span_days[ii_sanriku], catalog_select_all[ii_sanriku].magnitude, 'o', color='#DA8EC0', markersize=3)
-# ax.text(100, 6.5, f'Sanriku EQs. ({len(time_span_days[ii_sanriku])}) \n2019/11/20-2019/12/01', color='#DA8EC0', fontsize=14)
-
-ax.hlines(y=1.4, xmin=0, xmax=696, color='#7DC0A6', label=f'Ridgecrest ({len(time_span_days[ii_RC])})', linewidth=2.5)
-ax.hlines(y=1.7, xmin=467, xmax=time_span_days.max(), color='#ED926B', label=f'Long Valley ({len(time_span_days[ii_LV])})', linewidth=2.5)
-ax.legend(loc=1,fontsize=13)
-ax.set_xlabel(f'Days from the {time_list[0].isoformat()[:10]}')
-ax.set_ylabel('magnitude')
-ax.set_ylim(ymin=1.1, ymax=7.9)
-ax.annotate(f'(a)', xy=(-0.1, 0.95), xycoords=ax.transAxes, fontsize=18)
-plt.savefig(figure_output_dir + '/time_variation_selected_earthquakes_CA.pdf', bbox_inches='tight')
-#TODO: (optional) change the x label to date time format
-# %%
-# =================================   New organization of data statistics (3 by 3) Contour plot =================================  
-# =================================   Merge events  =================================  
-levels = [0.05, 0.3, 0.6, 0.9]
-linewidths = [0.8, 1.5, 2.5, 3.5]
-thresh = 0.01
-
-bins = (10, 10)
-add_possible_clipping = False
-peak_amplitude_df_temp = peak_amplitude_df_all.iloc[::1, :]
-peak_amplitude_df_temp = peak_amplitude_df_temp.groupby(by=['event_id', 'region'], as_index=False).median()
-
-calibrated_distance = ''#'_calibrated_distance'
-peak_amplitude_df_temp['log10(distance)'] = np.log10(peak_amplitude_df_temp.distance_in_km.astype('float'))
-# peak_amplitude_df_temp['log10(distance)'] = np.log10(peak_amplitude_df_temp.distance_in_km.astype('float'))
-peak_amplitude_df_temp['log10(peak_P)'] = np.log10(peak_amplitude_df_temp.peak_P.astype('float'))
-peak_amplitude_df_temp['log10(peak_S)'] = np.log10(peak_amplitude_df_temp.peak_S.astype('float'))
-peak_amplitude_df_temp['P/S'] = peak_amplitude_df_temp.peak_P/peak_amplitude_df_temp.peak_S
-
-peak_amplitude_df_Sanriku = peak_amplitude_df_temp[peak_amplitude_df_temp.region == 'sanriku']
-peak_amplitude_df_others = peak_amplitude_df_temp[peak_amplitude_df_temp.region != 'sanriku']
-
-plt.close('all')
-fig, ax = plt.subplots(3, 3, figsize=(14, 14))
-gca = ax[0, 0]
-g = sns.kdeplot(ax=gca, data=peak_amplitude_df_others[['magnitude', 'region']], x='magnitude', color='k')
-g = sns.kdeplot(ax=gca, data=peak_amplitude_df_others[['magnitude', 'region']], x='magnitude', hue='region', palette='Set2', legend=False)
-gca.set_xlim(1, 6)
-
-gca = ax[0, 1]
-g = sns.kdeplot(ax=gca, data=peak_amplitude_df_others[['log10(distance)', 'region']], x='log10(distance)', color='k')
-g = sns.kdeplot(ax=gca, data=peak_amplitude_df_others[['log10(distance)', 'region']], x='log10(distance)', hue='region', palette='Set2', legend=False)
-gca.set_xlim(0, 3)
-
-gca = ax[1, 0]
-g = sns.kdeplot(ax=gca, data=peak_amplitude_df_others[['magnitude','log10(peak_P)', 'region']], x='magnitude', y='log10(peak_P)',
-                 hue='region', palette='Set2', alpha=1, cbar=False, legend=True, fill=False, levels=levels, thresh=thresh, linewidths=linewidths)
-gca.set_ylim(-2.5, 2.5)
-g.get_legend().set_bbox_to_anchor((3.5, 2.5))
-# update the legend text
-L = g.get_legend()
-for i_L in range(len(L.get_texts())):
-    L.get_texts()[i_L].set_text(region_legend_text[i_L])
-plt.setp(L.get_title(), fontsize='18') 
-
-gca = ax[1, 1]
-g = sns.kdeplot(ax=gca, data=peak_amplitude_df_others[['log10(distance)','log10(peak_P)', 'region']], x='log10(distance)', y='log10(peak_P)',
-                 hue='region', palette='Set2', alpha=1, cbar=False, legend=False, levels=levels, thresh=thresh, linewidths=linewidths)
-
-gca = ax[2, 0]
-g = sns.kdeplot(ax=gca, data=peak_amplitude_df_others[['magnitude','log10(peak_S)', 'region']], x='magnitude', y='log10(peak_S)',
-                 hue='region', palette='Set2', alpha=1, cbar=False, legend=False, levels=levels, thresh=thresh, linewidths=linewidths)
-# gca.plot(peak_amplitude_df_Sanriku.magnitude.astype('float'), np.log10(peak_amplitude_df_Sanriku.peak_S.astype('float')), 'o', markersize=3, color='#DA8EC0', alpha=1)
-gca.set_ylim(-2.5, 2.5)
-
-
-gca = ax[2, 1]
-g = sns.kdeplot(ax=gca, data=peak_amplitude_df_others[['log10(distance)','log10(peak_S)', 'region']], x='log10(distance)', y='log10(peak_S)',
-                 hue='region', palette='Set2', alpha=1, cbar=False, legend=False, levels=levels, thresh=thresh, linewidths=linewidths)
-# gca.plot(np.log10(peak_amplitude_df_Sanriku.distance_in_km.astype('float')), np.log10(peak_amplitude_df_Sanriku.peak_S.astype('float')), 'o', markersize=3, color='#DA8EC0', alpha=1)
-
-fig.delaxes(ax[0, 2])
-
-gca = ax[1, 2]
-g = sns.kdeplot(ax=gca, data=peak_amplitude_df_others[['log10(peak_P)', 'region']], x='log10(peak_P)', color='k')
-g = sns.kdeplot(ax=gca, data=peak_amplitude_df_others[['log10(peak_P)', 'region']], x='log10(peak_P)', hue='region', palette='Set2', legend=False)
-gca.set_xlim(-2.5, 2.5)
-
-gca = ax[2, 2]
-g = sns.kdeplot(ax=gca, data=peak_amplitude_df_others[['log10(peak_S)', 'region']], x='log10(peak_S)', color='k')
-g = sns.kdeplot(ax=gca, data=peak_amplitude_df_others[['log10(peak_S)', 'region']], x='log10(peak_S)', hue='region', palette='Set2', legend=False)
-
-# share x axis
-ax[1, 0].sharex(ax[0, 0])
-ax[2, 0].sharex(ax[0, 0])
-ax[1, 1].sharex(ax[0, 1])
-ax[2, 1].sharex(ax[0, 1])
-ax[2, 2].sharex(ax[1, 2])
-
-# share y axis
-ax[1, 1].sharey(ax[1, 0])
-ax[2, 1].sharey(ax[2, 0])
-ax[2, 2].sharey(ax[1, 2])
-
-# some final handling
-letter_list = [str(chr(k+97)) for k in range(0, 20)]
-k=0
-for i_ax, gca in enumerate(ax.flatten()):
-    gca.spines.right.set_visible(False)
-    gca.spines.top.set_visible(False)
-    # add annotation
-    if i_ax != 2:
-        gca.annotate(f'({letter_list[k]})', xy=(-0.3, 1.1), xycoords=gca.transAxes, fontsize=18)
-        k += 1
-    # remove some labels
-    if i_ax not in [0, 3, 6, 5, 8]:
-        gca.set_ylabel('')
-    if i_ax not in [5, 6, 7, 8]:
-        gca.set_xlabel('')
-
-plt.subplots_adjust(wspace=0.5, hspace=0.5)
-
-plt.savefig(figure_output_dir + f'/data_correlation{calibrated_distance}_3x3_contours_CA.png', bbox_inches='tight')
-plt.savefig(f'/kuafu/yinjx/Sanriku/peak_ampliutde_scaling_results_strain_rate/data_correlation{calibrated_distance}_3x3_contours_CA.png', bbox_inches='tight')
 
 # %%

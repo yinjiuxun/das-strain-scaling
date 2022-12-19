@@ -18,7 +18,7 @@ from utility.plotting import plot_magnitude_seaborn
 # some parameters
 min_channel = 100 # do regression only on events recorded by at least 100 channels
 M_threshold = [2, 10]
-weighted = 'ols' # 'ols' or 'wls'
+weighted = 'wls' # 'ols' or 'wls'
 if weighted == 'ols':
     weight_text = '' 
 elif weighted == 'wls':
@@ -36,12 +36,14 @@ M_threshold_list = []
 snr_threshold_list = []
 vmax_list = []
 region_text_list = []
+catalog_file_list = []
 
 #%% # Set result directory
 if not random_test:
     # ================== multiple arrays ================== 
     results_output_dir = '/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RM'
     peak_file_name = '/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RM/peak_amplitude_multiple_arrays.csv'
+    catalog_file = '/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RM/catalog.csv'
     result_label = 'iter'
     regression_results_dir = results_output_dir + f'/{result_label}_regression_results_smf{weight_text}_{min_channel}_channel_at_least'
     snr_threshold = 10
@@ -57,6 +59,7 @@ if not random_test:
     snr_threshold_list.append(snr_threshold)
     vmax_list.append(vmax)
     region_text_list.append(region_text)
+    catalog_file_list.append(catalog_file)
 
     # single arrays
     #  ================== Ridgecrest ================== 
@@ -219,26 +222,6 @@ else:
     vmax_list.append(vmax)
     region_text_list.append(region_text) 
 
-    #  ================== Curie transfered specified test ================== 
-    results_output_dir = '/kuafu/yinjx/Curie/peak_amplitude_scaling_results_strain_rate'
-    peak_file_name = '/kuafu/yinjx/Curie/peak_amplitude_scaling_results_strain_rate/peak_amplitude_events/calibrated_peak_amplitude.csv'
-    result_label = 'transfer'
-    regression_results_dir = results_output_dir + f'/transfer_regression_specified_smf{weight_text}_{min_channel}_channel_at_least_9007/'
-    snr_threshold = 5
-    vmax = 50
-    M_threshold = [2, 10]
-    vmax = [2, 2] # for P and S
-    region_text = 'Transfered scaling for Curie'
-
-    M_threshold_list.append(M_threshold)
-    results_output_dir_list.append(results_output_dir)
-    regression_results_dir_list.append(regression_results_dir)
-    peak_file_name_list.append(peak_file_name)
-    result_label_list.append(result_label)
-    snr_threshold_list.append(snr_threshold)
-    vmax_list.append(vmax)
-    region_text_list.append(region_text) 
-
     #  ================== Sanriku transfered test ================== 
     N_event_fit_list = range(2, 10)
     N_test = 50
@@ -291,7 +274,9 @@ else:
 
 
 
-#%%
+# %%
+# calculate the DAS magnitude
+
 for ii in range(len(peak_file_name_list)):
     
     peak_file_name = peak_file_name_list[ii]
@@ -301,8 +286,11 @@ for ii in range(len(peak_file_name_list)):
     M_threshold = M_threshold_list[ii]
     vmax = vmax_list[ii]
     region_text = region_text_list[ii]
+    catalog_file = catalog_file_list[ii]
     print(regression_results_dir)
 
+    # load catalog
+    catalog = pd.read_csv(catalog_file)
     # load results
     peak_amplitude_df = pd.read_csv(peak_file_name)
     peak_amplitude_df['distance_in_km'] = peak_amplitude_df['calibrated_distance_in_km']
@@ -343,78 +331,36 @@ for ii in range(len(peak_file_name_list)):
         print('No S regression results, skip...')
         regS, magnitude_S, peak_amplitude_df_temp, final_magnitude_S = None, None, None, None
 
-    # check the STD of magnitude estimation, if too large, discard
-    # fig, ax = plt.subplots()
-    # ax.hist(final_magnitude_P[~final_magnitude_P.predicted_M_std.isna()].predicted_M_std, label='P')
-    # ax.hist(final_magnitude_S[~final_magnitude_S.predicted_M_std.isna()].predicted_M_std, label='S')
-    # ax.legend()
 
-    # final_magnitude_P = final_magnitude_P[final_magnitude_P.predicted_M_std < 0.75]
-    # final_magnitude_S = final_magnitude_S[final_magnitude_S.predicted_M_std < 0.75]
 
-    # plot figures of strain rate validation
-    fig_dir = regression_results_dir + '/figures'
-    mkdir(fig_dir)
+# %%
+# compare with different magnitude types
+M_das = final_magnitude_S[['event_id', 'predicted_M']]
+M_das = M_das.rename(columns={"predicted_M": "magnitude_das"})
+M_compare = pd.merge(catalog, M_das, how='inner', on='event_id')
 
-    xy_lim, height, space = [-1, 8], 10, 0.3
+M_compare['magnitude_type']=M_compare['magnitude_type'].str.capitalize()
+M_type_list = list(M_compare.magnitude_type.unique())
+cmap = plt.cm.get_cmap('Set2', len(M_type_list))
 
-    if result_label == 'iter': 
-        try:
-            gP = plot_magnitude_seaborn(final_magnitude_P, xlim=xy_lim, ylim=xy_lim, vmax=vmax[0], height=height, space=space)
-            gP.ax_joint.text(0, 7, region_text + f', P wave\n{len(final_magnitude_P.dropna())} events')
-            gP.savefig(fig_dir + f'/P_magnitude_prediction_rate_{result_label}_seaborn.png')
-        except:
-            print('No P regression results, skip...')
+fig, ax = plt.subplots(figsize=(12, 12))
+for ii, type in enumerate(M_type_list):
+    temp_df = M_compare[M_compare['magnitude_type']==type]
+    ax.plot(temp_df['magnitude_das'], temp_df['magnitude'], '.', color=cmap(ii), label=type)
+ax.set_xlim(0, 8)
+ax.set_ylim(0, 8)
+ax.legend()
+    
 
-        try:
-            gS = plot_magnitude_seaborn(final_magnitude_S, xlim=xy_lim, ylim=xy_lim, vmax=vmax[1], height=height, space=space)
-            gS.ax_joint.text(0, 7, region_text + f', S wave\n{len(final_magnitude_S.dropna())} events')
-            gS.savefig(fig_dir + f'/S_magnitude_prediction_rate_{result_label}_seaborn.png')
-        except:
-            print('No S regression results, skip...')    
-
-    elif result_label == 'transfer':
-        temp = np.load(regression_results_dir + '/transfer_event_list.npz')
-        event_id_fit_P = temp['event_id_fit_P']
-        event_id_fit_S = temp['event_id_fit_S']
-        event_id_predict = temp['event_id_predict_P']
-
-        try:
-            final_magnitude_P_fit = final_magnitude_P[final_magnitude_P.event_id.isin(event_id_fit_P)]
-            final_magnitude_P_predict = final_magnitude_P[final_magnitude_P.event_id.isin(event_id_predict)]
-
-            gP = plot_magnitude_seaborn(final_magnitude_P_predict, xlim=xy_lim, ylim=xy_lim, vmax=vmax[0], height=height, space=space)
-            gP.ax_joint.plot(final_magnitude_P_fit.magnitude, final_magnitude_P_fit.predicted_M, 'ro')
-            gP.ax_joint.plot(final_magnitude_P_predict.magnitude, final_magnitude_P_predict.predicted_M, 'bo')
-            gP.ax_joint.text(-0.5, 7, region_text + f', P wave\n{len(final_magnitude_P_fit.dropna())} events to fit, {len(final_magnitude_P_predict.dropna())} events to predict', fontsize=16)
-            gP.savefig(fig_dir + f'/P_magnitude_prediction_rate_{result_label}_seaborn.png')
-        except:
-            print('No valid P wave regression results, skip ...')
-            pass
-
-        try:
-            final_magnitude_S_fit = final_magnitude_S[final_magnitude_S.event_id.isin(event_id_fit_S)]
-            final_magnitude_S_predict = final_magnitude_S[final_magnitude_S.event_id.isin(event_id_predict)]
-
-            gS = plot_magnitude_seaborn(final_magnitude_S_predict, xlim=xy_lim, ylim=xy_lim, vmax=vmax[1], height=height, space=space)
-            gS.ax_joint.plot(final_magnitude_S_fit.magnitude, final_magnitude_S_fit.predicted_M, 'ro')
-            gS.ax_joint.plot(final_magnitude_S_predict.magnitude, final_magnitude_S_predict.predicted_M, 'bo')
-            gS.ax_joint.text(-0.5, 7, region_text + f', S wave\n{len(final_magnitude_S_fit.dropna())} events to fit, {len(final_magnitude_S_predict.dropna())} events to predict', fontsize=16)
-            gS.savefig(fig_dir + f'/S_magnitude_prediction_rate_{result_label}_seaborn.png')
-        except:
-            print('No valid S wave regression results, skip ...')
-            pass
-
-    plt.close('all')
-
-# #%%
-# temp = site_term_df.sort_values(['channel_id'])
-# # quickly show site terms, temporal use only
-# fig, ax = plt.subplots(1,2,figsize=(20, 5), sharex=True)
-# ax[0].plot(temp.channel_id, temp.site_term_P, '.')
-# ax[0].set_ylabel('P site term in log10')
-# ax[1].plot(temp.channel_id, temp.site_term_S, '.')
-# ax[1].set_ylabel('S site term in log10')
-# ax[1].set_xlabel('Channel number')
+fig, ax = plt.subplots(figsize=(12, 3))
+for ii, type in enumerate(M_type_list):
+    temp_df = M_compare[M_compare['magnitude_type']==type]
+    ax.plot(temp_df['magnitude_das'], temp_df['magnitude']-temp_df['magnitude_das'], '.', color=cmap(ii), markersize=10, label=type)
+ax.hlines(xmin=0, xmax=8, y=[0], color='k')
+ax.hlines(xmin=0, xmax=8, y=[0.5, -0.5], color='k', linewidth=1, linestyle='--')
+ax.hlines(xmin=0, xmax=8, y=[1, -1], color='k', linewidth=0.5, linestyle='--')
+ax.set_xlim(0, 8)
+ax.set_ylim(-1.8, 1.8)
+ax.legend()
 
 # %%

@@ -18,7 +18,7 @@ from utility.plotting import plot_prediction_vs_measure_seaborn
 #%%
 # some parameters
 min_channel = 100 # do regression only on events recorded by at least 100 channels
-weighted = 'wls' # 'ols' or 'wls'
+weighted = 'ols' # 'ols' or 'wls'
 if weighted == 'ols':
     weight_text = '' 
 elif weighted == 'wls':
@@ -155,6 +155,25 @@ if not random_test:
     region_text_list.append(region_text)
 
 else:
+    #  ================== Curie transfered specified test ================== 
+    results_output_dir = '/kuafu/yinjx/Curie/peak_amplitude_scaling_results_strain_rate'
+    peak_file_name = '/kuafu/yinjx/Curie/peak_amplitude_scaling_results_strain_rate/peak_amplitude_events/calibrated_peak_amplitude.csv'
+    result_label = 'transfer'
+    regression_results_dir = results_output_dir + f'/transfer_regression_specified_smf{weight_text}_{min_channel}_channel_at_least_9007/'
+    snr_threshold = 10
+    vmax = 50
+    M_threshold = [2, 10]
+    vmax = [2, 2] # for P and S
+    region_text = 'Transfered scaling for Curie'
+
+    M_threshold_list.append(M_threshold)
+    results_output_dir_list.append(results_output_dir)
+    regression_results_dir_list.append(regression_results_dir)
+    peak_file_name_list.append(peak_file_name)
+    result_label_list.append(result_label)
+    snr_threshold_list.append(snr_threshold)
+    vmax_list.append(vmax)
+    region_text_list.append(region_text) 
 
     # #  ================== LAX transfered test ================== 
     N_event_fit_list = range(2, 10)
@@ -268,11 +287,12 @@ for ii in range(len(peak_file_name_list)):
         
     elif result_label == 'transfer':
         temp = np.load(regression_results_dir + '/transfer_event_list.npz')
-        event_id_fit = temp['event_id_fit']
-        event_id_predict = temp['event_id_predict']
+        event_id_fit_P = temp['event_id_fit_P']
+        event_id_fit_S = temp['event_id_fit_S']
+        event_id_predict = temp['event_id_predict_P']
 
         try:
-            final_peak_fit = peak_P_comparison_df[peak_P_comparison_df.event_id.isin(event_id_fit)]
+            final_peak_fit = peak_P_comparison_df[peak_P_comparison_df.event_id.isin(event_id_fit_P)]
             final_peak_predict = peak_P_comparison_df[peak_P_comparison_df.event_id.isin(event_id_predict)]
 
             gP = plot_prediction_vs_measure_seaborn(final_peak_predict, phase='P', bins=40, vmax=vmax, xlim=xy_lim, ylim=xy_lim, height=height, space=space)
@@ -284,7 +304,7 @@ for ii in range(len(peak_file_name_list)):
             pass
 
         try:
-            final_peak_fit = peak_S_comparison_df[peak_S_comparison_df.event_id.isin(event_id_fit)]
+            final_peak_fit = peak_S_comparison_df[peak_S_comparison_df.event_id.isin(event_id_fit_S)]
             final_peak_predict = peak_S_comparison_df[peak_S_comparison_df.event_id.isin(event_id_predict)]
         
             gS = plot_prediction_vs_measure_seaborn(final_peak_predict, phase='S', bins=40, vmax=vmax, xlim=xy_lim, ylim=xy_lim, height=height, space=space)
@@ -297,13 +317,6 @@ for ii in range(len(peak_file_name_list)):
 
     plt.close('all')
     
-
-
-
-
-
-
-
 
 
 

@@ -39,12 +39,139 @@ params = {
 }
 matplotlib.rcParams.update(params)
 
-#%%
-def plot_data_correlation(peak_amplitude_df_temp, M_clipping, D_clipping_P, D_clipping_S, D_sense_P, D_sense_S, ax, show_region=True, show_clip=True):
-    region_keys = ['ridgecrest', 'mammothN', 'mammothS', 'sanriku']
-    region_title = ['Ridgecrest', 'Long Valley N', 'Long Valley S', 'Sanriku']
-    color_list = ['#7DC0A6', '#ED926B', '#91A0C7', '#DA8EC0']
 
+#%% show magnitude varying with mean peak amplitude for all events
+# show magnitude varying with mean peak amplitude for all events
+region_keys = ['ridgecrest', 'mammothN', 'mammothS', 'sanriku', 'olancha-old', 'olancha-new']
+region_title = ['Ridgecrest', 'Long Valley N', 'Long Valley S', 'Sanriku', 'Olancha-Old', 'Olancha-New']
+color_list = ['#7DC0A6', '#ED926B', '#91A0C7', '#DA8EC0', '#436932', '#86D763']
+
+combined_results_output_dir = '/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RM'
+peak_amplitude_df_all = pd.read_csv(combined_results_output_dir + '/peak_amplitude_multiple_arrays_all_raw.csv')
+sanriku_results_output_dir = '/kuafu/yinjx/Sanriku/peak_ampliutde_scaling_results_strain_rate'
+peak_amplitude_df_sanriku = pd.read_csv(sanriku_results_output_dir + '/peak_amplitude_events/calibrated_peak_amplitude.csv')
+
+olancha_old_results_output_dir = '/kuafu/yinjx/Olancha/peak_ampliutde_scaling_results_strain_rate/Old'
+peak_amplitude_df_olancha_old = pd.read_csv(olancha_old_results_output_dir + '/peak_amplitude_events/calibrated_peak_amplitude.csv')
+
+olancha_new_results_output_dir = '/kuafu/yinjx/Olancha/peak_ampliutde_scaling_results_strain_rate/New'
+peak_amplitude_df_olancha_new = pd.read_csv(olancha_new_results_output_dir + '/peak_amplitude_events/calibrated_peak_amplitude.csv')
+
+
+#%% 
+# Combine all data
+peak_amplitude_df_all = pd.concat((peak_amplitude_df_all, peak_amplitude_df_sanriku, peak_amplitude_df_olancha_old, peak_amplitude_df_olancha_new),
+                 axis=0, ignore_index=True)
+
+peak_amplitude_df_temp = peak_amplitude_df_all.iloc[::1, :]
+
+peak_amplitude_df_temp['log10(distance)'] = np.log10(peak_amplitude_df_temp.distance_in_km.astype('float'))
+# peak_amplitude_df_temp['log10(distance)'] = np.log10(peak_amplitude_df_temp.distance_in_km.astype('float'))
+peak_amplitude_df_temp['log10(peak_P)'] = np.log10(peak_amplitude_df_temp.peak_P.astype('float'))
+peak_amplitude_df_temp['log10(peak_S)'] = np.log10(peak_amplitude_df_temp.peak_S.astype('float'))
+peak_amplitude_df_temp['P/S'] = peak_amplitude_df_temp.peak_P/peak_amplitude_df_temp.peak_S
+# group by events
+peak_amplitude_df_temp = peak_amplitude_df_temp.groupby(by=['event_id', 'region'], as_index=False).mean()
+
+#%%
+def running_median(magnitude, peak, bins=20, M_range=(0, 8)):
+    magnitude = np.array(magnitude)
+    peak = np.array(peak)
+
+    magnitude_bins = np.linspace(M_range[0], M_range[1], bins)
+    bin_size = magnitude_bins[1] - magnitude_bins[0]
+    bin_center = magnitude_bins[:-1] + bin_size/2
+
+    peak_median = np.zeros(len(bin_center))
+
+    for ii in range(bins-1):
+        peak_median[ii] = np.nanmedian(peak[(magnitude>=magnitude_bins[ii]) & (magnitude<magnitude_bins[ii+1])])
+    return bin_center[~np.isnan(peak_median)], peak_median[~np.isnan(peak_median)]
+
+fig, ax = plt.subplots(1, 2, figsize=(16, 5), sharey=False)
+ax = ax.flatten()
+for ii_region, region_key in enumerate(region_keys):
+    temp_now = peak_amplitude_df_temp[peak_amplitude_df_temp.region==region_key]
+
+    temp_now = temp_now.drop(index=temp_now[(temp_now.peak_P>=1e3)|(temp_now.peak_S>=1e3)].index)
+    if region_key == 'olancha-old':
+        temp_now = temp_now.drop(index=temp_now[(temp_now.peak_P>=40)|(temp_now.peak_S>=40)].index)
+
+    bin_center, peak_P_median = running_median(temp_now.magnitude, temp_now.peak_P, bins=22)
+    ax[0].semilogy(bin_center, peak_P_median, '-o', color=color_list[ii_region], label=region_title[ii_region], markersize=8, alpha=alpha)
+    ax[0].vlines(x=2, ymin=1e-2, ymax=10, linestyle='--', color='k')
+
+    bin_center, peak_S_median = running_median(temp_now.magnitude, temp_now.peak_S, bins=22)
+    ax[1].semilogy(bin_center, peak_S_median, '-o', color=color_list[ii_region], label=region_title[ii_region], markersize=8, alpha=alpha)
+    ax[1].vlines(x=2, ymin=1e-2, ymax=50, linestyle='--', color='k')
+
+
+ax[0].set_title('P wave')
+ax[1].legend(fontsize=10, loc=4)
+ax[0].set_xlabel('Magnitude')
+ax[0].set_ylabel('Median peak amplitude')
+ax[1].set_title('S wave')
+ax[1].set_xlabel('Magnitude')
+
+ax = add_annotate(ax)
+
+
+#%% show magnitude varying with mean peak amplitude for all events, SCALED BY DISTANCE
+# show magnitude varying with mean peak amplitude for all events
+peak_amplitude_df_temp = filter_event(peak_amplitude_df_temp, snr_threshold=5)
+def running_median_scaled_by_distance(magnitude, peak, distance, b_D, bins=20, M_range=(0, 8)):
+    magnitude = np.array(magnitude)
+    peak = np.array(peak)
+    distance = np.array(distance)
+
+    magnitude_bins = np.linspace(M_range[0], M_range[1], bins)
+    bin_size = magnitude_bins[1] - magnitude_bins[0]
+    bin_center = magnitude_bins[:-1] + bin_size/2
+
+    peak_median = np.zeros(len(bin_center))
+
+    for ii in range(bins-1):
+        peak_median[ii] = np.nanmedian(peak[(magnitude>=magnitude_bins[ii]) & (magnitude<magnitude_bins[ii+1])])
+        distance_median = np.nanmedian(distance[(magnitude>=magnitude_bins[ii]) & (magnitude<magnitude_bins[ii+1])])
+        peak_median[ii] = peak_median[ii]/distance_median**b_D
+    return bin_center[~np.isnan(peak_median)], peak_median[~np.isnan(peak_median)]
+
+fig, ax = plt.subplots(1, 2, figsize=(16, 5), sharey=False)
+ax = ax.flatten()
+alpha=1
+for ii_region, region_key in enumerate(region_keys):
+    temp_now = peak_amplitude_df_temp[peak_amplitude_df_temp.region==region_key]
+    temp_now = temp_now.drop(index=temp_now[(temp_now.peak_P>=1e3)|(temp_now.peak_S>=1e3)].index)
+    if region_key == 'olancha-old':
+        temp_now = temp_now.drop(index=temp_now[(temp_now.peak_P>=40)|(temp_now.peak_S>=40)].index)
+    #     close_events_pd = pd.read_csv(olancha_old_results_output_dir + '/very_close_events.csv')
+    #     temp_now = temp_now.drop(index=temp_now[temp_now.event_id.isin(close_events_pd.event_id)].index)
+
+    bin_center, peak_P_median = running_median_scaled_by_distance(temp_now.magnitude, temp_now.peak_P, temp_now.distance_in_km, -1.269, bins=22)
+    ax[0].semilogy(bin_center, peak_P_median, '-o', color=color_list[ii_region], label=region_title[ii_region], markersize=8, alpha=alpha)
+    ax[0].vlines(x=2, ymin=1e-1, ymax=1e3, linestyle='--', color='k')
+
+    bin_center, peak_S_median = running_median_scaled_by_distance(temp_now.magnitude, temp_now.peak_S, temp_now.distance_in_km, -1.588, bins=22)
+    ax[1].semilogy(bin_center, peak_S_median, '-o', color=color_list[ii_region], label=region_title[ii_region], markersize=8, alpha=alpha)
+    ax[1].vlines(x=2, ymin=1e-1, ymax=1e5, linestyle='--', color='k')
+
+ax[0].set_title('P wave')
+ax[1].legend(fontsize=10, loc=4)
+ax[0].set_xlabel('Magnitude')
+ax[0].set_ylabel('Median peak amplitude \nscaled by distance')
+ax[1].set_title('S wave')
+ax[1].set_xlabel('Magnitude')
+
+ax = add_annotate(ax)
+
+
+#TODO: Pause here, find an interesting event series, looking into them
+
+
+
+
+#%%
+def plot_data_correlation(peak_amplitude_df_temp, ax):
 
     for ii_region, region_key in enumerate(region_keys):
         peak_amplitude_df_current = peak_amplitude_df_temp[peak_amplitude_df_temp.region == region_key]
@@ -55,35 +182,9 @@ def plot_data_correlation(peak_amplitude_df_temp, M_clipping, D_clipping_P, D_cl
         g = sns.histplot(ax=gca, data=peak_amplitude_df_current[['magnitude','log10(distance)']], x='magnitude', y='log10(distance)',
                  color=".1", pmax=0.7, cbar=True, bins=(20, 20), cbar_ax=cbaxes, cbar_kws={'fraction':0.03 ,'pad':0.0, 'label':'# of EQs'})
 
-        if show_region:
-            alpha = 0.2
-        else:
-            alpha = 0.0
-
-        gca.fill_between(M_clipping,D_clipping_P[region_key], D_sense_P[region_key], label='P detectable range',
-                    color=color_list[ii_region], linestyle='--', edgecolor='k', alpha=alpha)
-        gca.fill_between(M_clipping,D_clipping_S[region_key], D_sense_S[region_key], label='S detectable range',
-                    color=color_list[ii_region], linestyle='-', edgecolor='k', alpha=alpha)
-
-        if show_region:
-            gca.legend(fontsize=12, loc=4)
 
         gca.set_title(region_title[ii_region])
-
-        if show_clip:
-            if region_key == 'ridgecrest':
-                temp_clip = peak_amplitude_df_current[peak_amplitude_df_current.event_id.astype('int').isin([38548295, 39462536])]
-                gca.plot(temp_clip.magnitude-0.05, temp_clip['log10(distance)'], 'rx')
-
-            if (region_key == 'mammothN') or (region_key == 'mammothS'):
-                temp_clip = peak_amplitude_df_current[peak_amplitude_df_current.event_id.astype('int').isin([73584926])]
-                gca.plot(temp_clip.magnitude-0.05, temp_clip['log10(distance)'], 'rx')
-
-            if region_key == 'sanriku':
-                temp_clip = peak_amplitude_df_current[peak_amplitude_df_current.event_id.astype('int').isin([4130])]
-                gca.plot(temp_clip.magnitude-0.05, temp_clip['log10(distance)'], 'rx')
-
-        
+    
 # some final handling
     letter_list = [str(chr(k+97)) for k in range(0, 20)]
     k=0
@@ -95,6 +196,22 @@ def plot_data_correlation(peak_amplitude_df_temp, M_clipping, D_clipping_P, D_cl
         k += 1
 
     return fig, ax
+
+
+
+
+
+fig, ax = plt.subplots(3, 2, figsize=(12, 18), sharex=True, sharey=True)
+fig.suptitle(f"All events in the dataset", fontsize=20)
+ax = ax.flatten()
+fig, ax = plot_data_correlation(peak_amplitude_df_temp, ax)
+
+
+
+
+
+
+
 #%% Calculate the possible clipping lines 
 #Calculate the possible clipping lines 
 combined_results_output_dir = '/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RM'
@@ -174,7 +291,7 @@ for ii_region in [0, 1, 2, 3]:
 
 
 #%% Concatenate dataset if needed
-reconcatenate_data = True
+reconcatenate_data = False
 if reconcatenate_data:
 # Combine DataFrame into one DataFrame
     for ii_region in [0, 1, 2]:
@@ -196,7 +313,7 @@ show_region = False # this is only for presentation purpose
 # show all events
 sanriku_results_output_dir = '/kuafu/yinjx/Sanriku/peak_ampliutde_scaling_results_strain_rate'
 
-peak_amplitude_df_all = pd.read_csv(figure_output_dir + '/peak_amplitude_multiple_arrays_all_raw.csv')
+peak_amplitude_df_all = pd.read_csv(combined_results_output_dir + '/peak_amplitude_multiple_arrays_all_raw.csv')
 peak_amplitude_df_sanriku = pd.read_csv(sanriku_results_output_dir + '/peak_amplitude_events/calibrated_peak_amplitude.csv')
 
 peak_amplitude_df_all = pd.concat((peak_amplitude_df_all, peak_amplitude_df_sanriku), axis=0, ignore_index=True)
@@ -416,146 +533,6 @@ ax = add_annotate(ax)
 plt.savefig(figure_output_dir + '/magnitude_vs_mean_peak_amplitude_distance_scaled.png', bbox_inches='tight')
 
 
-#%% show magnitude varying with mean peak amplitude for all events
-# show magnitude varying with mean peak amplitude for all events
-region_keys = ['ridgecrest', 'mammothN', 'mammothS', 'sanriku']
-region_title = ['Ridgecrest', 'Long Valley N', 'Long Valley S', 'Sanriku']
-color_list = ['#7DC0A6', '#ED926B', '#91A0C7', '#DA8EC0']
-
-# check the good picked events
-import glob
-temp = glob.glob('/kuafu/jxli/Data/DASEventData/mammoth_north/temp_good/*.h5')
-good_event_id_north = [int(temp1[-11:-3]) for temp1 in temp]
-temp = glob.glob('/kuafu/jxli/Data/DASEventData/mammoth_south/temp_good/*.h5')
-good_event_id_south = [int(temp1[-11:-3]) for temp1 in temp]
-
-
-def running_median(magnitude, peak, bins=20, M_range=(0, 8)):
-    magnitude = np.array(magnitude)
-    peak = np.array(peak)
-
-    magnitude_bins = np.linspace(M_range[0], M_range[1], bins)
-    bin_size = magnitude_bins[1] - magnitude_bins[0]
-    bin_center = magnitude_bins[:-1] + bin_size/2
-
-    peak_median = np.zeros(len(bin_center))
-
-    for ii in range(bins-1):
-        peak_median[ii] = np.nanmedian(peak[(magnitude>=magnitude_bins[ii]) & (magnitude<magnitude_bins[ii+1])])
-    return bin_center[~np.isnan(peak_median)], peak_median[~np.isnan(peak_median)]
-
-fig, ax = plt.subplots(1, 2, figsize=(16, 5), sharey=False)
-ax = ax.flatten()
-for ii_region, region_key in enumerate(region_keys):
-    temp_now = peak_amplitude_df_temp[peak_amplitude_df_temp.region==region_key]
-
-    temp_now = temp_now.drop(index=temp_now[(temp_now.peak_P>=1e3)|(temp_now.peak_S>=1e3)].index)
-
-    if region_key == 'mammothN':
-        temp_now_good = temp_now[temp_now.event_id.isin(good_event_id_north)]
-        alpha=0.5
-    elif region_key == 'mammothS':
-        temp_now_good = temp_now[temp_now.event_id.isin(good_event_id_south)]
-        alpha=0.5
-    else:
-        alpha=1
-
-    bin_center, peak_P_median = running_median(temp_now.magnitude, temp_now.peak_P, bins=22)
-    ax[0].semilogy(bin_center, peak_P_median, '-o', color=color_list[ii_region], label=region_title[ii_region], markersize=8, alpha=alpha)
-    ax[0].vlines(x=2, ymin=1e-2, ymax=10, linestyle='--', color='k')
-    if 'mammoth' in region_key:
-        bin_center_good, peak_P_median_good = running_median(temp_now_good.magnitude, temp_now_good.peak_P, bins=22)
-        ax[0].semilogy(bin_center_good, peak_P_median_good, 'p', color=color_list[ii_region], label=region_title[ii_region]+', manual checked', markersize=12, markeredgecolor='k', zorder=-1)
-    
-    bin_center, peak_S_median = running_median(temp_now.magnitude, temp_now.peak_S, bins=22)
-    ax[1].semilogy(bin_center, peak_S_median, '-o', color=color_list[ii_region], label=region_title[ii_region], markersize=8, alpha=alpha)
-    ax[1].vlines(x=2, ymin=1e-2, ymax=50, linestyle='--', color='k')
-    if 'mammoth' in region_key:
-        bin_center_good, peak_S_median_good = running_median(temp_now_good.magnitude, temp_now_good.peak_S, bins=22)
-        ax[1].semilogy(bin_center_good, peak_S_median_good, 'p', color=color_list[ii_region], label=region_title[ii_region]+', manual checked', markersize=12, markeredgecolor='k', zorder=-1)
-    
-
-ax[0].set_title('P wave')
-ax[1].legend(fontsize=10, loc=4)
-ax[0].set_xlabel('Magnitude')
-ax[0].set_ylabel('Median peak amplitude')
-ax[1].set_title('S wave')
-ax[1].set_xlabel('Magnitude')
-
-ax = add_annotate(ax)
-plt.savefig(figure_output_dir + '/magnitude_vs_mean_peak_amplitude_manual_pick.png', bbox_inches='tight')
-
-#%% show magnitude varying with mean peak amplitude for all events, SCALED BY DISTANCE
-# show magnitude varying with mean peak amplitude for all events
-region_keys = ['ridgecrest', 'mammothN', 'mammothS', 'sanriku']
-region_title = ['Ridgecrest', 'Long Valley N', 'Long Valley S', 'Sanriku']
-color_list = ['#7DC0A6', '#ED926B', '#91A0C7', '#DA8EC0']
-
-# check the good picked events
-import glob
-temp = glob.glob('/kuafu/jxli/Data/DASEventData/mammoth_north/temp_good/*.h5')
-good_event_id_north = [int(temp1[-11:-3]) for temp1 in temp]
-temp = glob.glob('/kuafu/jxli/Data/DASEventData/mammoth_south/temp_good/*.h5')
-good_event_id_south = [int(temp1[-11:-3]) for temp1 in temp]
-
-
-def running_median_scaled_by_distance(magnitude, peak, distance, b_D, bins=20, M_range=(0, 8)):
-    magnitude = np.array(magnitude)
-    peak = np.array(peak)
-    distance = np.array(distance)
-
-    magnitude_bins = np.linspace(M_range[0], M_range[1], bins)
-    bin_size = magnitude_bins[1] - magnitude_bins[0]
-    bin_center = magnitude_bins[:-1] + bin_size/2
-
-    peak_median = np.zeros(len(bin_center))
-
-    for ii in range(bins-1):
-        peak_median[ii] = np.nanmedian(peak[(magnitude>=magnitude_bins[ii]) & (magnitude<magnitude_bins[ii+1])])
-        distance_median = np.nanmedian(distance[(magnitude>=magnitude_bins[ii]) & (magnitude<magnitude_bins[ii+1])])
-        peak_median[ii] = peak_median[ii]/distance_median**b_D
-    return bin_center[~np.isnan(peak_median)], peak_median[~np.isnan(peak_median)]
-
-fig, ax = plt.subplots(1, 2, figsize=(16, 5), sharey=False)
-ax = ax.flatten()
-for ii_region, region_key in enumerate(region_keys):
-    temp_now = peak_amplitude_df_temp[peak_amplitude_df_temp.region==region_key]
-
-    temp_now = temp_now.drop(index=temp_now[(temp_now.peak_P>=1e3)|(temp_now.peak_S>=1e3)].index)
-
-    if region_key == 'mammothN':
-        temp_now_good = temp_now[temp_now.event_id.isin(good_event_id_north)]
-        alpha=0.5
-    elif region_key == 'mammothS':
-        temp_now_good = temp_now[temp_now.event_id.isin(good_event_id_south)]
-        alpha=0.5
-    else:
-        alpha=1
-
-    bin_center, peak_P_median = running_median_scaled_by_distance(temp_now.magnitude, temp_now.peak_P, temp_now.distance_in_km, -1.269, bins=22)
-    ax[0].semilogy(bin_center, peak_P_median, '-o', color=color_list[ii_region], label=region_title[ii_region], markersize=8, alpha=alpha)
-    ax[0].vlines(x=2, ymin=1e-1, ymax=1e3, linestyle='--', color='k')
-    if 'mammoth' in region_key:
-        bin_center_good, peak_P_median_good = running_median_scaled_by_distance(temp_now_good.magnitude, temp_now_good.peak_P, temp_now_good.distance_in_km, -1.269, bins=22)
-        ax[0].semilogy(bin_center_good, peak_P_median_good, 'p', color=color_list[ii_region], label=region_title[ii_region]+', manual checked', markersize=12, markeredgecolor='k', zorder=-1)
-    
-    bin_center, peak_S_median = running_median_scaled_by_distance(temp_now.magnitude, temp_now.peak_S, temp_now.distance_in_km, -1.588, bins=22)
-    ax[1].semilogy(bin_center, peak_S_median, '-o', color=color_list[ii_region], label=region_title[ii_region], markersize=8, alpha=alpha)
-    ax[1].vlines(x=2, ymin=1e-1, ymax=1e5, linestyle='--', color='k')
-    if 'mammoth' in region_key:
-        bin_center_good, peak_S_median_good = running_median_scaled_by_distance(temp_now_good.magnitude, temp_now_good.peak_S, temp_now_good.distance_in_km, -1.588, bins=22)
-        ax[1].semilogy(bin_center_good, peak_S_median_good, 'p', color=color_list[ii_region], label=region_title[ii_region]+', manual checked', markersize=12, markeredgecolor='k', zorder=-1)
-    
-
-ax[0].set_title('P wave')
-ax[1].legend(fontsize=10, loc=4)
-ax[0].set_xlabel('Magnitude')
-ax[0].set_ylabel('Median peak amplitude \nscaled by distance')
-ax[1].set_title('S wave')
-ax[1].set_xlabel('Magnitude')
-
-ax = add_annotate(ax)
-plt.savefig(figure_output_dir + '/magnitude_vs_mean_peak_amplitude_distance_scaled_manual_pick.png', bbox_inches='tight')
 
 # %% Show the detectable figure after all quality control (M>2, SNR>5, min_channel>100)
 # Show the detectable figure after all quality control (M>2, SNR>5, min_channel>100)

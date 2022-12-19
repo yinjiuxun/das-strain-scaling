@@ -278,12 +278,12 @@ for i_region, results_output_dir in enumerate(results_output_dir_list):
 #  # Set result directory
 # multiple arrays
 results_output_dir_multi = '/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RM'
-region_list = ['ridgecrest', 'mammothN', 'mammothS']
+region_list = ['ridgecrest', 'mammothN', 'mammothS', 'sanriku']
 region_text = ['Ridgecrest', 'Long Valley (N)', 'Long Valley (S)']
 site_term_list = ['P', 'S']
-dx_list = [8, 10, 10] # Ridgecrest, Mammoth N, Mammoth S
-region_y_minP, region_y_maxP = [0, -1, -1], [1.5, 1.5, 1.5]
-region_y_minS, region_y_maxS = [0, -1, -1, -1.5], [1.5, 1.5, 1.5, 0]
+dx_list = [8, 10, 10, 5] # Ridgecrest, Mammoth N, Mammoth S, Sanriku
+region_y_minP, region_y_maxP = [-1, -1, -1, -1], [1.5, 1.5, 1.5, 1.5]
+region_y_minS, region_y_maxS = [-1, -1, -1, -1.5], [1.5, 1.5, 1.5, 1.5]
 
 # single arrays
 results_output_dir_list = []
@@ -320,7 +320,6 @@ results_output_dir_list.append(results_output_dir)
 region_key_list.append(region_key)
 region_text_list.append(region_text)
 region_dx_list.append(region_dx)
-
 
 # Show comparison
 regression_results_dir_multi = results_output_dir_multi + f'/iter_regression_results_smf_weighted_{min_channel}_channel_at_least'
@@ -359,6 +358,7 @@ for i_region, results_output_dir_single in enumerate(results_output_dir_list):
         if (i_wavetype == 0) and (i_region ==0):
             gca.legend()
 
+
 ax = add_annotate(ax)
 plt.subplots_adjust(wspace=0.2, hspace=0.3)
 mkdir(regression_results_dir + '/figures')
@@ -366,3 +366,73 @@ plt.savefig(regression_results_dir_multi + '/figures/site_terms_compare.png', bb
 
 
 
+
+# %%
+# Temporary use
+weighted = 'wls' # 'ols' or 'wls'
+if weighted == 'ols':
+    weight_text = '' 
+elif weighted == 'wls':
+    weight_text = '_weighted' 
+else:
+    raise
+
+for i_region, results_output_dir in enumerate(results_output_dir_list):
+    print(results_output_dir)
+    region_key = region_key_list[i_region]
+    region_text = region_text_list[i_region]
+    region_dx = region_dx_list[i_region]
+
+
+    regression_results_dir = results_output_dir + f'/iter_regression_results_smf{weight_text}_{min_channel}_channel_at_least'
+    site_term_df = pd.read_csv(regression_results_dir + '/site_terms_iter.csv')
+
+    # load the peak amplitude file
+    peak_amplitude_file = results_output_dir + '/peak_amplitude_events/calibrated_peak_amplitude.csv'
+    peak_amplitude_df_fit = pd.read_csv(peak_amplitude_file)
+
+    site_term_list = ['S']
+    fig, ax = plt.subplots(2, 1, figsize=(8, 8), sharex=True)
+
+    for i_wavetype, wavetype in enumerate(site_term_list):
+        temp = site_term_df[site_term_df.region == region_key]
+
+        
+        peak_amplitude_df_temp = filter_event(peak_amplitude_df_fit, M_threshold, snr_threshold, min_channel)
+        peak_amplitude_df_temp = peak_amplitude_df_temp[~peak_amplitude_df_temp[f'peak_{wavetype.upper()}'].isna()]
+        
+        gca = ax[0]
+        try:
+            gca.hist(peak_amplitude_df_temp.channel_id*region_dx/1e3, range=(0.5*region_dx/1e3, (peak_amplitude_df_temp.channel_id.max()+0.5)*region_dx/1e3), bins=int(peak_amplitude_df_temp.channel_id.max()), color='k')
+        except:
+            print(f"No {wavetype}, skip...")
+        gca.set_ylabel('Number of \nmeasurements')
+        
+        gca = ax[1]
+        try:
+            #gca.plot(temp.channel_id*region_dx/1e3, temp[f'site_term_{wavetype.upper()}'], 'k.')
+            gca.scatter(temp.channel_id*region_dx/1e3, temp[f'site_term_{wavetype.upper()}'],s=1, c='r')#temp[f'site_term_{wavetype.upper()}'], cmap='viridis')
+        except:
+            print(f"No {wavetype}, skip...")
+
+        # if region_text == 'LA-Google':
+        #     gca.vlines(x=bridge_section[[0, -1]], ymin=np.nanmin(temp[f'site_term_{wavetype.upper()}']), ymax=np.nanmax(temp[f'site_term_{wavetype.upper()}']), color='blue', label='Bridge')
+        #     gca.vlines(x=metro_section[[0, -1]], ymin=np.nanmin(temp[f'site_term_{wavetype.upper()}']), ymax=np.nanmax(temp[f'site_term_{wavetype.upper()}']), color='red', label='Metro')
+
+        # gca.set_xlim(metro_section[0]-0.5, metro_section[-1]+0.5)
+        gca.set_title(f'{region_text}, site term of {wavetype.upper()} wave')
+        gca.set_xlabel('Distance to IU (km)')
+        
+        gca.set_ylabel('Site term in log10')
+
+
+    if region_text == 'LA-Google':
+        ax[0, 0].set_yticks(range(0, 100, 5))
+        ax[0, 0].set_ylim(0, 15)
+
+    ax = add_annotate(ax)
+    plt.subplots_adjust(wspace=0.2, hspace=0.3)
+    mkdir(regression_results_dir + '/figures')
+    plt.savefig(regression_results_dir + '/figures/site_terms.pdf', bbox_inches='tight')
+    plt.savefig(regression_results_dir + '/figures/site_terms.png', bbox_inches='tight')
+# %%

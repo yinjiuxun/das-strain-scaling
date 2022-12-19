@@ -15,16 +15,17 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 
 # set plotting parameters 
+fontsize=18
 params = {
     'image.interpolation': 'nearest',
     'image.cmap': 'gray',
     'savefig.dpi': 100,  # to adjust notebook inline plot size
-    'axes.labelsize': 18, # fontsize for x and y labels (was 10)
-    'axes.titlesize': 18,
-    'font.size': 18,
-    'legend.fontsize': 18,
-    'xtick.labelsize': 18,
-    'ytick.labelsize': 18,
+    'axes.labelsize': fontsize, # fontsize for x and y labels (was 10)
+    'axes.titlesize': fontsize,
+    'font.size': fontsize,
+    'legend.fontsize': fontsize,
+    'xtick.labelsize': fontsize,
+    'ytick.labelsize': fontsize,
     'text.usetex':False,
     'axes.facecolor': 'white',
     'savefig.facecolor': 'white'
@@ -34,7 +35,17 @@ mpl.rcParams.update(params)
 #%% 
 # 1. Specify earthquake to look at
 # load event waveforms
-region_label = 'mammothS' #'LA-Google' #'mammothN' #'ridgecrest'
+region_label = 'curie' #'ridgecrest' #'LA-Google' #'mammothN' #'ridgecrest'
+
+weighted = 'ols' # 'ols' or 'wls'
+if weighted == 'ols':
+    weight_text = '' 
+elif weighted == 'wls':
+    weight_text = '_weighted' 
+else:
+    raise
+
+time_step = 10 # time step to measure peaks
 
 if 'ridgecrest' in region_label:
     event_folder = '/kuafu/EventData/Ridgecrest' 
@@ -77,10 +88,26 @@ if 'Google' in region_label:
 
 elif 'mammoth' in region_label:
     event_folder = '/kuafu/EventData/Mammoth_north'#'/kuafu/EventData/Mammoth_south' #'/kuafu/EventData/Ridgecrest'
-    event_folder = '/kuafu/EventData/AlumRock5.1/MammothSouth'
+    event_folder = '/kuafu/EventData/AlumRock5.1/MammothNorth'
     tt_dir = event_folder +  '/model_proc_tt/CVM3D' ##
     test_event_id = 73799091 # 73584926(M6) 73481241(M5) 73585021(M4.6)
     tt_shift_p, tt_shift_s = -3, -6.5
+    given_range_P = None
+    given_range_S = None
+
+elif 'arcata' in region_label:
+    event_folder = '/kuafu/EventData/Arcata_Spring2022'#'/kuafu/EventData/Mammoth_south' #'/kuafu/EventData/Ridgecrest'
+    tt_dir = event_folder +  '/theoretical_arrival_time_calibrated' ##
+    test_event_id =  73743421 # 73743421 (3.79), 73739346(3.64) 73736021(3.05)
+    tt_shift_p, tt_shift_s = 0, 0
+    given_range_P = None
+    given_range_S = None
+
+elif 'curie' in region_label:
+    event_folder = '/kuafu/EventData/Curie'#'/kuafu/EventData/Mammoth_south' #'/kuafu/EventData/Ridgecrest'
+    tt_dir = event_folder +  '/theoretical_arrival_time_calibrated' ##
+    test_event_id =  9001 #
+    tt_shift_p, tt_shift_s = 0, 0
     given_range_P = None
     given_range_S = None
 
@@ -90,8 +117,8 @@ das_waveform_path = event_folder + '/data'
 #%%
 # 2. Specify the array to look at
 # load the DAS array information
-#DAS_info = pd.read_csv(event_folder + '/das_info.csv')
-DAS_info = pd.read_csv('/kuafu/EventData/Mammoth_south/das_info.csv')
+DAS_info = pd.read_csv(event_folder + '/das_info.csv')
+# DAS_info = pd.read_csv('/kuafu/EventData/Mammoth_south/das_info.csv')
 # specify the directory of ML picking
 ML_picking_dir = event_folder + '/picks_phasenet_das'
 use_ML_picking = False
@@ -104,9 +131,13 @@ else:
 # 3. Specify the coefficients to load
 # regression coefficients of the multiple array case
 results_output_dir = '/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RM/'
-regression_dir = f'iter_regression_results_smf_weighted_100_channel_at_least'
+regression_dir = f'iter_regression_results_smf{weight_text}_100_channel_at_least'
+
 
 # # results of individual array
+# results_output_dir = '/kuafu/yinjx/Ridgecrest/Ridgecrest_scaling/peak_amplitude_scaling_results_strain_rate/'
+# regression_dir = f'iter_regression_results_smf_weighted_100_channel_at_least'
+
 # results_output_dir = '/kuafu/yinjx/LA_Google/peak_ampliutde_scaling_results_strain_rate/'
 # regression_dir = f'iter_regression_results_smf_weighted_100_channel_at_least'
 #%%
@@ -118,26 +149,43 @@ if not os.path.exists(fig_output_dir):
 #%%
 # Load DAS channels
 DAS_channel_num = DAS_info.shape[0]
-DAS_index = DAS_info.index
+DAS_index = DAS_info['index']
 DAS_lon = DAS_info.longitude
 DAS_lat = DAS_info.latitude
 
 # Load the DAS data
 strain_rate, info = load_event_data(das_waveform_path, test_event_id)
-strain_rate = strain_rate[:, DAS_index]
+if 'ridgecrest' in region_label:
+    strain_rate = strain_rate#[:, DAS_index]
+else:
+    strain_rate = strain_rate[:, DAS_index]
 das_dt = info['dt_s']
 nt = strain_rate.shape[0]
-das_time0 = np.arange(nt) * das_dt - 30
+
+if 'curie' in region_label:
+    das_time0 = np.arange(nt) * das_dt
+else:
+    das_time0 = np.arange(nt) * das_dt - 30
 
 # Load regression results
 regP = sm.load(results_output_dir + '/' + regression_dir + f"/P_regression_combined_site_terms_iter.pickle")
 regS = sm.load(results_output_dir + '/' + regression_dir + f"/S_regression_combined_site_terms_iter.pickle")
 site_terms_df = pd.read_csv(results_output_dir + '/' + regression_dir + f"/site_terms_iter.csv")
 
+if 'arcata' in region_label: # actually, if transfer scaling
+    results_dir = f'/kuafu/yinjx/Arcata/peak_ampliutde_scaling_results_strain_rate/transfer_regression_specified_smf{weight_text}_100_channel_at_least/'
+    #results_dir = '/kuafu/yinjx/Arcata/peak_ampliutde_scaling_results_strain_rate/transfer_regression_test_smf_weighted_100_channel_at_least/3_fit_events_6th_test'
+    site_terms_df = pd.read_csv(results_dir + '/site_terms_transfer.csv')
+    DAS_channel_num = DAS_info['index'].max()
+if 'curie' in region_label: # actually, if transfer scaling
+    results_dir = f'/kuafu/yinjx/Curie/peak_amplitude_scaling_results_strain_rate/transfer_regression_specified_smf{weight_text}_100_channel_at_least_9007/'
+    #results_dir = '/kuafu/yinjx/Arcata/peak_ampliutde_scaling_results_strain_rate/transfer_regression_test_smf_weighted_100_channel_at_least/3_fit_events_6th_test'
+    site_terms_df = pd.read_csv(results_dir + '/site_terms_transfer.csv')
+    DAS_channel_num = len(DAS_info)
 if 'Google' in region_label: # actually, if transfer scaling
-    LA_results_dir = '/kuafu/yinjx/LA_Google/peak_ampliutde_scaling_results_strain_rate/transfer_regression_test_smf_weighted_100_channel_at_least/9_fit_events_4th_test/'
+    LA_results_dir = f'/kuafu/yinjx/LA_Google/peak_ampliutde_scaling_results_strain_rate/transfer_regression_test_smf{weight_text}_100_channel_at_least/9_fit_events_4th_test/'
     site_terms_df = pd.read_csv(LA_results_dir + '/site_terms_transfer.csv')
-    LA_results_dir = '/kuafu/yinjx/LA_Google/peak_ampliutde_scaling_results_strain_rate/iter_regression_results_smf_weighted_100_channel_at_least'
+    LA_results_dir = f'/kuafu/yinjx/LA_Google/peak_ampliutde_scaling_results_strain_rate/iter_regression_results_smf{weight_text}_100_channel_at_least'
     site_terms_df = pd.read_csv(LA_results_dir + '/site_terms_iter.csv')
 #%%
 # have the site term in the same shape of original data, fill nan instead
@@ -147,6 +195,14 @@ site_terms_S = np.zeros(shape=(1, DAS_channel_num)) * np.nan
 
 site_terms_P[:, channel_id] = site_terms_df[site_terms_df.region == region_label]['site_term_P']
 site_terms_S[:, channel_id] = site_terms_df[site_terms_df.region == region_label]['site_term_S']
+
+if 'ridgecrest' in region_label:
+    pass
+elif 'mammoth' in region_label:
+    pass
+else:
+    site_terms_P = site_terms_P[:, np.array(DAS_index)-1]
+    site_terms_S = site_terms_S[:, np.array(DAS_index)-1]
 #%%
 # load the travel time and process
 def remove_ml_tt_outliers(ML_picking, das_dt, tdiff=10, given_range=None):
@@ -192,6 +248,10 @@ if use_ML_picking: #TODO: check why there is an obvious difference of picking
         use_ML_picking = False
         picking_label = 'vm'
 
+    if 'arcata' in region_label:
+        tt_tp = tt_tp[:, np.array(DAS_index)-1]
+        tt_tp = tt_tp[:, np.array(DAS_index)-1]
+
 if not use_ML_picking:            
     # theoretical travel time 
     if 'mammoth' in region_label:
@@ -210,6 +270,28 @@ if not use_ML_picking:
         tt_tp = np.array(cvm_tt.P_arrival)-30
         tt_tp = tt_tp[np.newaxis, :]
         tt_ts = np.array(cvm_tt.S_arrival)-30
+        tt_ts = tt_ts[np.newaxis, :]
+
+        # For travel time from velocity model, may need some manual correction
+        tt_tp= tt_tp+tt_shift_p 
+        tt_ts= tt_ts+tt_shift_s
+
+    elif ('arcata' in region_label):
+        cvm_tt = pd.read_csv(tt_dir + f'/1D_tt_{test_event_id}.csv')
+        tt_tp = np.array(cvm_tt.P_arrival)-30
+        tt_tp = tt_tp[np.newaxis, :]
+        tt_ts = np.array(cvm_tt.S_arrival)-30
+        tt_ts = tt_ts[np.newaxis, :]
+
+        # For travel time from velocity model, may need some manual correction
+        tt_tp= tt_tp+tt_shift_p 
+        tt_ts= tt_ts+tt_shift_s
+
+    elif ('curie' in region_label):
+        cvm_tt = pd.read_csv(tt_dir + f'/1D_tt_{test_event_id}.csv')
+        tt_tp = np.array(cvm_tt.P_arrival)
+        tt_tp = tt_tp[np.newaxis, :]
+        tt_ts = np.array(cvm_tt.S_arrival)
         tt_ts = tt_ts[np.newaxis, :]
 
         # For travel time from velocity model, may need some manual correction
@@ -244,7 +326,7 @@ strain_rate_clipped_S = strain_rate.copy()
 strain_rate_clipped_S[(das_time1<tt_ts_temp)] = np.nan
 strain_rate_clipped_S[(das_time1>tt_ts_temp+2)] = np.nan
 
-time_step = 10
+
 data_peak_mat_P = np.zeros((np.ceil(strain_rate.shape[0]/time_step).astype('int'), strain_rate.shape[1]))
 data_peak_mat_S = np.zeros((np.ceil(strain_rate.shape[0]/time_step).astype('int'), strain_rate.shape[1]))
 for i, ii_win in enumerate(range(0, strain_rate.shape[0], time_step)):
@@ -279,6 +361,7 @@ std_mag = np.nanstd(mag_estimate_final, axis=1)
 #%% 
 # Having all together as one figure
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+
 time_rang_show = [0, 120]
 if np.isnan(np.nanmin(tt_tp)):
     time_rang_show[0] = np.nanmin(tt_ts)-10
@@ -287,7 +370,7 @@ else:
 if not np.isnan(np.nanmax(tt_ts)):
     time_rang_show[1] = np.nanmedian(tt_ts)+10
 
-fig, ax = plt.subplots(3, 1, figsize=(14,20))
+fig, ax = plt.subplots(3, 1, figsize=(10,20))
 # Strain
 pclip=99
 clipVal = np.percentile(np.absolute(strain_rate), pclip)
@@ -319,12 +402,12 @@ gca.set_title(f'id: {test_event_id}, magnitude: {eq_mag.values[0]}', fontsize=20
 fig.colorbar(clb, cax=axins1, orientation="vertical", label='strain rate ($10^{-6}$/s)')
 
 # Colormap for Magnitude
-cmap = plt.cm.get_cmap('OrRd', 8)
+cmap = plt.cm.get_cmap('OrRd', 6)
 
 gca = ax[1]
 clb = gca.imshow(mag_estimate_final.T, 
             extent=[das_time[0], das_time[-1], mag_estimate_final.shape[1], 0],
-            aspect='auto', vmin=0, vmax=8, cmap=cmap, interpolation='none')
+            aspect='auto', vmin=0, vmax=6, cmap=cmap, interpolation='none')
 gca.plot(tt_tp.flatten(), np.arange(tt_tp.shape[1]), '-k', linewidth=4)
 gca.plot(tt_ts.flatten(), np.arange(tt_ts.shape[1]), '-k', linewidth=4)
 gca.vlines(x=[np.min(tt_tp), np.min(tt_ts)], ymax=mag_estimate_final.shape[1], ymin=0, label='earliest tP and tS', color='b', zorder=10)
@@ -348,6 +431,11 @@ gca.plot(das_time, median_mag-std_mag, '--r', linewidth=2, alpha=0.5, zorder=3, 
 gca.plot(das_time, median_mag+std_mag, '--r', linewidth=2, alpha=0.5, zorder=3)
 gca.vlines(x=[np.nanmin(tt_tp), np.nanmin(tt_ts)], ymax=10, ymin=0, label='earliest tP and tS', color='b')
 gca.vlines(x=[np.nanmax(tt_tp)+2, np.nanmax(tt_ts)+2], ymax=10, ymin=0, linestyle='--', color='b', label='latest tP+2s and tS+2s')
+
+mag_estiamte_P = median_mag[int(np.nanmax(tt_tp+2+30)/das_dt/time_step)]
+gca.text(x=np.nanmax(tt_tp+2), y=mag_estiamte_P+0.3, s=f'M {mag_estiamte_P:.2f}', color='r', fontsize=18)
+mag_estiamte_S = median_mag[int(np.nanmax(tt_ts+2+30)/das_dt/time_step)]
+gca.text(x=np.nanmax(tt_ts+2), y=mag_estiamte_S+0.3, s=f'M {mag_estiamte_S:.2f}', color='r', fontsize=18)
 
 gca.hlines(y=[eq_mag], xmin=-10, xmax=120, color='green', label='catalog M')
 gca.set_yticks(np.arange(0, 9))
