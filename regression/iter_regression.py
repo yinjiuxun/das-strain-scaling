@@ -53,7 +53,7 @@ if preprocess_needed: # TODO: double check here, something wrong
     peak_amplitude_df.to_csv(results_output_dir + f'/{peak_file_name}', index=False)
 
 #%% Iteratively fitting
-weighted = 'ols' # 'ols' or 'wls'
+weighted = 'wls' # 'ols' or 'wls'
 if weighted == 'ols':
     weight_text = '' 
 elif weighted == 'wls':
@@ -61,7 +61,7 @@ elif weighted == 'wls':
 else:
     raise
 
-regression_results_dir = results_output_dir + f'/iter_regression_results_smf{weight_text}_{min_channel}_channel_at_least'
+regression_results_dir = results_output_dir + f'/iter_regression_results_smf{weight_text}_{min_channel}_channel_at_least_std'
 mkdir(regression_results_dir)
 
 peak_amplitude_df = pd.read_csv(results_output_dir + f'/{peak_file_name}')
@@ -117,7 +117,6 @@ results_output_dirs = ["/kuafu/yinjx/Ridgecrest/Ridgecrest_scaling/peak_amplitud
                        "/kuafu/yinjx/Olancha/peak_ampliutde_scaling_results_strain_rate/New",
                        "/kuafu/yinjx/Olancha/peak_ampliutde_scaling_results_strain_rate/Old",
                        "/kuafu/yinjx/Arcata/peak_ampliutde_scaling_results_strain_rate/"]
-                       #TODO: Sanriku needs more work!
 
 M_threshold_list = [[2, 10], [2, 10], [2, 10], [2, 10], [2, 10], [0, 10], [0, 10], [2, 10]]
 snr_threshold_list = [10, 10, 10, 10, 5, 5, 5, 20]
@@ -131,7 +130,7 @@ elif weighted == 'wls':
 else:
     raise
 
-for i_region in [7]:#range(len(results_output_dirs)):
+for i_region in [0, 1, 2, 4]:#range(len(results_output_dirs)):
     M_threshold = M_threshold_list[i_region]
     snr_threshold = snr_threshold_list[i_region]
     results_output_dir = results_output_dirs[i_region]
@@ -196,7 +195,7 @@ for i_region in [7]:#range(len(results_output_dirs)):
     except:
         print('P regression is unavailable, assign Nan and None')
         regP = None
-        site_term_df_P = pd.DataFrame(columns=['region', 'channel_id', 'site_term_P'])
+        site_term_df_P = pd.DataFrame(columns=['region', 'channel_id', 'site_term_P', 'site_term_P_STD'])
 
     try:
         if 'Arcata' in results_output_dir:
@@ -208,7 +207,7 @@ for i_region in [7]:#range(len(results_output_dirs)):
     except:
         print('S regression is unavailable, assign Nan and None')
         regS = None
-        site_term_df_S = pd.DataFrame(columns=['region', 'channel_id', 'site_term_S'])
+        site_term_df_S = pd.DataFrame(columns=['region', 'channel_id', 'site_term_S', 'site_term_S_STD'])
 
     # merge the site term
     site_term_df = pd.merge(site_term_df_P, site_term_df_S, how='outer', left_on=['channel_id', 'region'], right_on=['channel_id', 'region'])
@@ -219,3 +218,4 @@ for i_region in [7]:#range(len(results_output_dirs)):
     store_regression_results(regS, regression_results_dir, results_filename=f"/S_{results_file_name}")
     site_term_df.to_csv(regression_results_dir + f'/site_terms_iter.csv', index=False)
 
+# %%
