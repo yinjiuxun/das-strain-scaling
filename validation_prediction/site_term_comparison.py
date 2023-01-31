@@ -89,7 +89,7 @@ for i_region in range(len(region_list)):
 ax = add_annotate(ax)
 plt.subplots_adjust(wspace=0.2, hspace=0.3)
 mkdir(regression_results_dir + '/figures')
-plt.savefig(regression_results_dir + '/figures/site_terms.png', bbox_inches='tight')
+plt.savefig(regression_results_dir + '/figures/site_terms0.png', bbox_inches='tight')
 
 #%%
 # Calculate the autocorrelation 
@@ -248,7 +248,8 @@ for i_region, results_output_dir in enumerate(results_output_dir_list):
         gca = ax[1, i_wavetype]
         try:
             #gca.plot(temp.channel_id*region_dx/1e3, temp[f'site_term_{wavetype.upper()}'], 'k.')
-            gca.scatter(temp.channel_id*region_dx/1e3, temp[f'site_term_{wavetype.upper()}'],s=1, c=temp[f'site_term_{wavetype.upper()}'], cmap='viridis')
+            # gca.scatter(temp.channel_id*region_dx/1e3, temp[f'site_term_{wavetype.upper()}'],s=1, c=temp[f'site_term_{wavetype.upper()}'], cmap='viridis')
+            gca.errorbar(temp.channel_id*region_dx/1e3, temp[f'site_term_{wavetype.upper()}'], yerr=temp[f'site_term_{wavetype.upper()}_STD'], fmt='r.', markersize=1, ecolor='b', elinewidth=0.2)
         except:
             print(f"No {wavetype}, skip...")
 

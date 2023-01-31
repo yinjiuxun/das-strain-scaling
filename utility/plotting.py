@@ -76,15 +76,15 @@ def plot_magnitude_seaborn(df_magnitude, vmin=None, vmax=None, **kwargs): # TODO
     g.plot_joint(
     sns.histplot, discrete=(False, False), bins=(20, 20), vmax=vmax, vmin=vmin,
     cmap="dark:#fcd9bb_r", pmax=.7, cbar=True, cbar_ax=cax, cbar_kws={'label':'counts', 'spacing': 'proportional'})
-    g.plot_marginals(sns.histplot, element="step", color="#c4a589") # light:#9C4D4D
+    g.plot_marginals(sns.histplot, element="step", color="#c4a589", bins=20, label='Counts') # light:#9C4D4D
 
     # ii_M4 = df_magnitude.magnitude >= 4 
     # g.ax_joint.plot(df_magnitude[ii_M4].magnitude, df_magnitude[ii_M4].predicted_M, 'k.', alpha=1)
     g.ax_joint.plot([-3,10], [-3,10], 'k-', linewidth = 2)
     g.ax_joint.plot([-3,10], [-2,11], 'k--', linewidth = 1)
     g.ax_joint.plot([-3,10], [-4,9], 'k--', linewidth = 1)
-    g.ax_joint.set_xlabel('catalog magnitude')
-    g.ax_joint.set_ylabel('predicted magnitude')
+    g.ax_joint.set_xlabel('Catalog magnitude')
+    g.ax_joint.set_ylabel('Predicted magnitude')
 
     if 'xlim' in kwargs.keys():
         g.ax_joint.set_xlim(kwargs['xlim'])

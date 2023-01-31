@@ -35,9 +35,9 @@ mpl.rcParams.update(params)
 #%% 
 # 1. Specify earthquake to look at
 # load event waveforms
-region_label = 'curie' #'ridgecrest' #'LA-Google' #'mammothN' #'ridgecrest'
+region_label = 'mammothN' #'ridgecrest' 
 
-weighted = 'ols' # 'ols' or 'wls'
+weighted = 'wls' # 'ols' or 'wls'
 if weighted == 'ols':
     weight_text = '' 
 elif weighted == 'wls':
@@ -50,64 +50,17 @@ time_step = 10 # time step to measure peaks
 if 'ridgecrest' in region_label:
     event_folder = '/kuafu/EventData/Ridgecrest' 
     tt_dir = event_folder +  '/theoretical_arrival_time' 
-    test_event_id = 40063391 #40063391(M4.57, New event, tt correction 0) 39493944(M5.8, tt correction 1.)  38548295(M4.90, tt correction 4.8), 38996632 (M4.89)
+    test_event_id = 40063391 
     tt_shift_p, tt_shift_s = 0, 0
     given_range_P = None
     given_range_S = None
-
-if 'Google' in region_label:
-    event_folder = '/kuafu/EventData/LA_Google' 
-    tt_dir = event_folder +  '/theoretical_arrival_time' 
-
-    test_event_id= 40241984 
-    tt_shift_p, tt_shift_s = 0, 0 # To correct the time drift for Google data manually
-    given_range_P = None
-    given_range_S = None
-
-    #test_event_id, given_range_S, ymin, ymax = 40241984, None, 50, 70 #40241984(2.88 from offshore) 
-    # Another one from NW
-    # test_event_id, given_range_P, given_range_S, ymin, ymax = 39914199, None, None, 40, 80 # (Another one M3 from NW)
-    # test_event_id, given_range_P, given_range_S, ymin, ymax = 39974975, None, [40, 46], 35, 55 # (One M2.6 from N)
-    #test_event_id, given_range_S, ymin, ymax = 40182560, [55, 60], 40, 90 #40182560(3.86)
-    #test_event_id, given_range_S, ymin, ymax = 39970455, None, 55, 70 #39970455 (M2.79 from SW offshore)
-    # test_event_id, given_range_S, ymin, ymax = 40296896, [0, 60], 0, 90 #40182560(2.36 from offshore) 
-    #test_event_id, given_range_S, ymin, ymax = 39988031, [32, 38], 30, 45 # (2.09, View Park-Windsor Hills)
-    #test_event_id, given_range_S, ymin, ymax = 39929895, None, 30, 50 # (3.26, South Gate)
-    #test_event_id, given_range_S, ymin, ymax = 40180104, [30, 40], 30, 50 # (2.59, Hollywood)
-    #test_event_id, tt_shift_p, tt_shift_s = 40194736, 0, 0 #40194736 (M3.98) a "large event" coming from NW of LA
-    # test_event_id, given_range_S, ymin, ymax = 40194848, [55, 59], 40, 90 #40194848(3.05)
-    #test_event_id, given_range_S, ymin, ymax = 40287104, [55, 60], 40, 90 #40287104(2.84)
-    # test_event_id, given_range_P, given_range_S, ymin, ymax = 39974135, [40, 50], [50, 60], 40, 80 # (3.28, Ontario)
-    #test_event_id, tt_shift_p, tt_shift_s = 39882375, 0, 0 #39882375 (M3.6)
-    #test_event_id, tt_shift_p, tt_shift_s = 40033927, 0, 0 #39882375 (M1.53)
-    #test_event_id, tt_shift_p, tt_shift_s = 39983383, 0, 0 #39983383 (M2.32)  39983383 is an event below the DAS array
-    #40182560 (M3.8)
-    #test_event_id, tt_shift_p, tt_shift_s = 40019919, 0, 0 #40019919 (M3.76)
-    #test_event_id, tt_shift_p, tt_shift_s = 39929895, 0, 0 #39929895 (M3.26)
-    #test_event_id, tt_shift_p, tt_shift_s = 40033063, 3.9, 5.1 # 40033063 is an event below the DAS array
 
 elif 'mammoth' in region_label:
     event_folder = '/kuafu/EventData/Mammoth_north'#'/kuafu/EventData/Mammoth_south' #'/kuafu/EventData/Ridgecrest'
     event_folder = '/kuafu/EventData/AlumRock5.1/MammothNorth'
     tt_dir = event_folder +  '/model_proc_tt/CVM3D' ##
-    test_event_id = 73799091 # 73584926(M6) 73481241(M5) 73585021(M4.6)
+    test_event_id = 73799091 
     tt_shift_p, tt_shift_s = -3, -6.5
-    given_range_P = None
-    given_range_S = None
-
-elif 'arcata' in region_label:
-    event_folder = '/kuafu/EventData/Arcata_Spring2022'#'/kuafu/EventData/Mammoth_south' #'/kuafu/EventData/Ridgecrest'
-    tt_dir = event_folder +  '/theoretical_arrival_time_calibrated' ##
-    test_event_id =  73743421 # 73743421 (3.79), 73739346(3.64) 73736021(3.05)
-    tt_shift_p, tt_shift_s = 0, 0
-    given_range_P = None
-    given_range_S = None
-
-elif 'curie' in region_label:
-    event_folder = '/kuafu/EventData/Curie'#'/kuafu/EventData/Mammoth_south' #'/kuafu/EventData/Ridgecrest'
-    tt_dir = event_folder +  '/theoretical_arrival_time_calibrated' ##
-    test_event_id =  9001 #
-    tt_shift_p, tt_shift_s = 0, 0
     given_range_P = None
     given_range_S = None
 
@@ -172,21 +125,6 @@ regP = sm.load(results_output_dir + '/' + regression_dir + f"/P_regression_combi
 regS = sm.load(results_output_dir + '/' + regression_dir + f"/S_regression_combined_site_terms_iter.pickle")
 site_terms_df = pd.read_csv(results_output_dir + '/' + regression_dir + f"/site_terms_iter.csv")
 
-if 'arcata' in region_label: # actually, if transfer scaling
-    results_dir = f'/kuafu/yinjx/Arcata/peak_ampliutde_scaling_results_strain_rate/transfer_regression_specified_smf{weight_text}_100_channel_at_least/'
-    #results_dir = '/kuafu/yinjx/Arcata/peak_ampliutde_scaling_results_strain_rate/transfer_regression_test_smf_weighted_100_channel_at_least/3_fit_events_6th_test'
-    site_terms_df = pd.read_csv(results_dir + '/site_terms_transfer.csv')
-    DAS_channel_num = DAS_info['index'].max()
-if 'curie' in region_label: # actually, if transfer scaling
-    results_dir = f'/kuafu/yinjx/Curie/peak_amplitude_scaling_results_strain_rate/transfer_regression_specified_smf{weight_text}_100_channel_at_least_9007/'
-    #results_dir = '/kuafu/yinjx/Arcata/peak_ampliutde_scaling_results_strain_rate/transfer_regression_test_smf_weighted_100_channel_at_least/3_fit_events_6th_test'
-    site_terms_df = pd.read_csv(results_dir + '/site_terms_transfer.csv')
-    DAS_channel_num = len(DAS_info)
-if 'Google' in region_label: # actually, if transfer scaling
-    LA_results_dir = f'/kuafu/yinjx/LA_Google/peak_ampliutde_scaling_results_strain_rate/transfer_regression_test_smf{weight_text}_100_channel_at_least/9_fit_events_4th_test/'
-    site_terms_df = pd.read_csv(LA_results_dir + '/site_terms_transfer.csv')
-    LA_results_dir = f'/kuafu/yinjx/LA_Google/peak_ampliutde_scaling_results_strain_rate/iter_regression_results_smf{weight_text}_100_channel_at_least'
-    site_terms_df = pd.read_csv(LA_results_dir + '/site_terms_iter.csv')
 #%%
 # have the site term in the same shape of original data, fill nan instead
 channel_id = np.array(site_terms_df[site_terms_df.region == region_label]['channel_id'].astype('int'))
@@ -369,8 +307,9 @@ else:
     time_rang_show[0] = np.nanmin(tt_tp)-3
 if not np.isnan(np.nanmax(tt_ts)):
     time_rang_show[1] = np.nanmedian(tt_ts)+10
-
-fig, ax = plt.subplots(3, 1, figsize=(10,20))
+time_rang_show = [30, 75]
+mpl.rcParams.update(params)
+fig, ax = plt.subplots(3, 1, figsize=(8,16))
 # Strain
 pclip=99
 clipVal = np.percentile(np.absolute(strain_rate), pclip)
@@ -442,16 +381,16 @@ gca.set_yticks(np.arange(0, 9))
 gca.set_ylim(0, eq_mag.values*1.4)
 gca.set_xlim(time_rang_show[0], time_rang_show[1])
 gca.set_xlabel('Time (s)')
-gca.set_ylabel('Estimated Magnitude')
-gca.legend(loc=4)
+gca.set_ylabel('Magnitude')
+gca.legend(loc=4, fontsize=15)
 
 plt.subplots_adjust(hspace=0.2)
 
 # some final handling
-letter_list = [str(chr(k+97)) for k in range(0, 3)]
+letter_list = [str(chr(k+100)) for k in range(0, 3)]
 k=0
 for ii in range(0, 3):
-    ax[ii].annotate(f'({letter_list[k]})', xy=(-0.05, 1.0), xycoords=ax[ii].transAxes)
+    ax[ii].annotate(f'({letter_list[k]})', xy=(-0.1, 1.0), xycoords=ax[ii].transAxes)
     k+=1
 
 plt.savefig(fig_output_dir + f'/{region_label}_{test_event_id}_estimated_mag_image_{picking_label}.png', bbox_inches='tight')
