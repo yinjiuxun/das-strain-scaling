@@ -74,28 +74,6 @@ def secondary_site_calibration(regX, peak_amplitude_df, wavetype):
     second_calibration = second_calibration.drop(columns=['magnitude'])
     return second_calibration
 
-# def secondary_site_calibration2(regX, peak_amplitude_df, wavetype):
-#     """Apply secondary calibration on the site terms"""
-#     wavetype = wavetype.upper()
-#     y_predict = regX.predict(peak_amplitude_df)
-
-#     peak_amplitude_df_temp = pd.DataFrame(columns=['channel_id', 'region', f'diff_peak_{wavetype}', f'site_calibate_{wavetype}'])
-#     peak_amplitude_df_temp.channel_id = peak_amplitude_df.channel_id
-#     peak_amplitude_df_temp.region = peak_amplitude_df.region
-
-#     #weighted_all = np.nansum(10**peak_amplitude_df.magnitude)
-#     peak_amplitude_df_temp[f'diff_peak_{wavetype}'] = (-y_predict + np.log10(peak_amplitude_df[f'peak_{wavetype}']))#*10**peak_amplitude_df.magnitude/weighted_all
-
-#     second_calibration = peak_amplitude_df_temp.groupby(['channel_id', 'region'], as_index=False).mean()
-#     second_calibration_std = peak_amplitude_df_temp.groupby(['channel_id', 'region'], as_index=False).std()
-#     second_calibration_std = second_calibration_std.rename(columns={f'diff_peak_{wavetype}':f'std_{wavetype}'})
-
-
-#     temp_df = peak_amplitude_df_temp[['channel_id', 'region']].drop_duplicates(subset=['channel_id', 'region'])
-#     second_calibration = pd.merge(second_calibration, temp_df, how='inner', left_on=['channel_id', 'region'], right_on=['channel_id', 'region'])
-#     second_calibration = pd.merge(second_calibration, second_calibration_std, how='inner', left_on=['channel_id', 'region'], right_on=['channel_id', 'region'])
-#     return second_calibration
-
 def extract_site_terms(regP, regS, peak_amplitude_df):
     """Extract the site terms as individual files from regression"""
     region_site = np.sort(peak_amplitude_df.region_site.unique())

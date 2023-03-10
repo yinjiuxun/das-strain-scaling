@@ -73,7 +73,7 @@ def filter_by_channel_number(peak_amplitude_df, min_channel):
     return peak_amplitude_df[peak_amplitude_df['event_id'].isin(event_id)]
 
 # filter events given magnitude, snr, min_channel
-def filter_event(peak_amplitude_df, M_threshold=None, snr_threshold=None, min_channel=None, remove_zero=True, channel_list=None):
+def filter_event_first_order(peak_amplitude_df, M_threshold=None, snr_threshold=None, min_channel=None, remove_zero=True, channel_list=None):
     if channel_list is not None: # only keep the channels in the list
         peak_amplitude_df = peak_amplitude_df[peak_amplitude_df.channel_id.isin(channel_list)]
     
