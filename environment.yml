@@ -1,0 +1,24 @@
+name: das_data
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.8
+  - scipy
+  - numpy
+  - cmake
+  - matplotlib
+  - numba
+  - obspy
+  - cartopy
+  - xarray
+  - mkl
+  - mkl-service
+  - theano-pymc
+  - tqdm
+  - jupyter
+  - h5py
+  - pygmt==0.5.0
+  - pandas
+  - numexpr
+  - patsy
