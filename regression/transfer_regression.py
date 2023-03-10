@@ -1,16 +1,14 @@
 #%% import modules
-import os
 import pandas as pd
 import numpy as np
 import shutil
 import statsmodels.api as sm
 import random
-import matplotlib.pyplot as plt
 
 import sys
 sys.path.append('../')
 from utility.general import mkdir
-from utility.processing import filter_event
+from utility.processing import filter_event_first_order
 from utility.regression import fit_regression_transfer, get_std_of_site_terms
 
 #%% 
@@ -84,7 +82,7 @@ def main(data_file, previous_regression_dir, results_output_dir, N_event_fit_lis
 
     # peak_amplitude_df = pd.read_csv(results_output_dir + '/peak_amplitude_events/calibrated_peak_amplitude.csv')
     peak_amplitude_df['distance_in_km'] = peak_amplitude_df['calibrated_distance_in_km']
-    peak_amplitude_df = filter_event(peak_amplitude_df, snr_threshold=snr_threshold, min_channel=min_channel, M_threshold=M_threshold)
+    peak_amplitude_df = filter_event_first_order(peak_amplitude_df, snr_threshold=snr_threshold, min_channel=min_channel, M_threshold=M_threshold)
 
     # set seeds for randomly splitting dataset
     random.seed(212)
@@ -101,11 +99,8 @@ def main(data_file, previous_regression_dir, results_output_dir, N_event_fit_lis
             site_term_df = transfer_fitting(regP_pre, regS_pre, peak_amplitude_df_fit, weighted, M_threshold, snr_threshold, min_channel)
 
             # make output directory and output results
-            results_output_dir = results_output_dir
-            regression_results_dir = results_output_dir + f'/transfer_regression_test_smf{weight_text}_{min_channel}_channel_at_least'
-            mkdir(regression_results_dir)
-            
-            regression_results_dir = regression_results_dir + f'/{N_event_fit}_fit_events_{i_test}th_test'
+            results_output_dir = results_output_dir           
+            regression_results_dir = results_output_dir + f'/{N_event_fit}_fit_events_{i_test}th_test'
             mkdir(regression_results_dir)
 
             site_term_df.to_csv(regression_results_dir + '/site_terms_transfer.csv', index=False)
@@ -136,80 +131,4 @@ if __name__ == '__main__':
     # run the iterative regression
     main(data_file, previous_regression_dir, results_output_dir, N_event_fit_list, N_test)
 
-
-# #%%
-# # some parameters
-# min_channel = 100 # do regression only on events recorded by at least 100 channels
-
-# weighted = 'wls' # 'ols' or 'wls'
-# if weighted == 'ols':
-#     weight_text = '' 
-# elif weighted == 'wls':
-#     weight_text = '_weighted' 
-# else:
-#     raise NameError('weighted must be either "wls" for weighted regression or "old" for ordinary linear regression')
-# #%%
-# # Coefficients from previous results
-# previous_regression_dir = f'../results/'
-# regP_pre_path = previous_regression_dir + f"/P_regression_combined_site_terms_iter.pickle"
-# regS_pre_path = previous_regression_dir + f"/S_regression_combined_site_terms_iter.pickle"
-
-# regP_pre = sm.load(regP_pre_path)
-# regS_pre = sm.load(regS_pre_path)
-
-# #%%
-# snr_threshold_transfer = 5
-# M_threshold = [2, 10]
-
-# # setup the output directory
-# results_output_dir = '../transfered_results/'
-# mkdir(results_output_dir)
-
-# # load the data
-# data_file = '../data_files/peak_amplitude/peak_amplitude_Sanriku.csv'
-# with open(f"{data_file}", 'r') as f:
-#         peak_amplitude_df = pd.read_csv(f)
-
-# # peak_amplitude_df = pd.read_csv(results_output_dir + '/peak_amplitude_events/calibrated_peak_amplitude.csv')
-# peak_amplitude_df['distance_in_km'] = peak_amplitude_df['calibrated_distance_in_km']
-# peak_amplitude_df = filter_event(peak_amplitude_df, snr_threshold=snr_threshold_transfer, min_channel=min_channel, M_threshold=M_threshold)
-# event_id_all =  peak_amplitude_df.event_id.unique()
-
-# random.seed(212)
-# N_event_fit_list = [5]#range(2, 13)
-# N_test = 5
-
-# for N_event_fit in N_event_fit_list:
-#     for i_test in range(N_test):
-#         print(f'================= {N_event_fit} to fit, {i_test}th test =====================')
-
-#         # Randomly choose a few events to fit
-#         event_id_fit, peak_amplitude_df_fit, event_id_predict, peak_amplitude_df_predict = split_fit_and_predict(N_event_fit, peak_amplitude_df)
-#         event_id_fit_P0, event_id_fit_S0 = event_id_fit, event_id_fit
-                
-#         # Transfer scaling to obtain site terms
-#         site_term_df = transfer_fitting(regP_pre, regS_pre, peak_amplitude_df_fit, weighted)
-
-#         # make output directory and output results
-#         results_output_dir = results_output_dir
-#         regression_results_dir = results_output_dir + f'/transfer_regression_test_smf{weight_text}_{min_channel}_channel_at_least'
-#         mkdir(regression_results_dir)
-        
-#         regression_results_dir = regression_results_dir + f'/{N_event_fit}_fit_events_{i_test}th_test'
-#         mkdir(regression_results_dir)
-
-#         site_term_df.to_csv(regression_results_dir + '/site_terms_transfer.csv', index=False)
-
-#         # output the event id list of fit and predict events
-#         np.savez(regression_results_dir + '/transfer_event_list.npz', 
-#             event_id_fit_P=event_id_fit_P0, event_id_fit_S=event_id_fit_S0, event_id_predict=event_id_predict)
-
-#         # also copy the regression results to the results directory
-#         shutil.copyfile(regP_pre_path, regression_results_dir + '/P_regression_combined_site_terms_transfer.pickle')
-#         shutil.copyfile(regS_pre_path, regression_results_dir + '/S_regression_combined_site_terms_transfer.pickle')
-
-
-
-
-
-# # %%
+# %%
