@@ -8,6 +8,7 @@ import statsmodels.api as sm
 
 import sys
 sys.path.append('../')
+from utility.general import mkdir
 from utility.loading import load_event_data
 
 from obspy.geodetics import locations2degrees
@@ -28,7 +29,8 @@ params = {
     'ytick.labelsize': fontsize,
     'text.usetex':False,
     'axes.facecolor': 'white',
-    'savefig.facecolor': 'white'
+    'savefig.facecolor': 'white',
+    'pdf.fonttype': 42 # Turn off text conversion to outlines
 }
 mpl.rcParams.update(params)
 
@@ -48,56 +50,32 @@ else:
 time_step = 10 # time step to measure peaks
 
 if 'ridgecrest' in region_label:
-    event_folder = '/kuafu/EventData/Ridgecrest' 
-    tt_dir = event_folder +  '/theoretical_arrival_time' 
+    event_folder = '../data_files/event_data' 
+    catalog = pd.read_csv('../data_files/catalogs/catalog_Ridgecrest.csv')
+    DAS_info = pd.read_csv('../data_files/das_info/das_info_Ridgecrest.csv')
+
+    tt_dir = event_folder
     test_event_id = 40063391 
     tt_shift_p, tt_shift_s = 0, 0
-    given_range_P = None
-    given_range_S = None
+
 
 elif 'mammoth' in region_label:
-    event_folder = '/kuafu/EventData/Mammoth_north'#'/kuafu/EventData/Mammoth_south' #'/kuafu/EventData/Ridgecrest'
-    event_folder = '/kuafu/EventData/AlumRock5.1/MammothNorth'
-    tt_dir = event_folder +  '/model_proc_tt/CVM3D' ##
+    event_folder = '../data_files/event_data' 
+    catalog = pd.read_csv('../data_files/catalogs/catalog_LongValley_N.csv')
+    DAS_info = pd.read_csv('../data_files/das_info/das_info_LongValley_N.csv')
+
+    tt_dir = event_folder
     test_event_id = 73799091 
     tt_shift_p, tt_shift_s = -3, -6.5
-    given_range_P = None
-    given_range_S = None
-
-catalog = pd.read_csv(event_folder + '/catalog.csv')
-das_waveform_path = event_folder + '/data'
-
-#%%
-# 2. Specify the array to look at
-# load the DAS array information
-DAS_info = pd.read_csv(event_folder + '/das_info.csv')
-# DAS_info = pd.read_csv('/kuafu/EventData/Mammoth_south/das_info.csv')
-# specify the directory of ML picking
-ML_picking_dir = event_folder + '/picks_phasenet_das'
-use_ML_picking = False
-if use_ML_picking:
-    picking_label='ml'
-else:
-    picking_label='vm'
 
 #%%
 # 3. Specify the coefficients to load
 # regression coefficients of the multiple array case
-results_output_dir = '/kuafu/yinjx/multi_array_combined_scaling/combined_strain_scaling_RM/'
-regression_dir = f'iter_regression_results_smf{weight_text}_100_channel_at_least'
+results_output_dir = '../iter_results'
 
-
-# # results of individual array
-# results_output_dir = '/kuafu/yinjx/Ridgecrest/Ridgecrest_scaling/peak_amplitude_scaling_results_strain_rate/'
-# regression_dir = f'iter_regression_results_smf_weighted_100_channel_at_least'
-
-# results_output_dir = '/kuafu/yinjx/LA_Google/peak_ampliutde_scaling_results_strain_rate/'
-# regression_dir = f'iter_regression_results_smf_weighted_100_channel_at_least'
-#%%
 # make figure output directory
-fig_output_dir = results_output_dir + '/' + regression_dir + '/estimated_M'
-if not os.path.exists(fig_output_dir):
-    os.mkdir(fig_output_dir)
+fig_output_dir = results_output_dir + '/estimated_M'
+mkdir(fig_output_dir)
 
 #%%
 # Load DAS channels
@@ -107,32 +85,30 @@ DAS_lon = DAS_info.longitude
 DAS_lat = DAS_info.latitude
 
 # Load the DAS data
-strain_rate, info = load_event_data(das_waveform_path, test_event_id)
+strain_rate, info = load_event_data(event_folder, test_event_id)
 if 'ridgecrest' in region_label:
     strain_rate = strain_rate#[:, DAS_index]
 else:
     strain_rate = strain_rate[:, DAS_index]
 das_dt = info['dt_s']
 nt = strain_rate.shape[0]
-
-if 'curie' in region_label:
-    das_time0 = np.arange(nt) * das_dt
-else:
-    das_time0 = np.arange(nt) * das_dt - 30
+das_time0 = np.arange(nt) * das_dt-30
 
 # Load regression results
-regP = sm.load(results_output_dir + '/' + regression_dir + f"/P_regression_combined_site_terms_iter.pickle")
-regS = sm.load(results_output_dir + '/' + regression_dir + f"/S_regression_combined_site_terms_iter.pickle")
-site_terms_df = pd.read_csv(results_output_dir + '/' + regression_dir + f"/site_terms_iter.csv")
+regP = sm.load(results_output_dir + f"/P_regression_combined_site_terms_iter.pickle")
+regS = sm.load(results_output_dir + f"/S_regression_combined_site_terms_iter.pickle")
+site_terms_df = pd.read_csv(results_output_dir + f"/site_terms_iter.csv")
 
 #%%
 # have the site term in the same shape of original data, fill nan instead
-channel_id = np.array(site_terms_df[site_terms_df.region == region_label]['channel_id'].astype('int'))
 site_terms_P = np.zeros(shape=(1, DAS_channel_num)) * np.nan
 site_terms_S = np.zeros(shape=(1, DAS_channel_num)) * np.nan
 
-site_terms_P[:, channel_id] = site_terms_df[site_terms_df.region == region_label]['site_term_P']
-site_terms_S[:, channel_id] = site_terms_df[site_terms_df.region == region_label]['site_term_S']
+site_terms_df_P_temp = site_terms_df[(site_terms_df.region == region_label) & (site_terms_df.wavetype == 'P')]
+site_terms_df_S_temp = site_terms_df[(site_terms_df.region == region_label) & (site_terms_df.wavetype == 'S')]
+
+site_terms_P[:, site_terms_df_P_temp['channel_id'].astype('int')] = site_terms_df_P_temp['site_term_P']
+site_terms_S[:, site_terms_df_S_temp['channel_id'].astype('int')] = site_terms_df_S_temp['site_term_S']
 
 if 'ridgecrest' in region_label:
     pass
@@ -142,16 +118,7 @@ else:
     site_terms_P = site_terms_P[:, np.array(DAS_index)-1]
     site_terms_S = site_terms_S[:, np.array(DAS_index)-1]
 #%%
-# load the travel time and process
-def remove_ml_tt_outliers(ML_picking, das_dt, tdiff=10, given_range=None):
-    temp = ML_picking.drop(index=ML_picking[abs(ML_picking.phase_index - ML_picking.phase_index.median())*das_dt >= tdiff].index)
-    if given_range:
-        try:
-            temp = temp[(temp.phase_index>=given_range[0]/das_dt) & (temp.phase_index<=given_range[1]/das_dt)]
-        except:
-            print('cannot specify range, skip...')
-    return temp
-
+# # load the travel time and process
 eq_info = catalog[catalog.event_id == test_event_id]
 eq_lat = eq_info.latitude # lat
 eq_lon = eq_info.longitude # lon
@@ -164,94 +131,21 @@ distance_to_source = locations2degrees(DAS_lat, DAS_lon, eq_lat, eq_lon) * 113 #
 distance_to_source = np.sqrt(eq_info.iloc[0, :].depth_km**2 + distance_to_source**2)
 distance_to_source = distance_to_source[np.newaxis, :]
 
-# First try ML picking if specified, or turn to theoretical TT
-if use_ML_picking: #TODO: check why there is an obvious difference of picking
-    tt_tp = np.zeros(shape=(1, DAS_channel_num))*np.nan
-    tt_ts = tt_tp.copy()
-    try:
-        ML_picking = pd.read_csv(ML_picking_dir + f'/{test_event_id}.csv')
-        if 'mammoth' in region_label:
-            ML_picking = ML_picking[ML_picking.channel_index.isin(DAS_index)]
+cvm_tt = pd.read_csv(tt_dir + f'/tt_{test_event_id}.csv')
+tt_tp = np.array(cvm_tt.P_arrival)
+tt_tp = tt_tp[np.newaxis, :]
+tt_ts = np.array(cvm_tt.S_arrival)
+tt_ts = tt_ts[np.newaxis, :]
 
-        ML_picking_P = ML_picking[ML_picking.phase_type == 'P']
-        ML_picking_S = ML_picking[ML_picking.phase_type == 'S']
-        ML_picking_P = remove_ml_tt_outliers(ML_picking_P, das_dt, tdiff=5, given_range=given_range_P)
-        ML_picking_S = remove_ml_tt_outliers(ML_picking_S, das_dt, tdiff=20, given_range=given_range_S)
-
-        tt_tp[0, ML_picking_P.channel_index] = das_time0[ML_picking_P.phase_index]
-        tt_ts[0, ML_picking_S.channel_index] = das_time0[ML_picking_S.phase_index]
-
-    except:
-        print("didn't find ML picking, use theoretical tt instead...")
-        use_ML_picking = False
-        picking_label = 'vm'
-
-    if 'arcata' in region_label:
-        tt_tp = tt_tp[:, np.array(DAS_index)-1]
-        tt_tp = tt_tp[:, np.array(DAS_index)-1]
-
-if not use_ML_picking:            
-    # theoretical travel time 
-    if 'mammoth' in region_label:
-        cvm_tt = pd.read_csv(tt_dir + f'/{test_event_id}.csv')
-        tt_tp = np.array(cvm_tt.tp)
-        tt_tp = tt_tp[np.newaxis, :]
-        tt_ts = np.array(cvm_tt.ts)
-        tt_ts = tt_ts[np.newaxis, :]
-
-        # For travel time from velocity model, may need some manual correction
-        tt_tp= tt_tp+tt_shift_p 
-        tt_ts= tt_ts+tt_shift_s
-
-    elif ('ridgecrest' in region_label):
-        cvm_tt = pd.read_csv(tt_dir + f'/1D_tt_{test_event_id}.csv')
-        tt_tp = np.array(cvm_tt.P_arrival)-30
-        tt_tp = tt_tp[np.newaxis, :]
-        tt_ts = np.array(cvm_tt.S_arrival)-30
-        tt_ts = tt_ts[np.newaxis, :]
-
-        # For travel time from velocity model, may need some manual correction
-        tt_tp= tt_tp+tt_shift_p 
-        tt_ts= tt_ts+tt_shift_s
-
-    elif ('arcata' in region_label):
-        cvm_tt = pd.read_csv(tt_dir + f'/1D_tt_{test_event_id}.csv')
-        tt_tp = np.array(cvm_tt.P_arrival)-30
-        tt_tp = tt_tp[np.newaxis, :]
-        tt_ts = np.array(cvm_tt.S_arrival)-30
-        tt_ts = tt_ts[np.newaxis, :]
-
-        # For travel time from velocity model, may need some manual correction
-        tt_tp= tt_tp+tt_shift_p 
-        tt_ts= tt_ts+tt_shift_s
-
-    elif ('curie' in region_label):
-        cvm_tt = pd.read_csv(tt_dir + f'/1D_tt_{test_event_id}.csv')
-        tt_tp = np.array(cvm_tt.P_arrival)
-        tt_tp = tt_tp[np.newaxis, :]
-        tt_ts = np.array(cvm_tt.S_arrival)
-        tt_ts = tt_ts[np.newaxis, :]
-
-        # For travel time from velocity model, may need some manual correction
-        tt_tp= tt_tp+tt_shift_p 
-        tt_ts= tt_ts+tt_shift_s
-
-    elif 'Google' in region_label:
-        cvm_tt = pd.read_csv(tt_dir + f'/1D_tt_{test_event_id}.csv')
-        tt_tp = np.array(cvm_tt.P_arrival)
-        tt_tp = tt_tp[np.newaxis, :]
-        tt_ts = np.array(cvm_tt.S_arrival)
-        tt_ts = tt_ts[np.newaxis, :]
-        # For Google data, there may be some time drift that needs to be corrected
-        tt_tp= tt_tp+tt_shift_p 
-        tt_ts= tt_ts+tt_shift_s
+# For travel time from velocity model, may need some manual correction
+tt_tp= tt_tp+tt_shift_p 
+tt_ts= tt_ts+tt_shift_s
 
 # Some DUMP process to handle the arrival time
 tt_tp_temp = tt_tp.copy()
 tt_tp_temp[np.isnan(tt_tp_temp)]=1e10
 tt_ts_temp = tt_ts.copy()
 tt_ts_temp[np.isnan(tt_ts_temp)]=1e10
-
 
 #%%
 #extract peak amplitude based on the phase arrival time
@@ -263,7 +157,6 @@ strain_rate_clipped_P[(das_time1>tt_tp_temp+2)] = np.nan
 strain_rate_clipped_S = strain_rate.copy()
 strain_rate_clipped_S[(das_time1<tt_ts_temp)] = np.nan
 strain_rate_clipped_S[(das_time1>tt_ts_temp+2)] = np.nan
-
 
 data_peak_mat_P = np.zeros((np.ceil(strain_rate.shape[0]/time_step).astype('int'), strain_rate.shape[1]))
 data_peak_mat_S = np.zeros((np.ceil(strain_rate.shape[0]/time_step).astype('int'), strain_rate.shape[1]))
@@ -289,7 +182,6 @@ std_mag_S = np.nanstd(mag_estimate_S, axis=1)
 # combine both P and S to give final magnitude 
 das_time_mat = das_time[:, np.newaxis]
 mag_estimate_final = mag_estimate_P.copy()
-# mag_estimate_final[das_time_mat>=cvm_tt_ts] = mag_estimate_S[das_time_mat>=cvm_tt_ts]
 mag_estimate_final = np.nanmedian(np.array([mag_estimate_P, mag_estimate_S]), axis=0)
 
 median_mag = np.nanmedian(mag_estimate_final, axis=1)
@@ -307,7 +199,12 @@ else:
     time_rang_show[0] = np.nanmin(tt_tp)-3
 if not np.isnan(np.nanmax(tt_ts)):
     time_rang_show[1] = np.nanmedian(tt_ts)+10
-time_rang_show = [30, 75]
+    
+if test_event_id == 40063391:
+    time_rang_show = [1, 10]
+if test_event_id == 73799091:
+    time_rang_show = [30, 75]
+
 mpl.rcParams.update(params)
 fig, ax = plt.subplots(3, 1, figsize=(8,16))
 # Strain
@@ -318,10 +215,6 @@ clb = gca.imshow(strain_rate.T,
             extent=[das_time0[0], das_time0[-1], mag_estimate_P.shape[1], 0],
             aspect='auto', vmin=-clipVal, vmax=clipVal, cmap=plt.get_cmap('seismic'), interpolation='none')
 
-# if use_ML_picking:
-#     gca.plot(tt_tp[0, ML_picking_P.channel_index], ML_picking_P.channel_index, '-k', linewidth=4)
-#     gca.plot(tt_ts[0, ML_picking_S.channel_index], ML_picking_S.channel_index, '-k', linewidth=4)
-# else:
 gca.plot(tt_tp.flatten(), np.arange(tt_tp.shape[1]), '--k', linewidth=2, label='P')
 gca.plot(tt_ts.flatten(), np.arange(tt_ts.shape[1]), '-k', linewidth=2, label='S')
 
@@ -393,9 +286,6 @@ for ii in range(0, 3):
     ax[ii].annotate(f'({letter_list[k]})', xy=(-0.1, 1.0), xycoords=ax[ii].transAxes)
     k+=1
 
-plt.savefig(fig_output_dir + f'/{region_label}_{test_event_id}_estimated_mag_image_{picking_label}.png', bbox_inches='tight')
-plt.savefig(fig_output_dir + f'/{region_label}_{test_event_id}_estimated_mag_image_{picking_label}.pdf', bbox_inches='tight')
-# fig.tight_layout()
-
+plt.savefig(fig_output_dir + f'/{region_label}_{test_event_id}_estimated_mag.png', bbox_inches='tight')
 
 # %%
