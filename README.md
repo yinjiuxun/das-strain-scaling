@@ -6,7 +6,7 @@ Data can be downloaded from Caltech DATA: https://doi.org/10.22002/rxtp0-38405
 The scripts for regression are in the folder ./regression
 Scripts for results validation and visualization are in the folder ./validation_prediction
 
-## 1. Download the data from Caltech DATA: https://doi.org/10.22002/rxtp0-38405, upzip it and rename to data_files in the current directory
+## 1. Download the data from Caltech DATA: https://data.caltech.edu/records/sk6em-th949, upzip it and rename to data_files in the current directory
 
 ## 2. Download the utility folder, which constains the modules and functions, from https://github.com/yinjiuxun/DASscaling-modules. Move the utility folder to the current folder.
 
